@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@200;300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 5%;
+  --border: 0 0% 88%;
+  --input: 0 0% 88%;
+  --ring: 142 100% 45%;
+  --primary: 0 0% 5%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 8%;
+  --muted: 0 0% 94%;
+  --muted-foreground: 0 0% 40%;
+  --accent-green: #166534;
+  --accent-green-glow: rgba(22, 101, 52, 0.25);
+  --font-serif: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  background-color: #FAFAFA;
+  color: #0A0A0C;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+::selection {
+  background-color: #166534;
+  color: #FFFFFF;
+}
+
+.text-creator-green {
+  color: #166534;
+}
+
+.bg-creator-green {
+  background-color: #166534;
+}
+
+.border-creator-green {
+  border-color: #166534;
+}
+
+/* Smooth editorial image fades */
+.editorial-img-container {
+  overflow: hidden;
+  position: relative;
+}
+
+.editorial-img-container img {
+  transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.8s ease;
+}
+
+.editorial-img-container:hover img {
+  transform: scale(1.04);
+}
+
+

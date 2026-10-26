@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 240 10% 4%;
+  --foreground: 0 0% 95%;
+  --font-space-grotesk: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'Space Grotesk', monospace;
+}
+
+@layer base {
+  *, ::before, ::after {
+    font-family: 'Space Grotesk', var(--font-space-grotesk), -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  
+  body, html {
+    font-family: 'Space Grotesk', var(--font-space-grotesk), -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #09090B;
+    color: #F4F4F5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  input, button, select, textarea {
+    font-family: inherit;
+  }
+}
+
+::selection {
+  background-color: #27272A;
+  color: #FAFAFA;
+}
