@@ -1,11 +1,11 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Truck, ArrowRight, Sparkles, AlertCircle, Shield } from 'lucide-react'
 import { createBrowserClient } from '@repo/supabase/browser'
 
-export default function LuxuryDeliveryLoginPage() {
+function DeliveryLoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirectTo') || '/assigned-deliveries'
@@ -166,5 +166,13 @@ export default function LuxuryDeliveryLoginPage() {
         <span>Role Guard: users.role = &apos;delivery&apos;</span>
       </p>
     </div>
+  )
+}
+
+export default function LuxuryDeliveryLoginPage() {
+  return (
+    <Suspense fallback={<div className="py-24 text-center text-xs font-mono text-neutral-400">Loading Courier Portal...</div>}>
+      <DeliveryLoginContent />
+    </Suspense>
   )
 }

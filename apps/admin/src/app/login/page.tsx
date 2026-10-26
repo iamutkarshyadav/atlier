@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowRight, CheckCircle2, AlertCircle, Shield, Lock } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { createBrowserClient } from '@repo/supabase/browser'
 
-export default function SimpleAdminLoginPage() {
+function AdminLoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirectTo') || '/dashboard'
@@ -167,5 +167,13 @@ export default function SimpleAdminLoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SimpleAdminLoginPage() {
+  return (
+    <Suspense fallback={<div className="py-24 text-center text-xs font-mono text-neutral-400">Loading Sovereign Gate...</div>}>
+      <AdminLoginContent />
+    </Suspense>
   )
 }
