@@ -69,7 +69,7 @@ async function runClothingSeed() {
   console.log('--- 3. Upserting Premier Creator Apparel Catalog ---')
   const products = [
     {
-      id: 'p1000000-0000-0000-0000-000000000001',
+      id: 'b1000000-0000-0000-0000-000000000001',
       title: 'Heavyweight Boxy Hoodie',
       description: 'Custom-milled 480 GSM loopback organic French Terry. Engineered with an exaggerated dropped shoulder, double-layered architectural hood, and concealed side-seam pockets. Mineral washed for a vintage drape.',
       price: 165.00,
@@ -81,7 +81,7 @@ async function runClothingSeed() {
       edition: 'Drop 01 // Limited 150 Pieces'
     },
     {
-      id: 'p1000000-0000-0000-0000-000000000002',
+      id: 'b1000000-0000-0000-0000-000000000002',
       title: 'Vintage Washed Boxy Tee',
       description: '280 GSM heavyweight combed cotton jersey with distressed neck ribbing and raw edge blind hem. Sun-faded wash treatment creates individual character on every piece.',
       price: 75.00,
@@ -93,7 +93,7 @@ async function runClothingSeed() {
       edition: 'Drop 01 // Core Essential'
     },
     {
-      id: 'p1000000-0000-0000-0000-000000000003',
+      id: 'b1000000-0000-0000-0000-000000000003',
       title: 'Cropped Weatherproof Flight Bomber',
       description: 'High-density technical nylon shell with quilted synthetic insulation. Cropped torso silhouette with elongated sleeves and custom matte nickel two-way zipper hardware.',
       price: 285.00,
@@ -105,7 +105,7 @@ async function runClothingSeed() {
       edition: 'Drop 01 // Archive Edition of 60'
     },
     {
-      id: 'p1000000-0000-0000-0000-000000000004',
+      id: 'b1000000-0000-0000-0000-000000000004',
       title: 'Pleated Selvedge Carpenter Pant',
       description: 'Cut from 14oz shuttle-loomed Japanese raw black selvedge denim. Double front pleats create an elegant wide drape falling straight over chunky footwear.',
       price: 210.00,
@@ -117,7 +117,7 @@ async function runClothingSeed() {
       edition: 'Drop 01 // Strict Edition of 80'
     },
     {
-      id: 'p1000000-0000-0000-0000-000000000005',
+      id: 'b1000000-0000-0000-0000-000000000005',
       title: 'Architectural Raw Linen Smock',
       description: 'Hand-loomed 380 GSM Belgian flax linen with flat-felled French seams, wide kimono-cut sleeves, and natural horn button closures.',
       price: 240.00,
@@ -129,7 +129,7 @@ async function runClothingSeed() {
       edition: 'Creator Atelier Spec 05'
     },
     {
-      id: 'p1000000-0000-0000-0000-000000000006',
+      id: 'b1000000-0000-0000-0000-000000000006',
       title: 'Relaxed Flared Minimalist Track Pant',
       description: 'Custom 400 GSM double-knit jersey with center front pinch pleat and hidden zip ankle vents. Elasticized drawcord waist with custom metal aglets.',
       price: 145.00,
@@ -151,40 +151,40 @@ async function runClothingSeed() {
   console.log('--- 4. Inserting Clothing Size Variants ---')
   const variants = [
     // Heavyweight Boxy Hoodie (XS, S, M, L, XL)
-    { product_id: 'p1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-XS', size: 'XS', color: 'Faded Onyx', stock: 10 },
-    { product_id: 'p1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-S',  size: 'S',  color: 'Faded Onyx', stock: 25 },
-    { product_id: 'p1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-M',  size: 'M',  color: 'Faded Onyx', stock: 45 },
-    { product_id: 'p1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-L',  size: 'L',  color: 'Faded Onyx', stock: 25 },
-    { product_id: 'p1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-XL', size: 'XL', color: 'Faded Onyx', stock: 10 },
+    { product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-XS', size: 'XS', color: 'Faded Onyx', stock: 10 },
+    { product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-S',  size: 'S',  color: 'Faded Onyx', stock: 25 },
+    { product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-M',  size: 'M',  color: 'Faded Onyx', stock: 45 },
+    { product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-L',  size: 'L',  color: 'Faded Onyx', stock: 25 },
+    { product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-XL', size: 'XL', color: 'Faded Onyx', stock: 10 },
 
     // Vintage Washed Boxy Tee (XS, S, M, L, XL)
-    { product_id: 'p1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-XS', size: 'XS', color: 'Chalk White', stock: 15 },
-    { product_id: 'p1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-S',  size: 'S',  color: 'Chalk White', stock: 30 },
-    { product_id: 'p1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-M',  size: 'M',  color: 'Chalk White', stock: 50 },
-    { product_id: 'p1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-L',  size: 'L',  color: 'Chalk White', stock: 35 },
-    { product_id: 'p1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-XL', size: 'XL', color: 'Chalk White', stock: 10 },
+    { product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-XS', size: 'XS', color: 'Chalk White', stock: 15 },
+    { product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-S',  size: 'S',  color: 'Chalk White', stock: 30 },
+    { product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-M',  size: 'M',  color: 'Chalk White', stock: 50 },
+    { product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-L',  size: 'L',  color: 'Chalk White', stock: 35 },
+    { product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-XL', size: 'XL', color: 'Chalk White', stock: 10 },
 
     // Cropped Flight Bomber (S, M, L, XL)
-    { product_id: 'p1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-S',  size: 'S',  color: 'Pitch Black', stock: 10 },
-    { product_id: 'p1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-M',  size: 'M',  color: 'Pitch Black', stock: 25 },
-    { product_id: 'p1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-L',  size: 'L',  color: 'Pitch Black', stock: 15 },
-    { product_id: 'p1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-XL', size: 'XL', color: 'Pitch Black', stock: 5 },
+    { product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-S',  size: 'S',  color: 'Pitch Black', stock: 10 },
+    { product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-M',  size: 'M',  color: 'Pitch Black', stock: 25 },
+    { product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-L',  size: 'L',  color: 'Pitch Black', stock: 15 },
+    { product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-XL', size: 'XL', color: 'Pitch Black', stock: 5 },
 
     // Pleated Carpenter Pant (30, 32, 34, 36)
-    { product_id: 'p1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-30', size: '30', color: 'Raw Black', stock: 15 },
-    { product_id: 'p1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-32', size: '32', color: 'Raw Black', stock: 30 },
-    { product_id: 'p1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-34', size: '34', color: 'Raw Black', stock: 20 },
-    { product_id: 'p1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-36', size: '36', color: 'Raw Black', stock: 10 },
+    { product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-30', size: '30', color: 'Raw Black', stock: 15 },
+    { product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-32', size: '32', color: 'Raw Black', stock: 30 },
+    { product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-34', size: '34', color: 'Raw Black', stock: 20 },
+    { product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-36', size: '36', color: 'Raw Black', stock: 10 },
 
     // Architectural Raw Linen Smock (Taille 01, Taille 02)
-    { product_id: 'p1000000-0000-0000-0000-000000000005', sku: 'SMK-LNN-T1', size: 'Taille 01 (S/M)', color: 'Natural Ecru', stock: 20 },
-    { product_id: 'p1000000-0000-0000-0000-000000000005', sku: 'SMK-LNN-T2', size: 'Taille 02 (L/XL)', color: 'Natural Ecru', stock: 25 },
+    { product_id: 'b1000000-0000-0000-0000-000000000005', sku: 'SMK-LNN-T1', size: 'Taille 01 (S/M)', color: 'Natural Ecru', stock: 20 },
+    { product_id: 'b1000000-0000-0000-0000-000000000005', sku: 'SMK-LNN-T2', size: 'Taille 02 (L/XL)', color: 'Natural Ecru', stock: 25 },
 
     // Relaxed Flared Minimalist Track Pant (S, M, L, XL)
-    { product_id: 'p1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-S',  size: 'S',  color: 'Washed Ink', stock: 15 },
-    { product_id: 'p1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-M',  size: 'M',  color: 'Washed Ink', stock: 35 },
-    { product_id: 'p1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-L',  size: 'L',  color: 'Washed Ink', stock: 20 },
-    { product_id: 'p1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-XL', size: 'XL', color: 'Washed Ink', stock: 10 }
+    { product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-S',  size: 'S',  color: 'Washed Ink', stock: 15 },
+    { product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-M',  size: 'M',  color: 'Washed Ink', stock: 35 },
+    { product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-L',  size: 'L',  color: 'Washed Ink', stock: 20 },
+    { product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-XL', size: 'XL', color: 'Washed Ink', stock: 10 }
   ]
 
   for (const v of variants) {
@@ -205,7 +205,7 @@ async function runClothingSeed() {
         ctaLabel: 'SHOP DROP 01',
         ctaLink: '/shop',
         secondaryCategory: 'Hoodies & Fleece',
-        featuredProductId: 'p1000000-0000-0000-0000-000000000001'
+        featuredProductId: 'b1000000-0000-0000-0000-000000000001'
       },
       description: 'Storefront Creator Apparel Hero Section'
     },

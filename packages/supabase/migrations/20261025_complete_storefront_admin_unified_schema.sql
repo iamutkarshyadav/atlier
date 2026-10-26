@@ -472,7 +472,7 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Guest Patron
 INSERT INTO public.users (id, role, name, email, phone)
-VALUES ('u0000000-0000-0000-0000-000000000001', 'customer', 'Alex Rivera', 'alex.rivera@atelier.com', '+1 (415) 555-0192')
+VALUES ('a0000000-0000-0000-0000-000000000001', 'customer', 'Alex Rivera', 'alex.rivera@atelier.com', '+1 (415) 555-0192')
 ON CONFLICT (id) DO NOTHING;
 
 -- Categories
@@ -487,28 +487,28 @@ ON CONFLICT (id) DO NOTHING;
 -- Core Products
 INSERT INTO public.products (id, title, description, price, stock, image_url, category_id, category, material, edition)
 VALUES
-  ('p1000000-0000-0000-0000-000000000001', 'Heavyweight Boxy Hoodie', 'Custom-milled 480 GSM loopback organic French Terry.', 165.00, 115, 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85', 'c1000000-0000-0000-0000-000000000001', 'Hoodies & Fleece', '480 GSM 100% Organic Cotton French Terry', 'Drop 01 // Limited 150 Pieces'),
-  ('p1000000-0000-0000-0000-000000000002', 'Vintage Washed Boxy Tee', '280 GSM heavyweight combed cotton jersey with distressed neck ribbing.', 75.00, 140, 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85', 'c1000000-0000-0000-0000-000000000002', 'Tees & Tops', '280 GSM Combed Cotton with Vintage Enzymatic Wash', 'Drop 01 // Core Essential'),
-  ('p1000000-0000-0000-0000-000000000003', 'Cropped Weatherproof Flight Bomber', 'High-density technical nylon shell with quilted synthetic insulation.', 285.00, 55, 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1200&q=85', 'c1000000-0000-0000-0000-000000000003', 'Outerwear & Jackets', 'Matte Technical Nylon Shell & Primaloft Insulation', 'Drop 01 // Archive Edition of 60'),
-  ('p1000000-0000-0000-0000-000000000004', 'Pleated Selvedge Carpenter Pant', 'Cut from 14oz shuttle-loomed Japanese raw black selvedge denim.', 210.00, 75, 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=1200&q=85', 'c1000000-0000-0000-0000-000000000004', 'Pants & Denim', '14oz Japanese Selvedge Cotton Denim', 'Drop 01 // Strict Edition of 80')
+  ('b1000000-0000-0000-0000-000000000001', 'Heavyweight Boxy Hoodie', 'Custom-milled 480 GSM loopback organic French Terry.', 165.00, 115, 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85', 'c1000000-0000-0000-0000-000000000001', 'Hoodies & Fleece', '480 GSM 100% Organic Cotton French Terry', 'Drop 01 // Limited 150 Pieces'),
+  ('b1000000-0000-0000-0000-000000000002', 'Vintage Washed Boxy Tee', '280 GSM heavyweight combed cotton jersey with distressed neck ribbing.', 75.00, 140, 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85', 'c1000000-0000-0000-0000-000000000002', 'Tees & Tops', '280 GSM Combed Cotton with Vintage Enzymatic Wash', 'Drop 01 // Core Essential'),
+  ('b1000000-0000-0000-0000-000000000003', 'Cropped Weatherproof Flight Bomber', 'High-density technical nylon shell with quilted synthetic insulation.', 285.00, 55, 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1200&q=85', 'c1000000-0000-0000-0000-000000000003', 'Outerwear & Jackets', 'Matte Technical Nylon Shell & Primaloft Insulation', 'Drop 01 // Archive Edition of 60'),
+  ('b1000000-0000-0000-0000-000000000004', 'Pleated Selvedge Carpenter Pant', 'Cut from 14oz shuttle-loomed Japanese raw black selvedge denim.', 210.00, 75, 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=1200&q=85', 'c1000000-0000-0000-0000-000000000004', 'Pants & Denim', '14oz Japanese Selvedge Cotton Denim', 'Drop 01 // Strict Edition of 80')
 ON CONFLICT (id) DO NOTHING;
 
 -- Variants for Heavyweight Boxy Hoodie
 INSERT INTO public.product_variants (id, product_id, sku, size, stock, barcode, barcode_data)
 VALUES
-  ('v1000000-0000-0000-0000-000000000001', 'p1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-XS', 'XS', 10, 'BAR-HDBOXBLKXS', 'BAR-HDBOXBLKXS'),
-  ('v1000000-0000-0000-0000-000000000002', 'p1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-S', 'S', 25, 'BAR-HDBOXBLKS', 'BAR-HDBOXBLKS'),
-  ('v1000000-0000-0000-0000-000000000003', 'p1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-M', 'M', 45, 'BAR-HDBOXBLKM', 'BAR-HDBOXBLKM'),
-  ('v1000000-0000-0000-0000-000000000004', 'p1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-L', 'L', 25, 'BAR-HDBOXBLKL', 'BAR-HDBOXBLKL'),
-  ('v1000000-0000-0000-0000-000000000005', 'p1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-XL', 'XL', 10, 'BAR-HDBOXBLKXL', 'BAR-HDBOXBLKXL')
+  ('e1000000-0000-0000-0000-000000000001', 'b1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-XS', 'XS', 10, 'BAR-HDBOXBLKXS', 'BAR-HDBOXBLKXS'),
+  ('e1000000-0000-0000-0000-000000000002', 'b1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-S', 'S', 25, 'BAR-HDBOXBLKS', 'BAR-HDBOXBLKS'),
+  ('e1000000-0000-0000-0000-000000000003', 'b1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-M', 'M', 45, 'BAR-HDBOXBLKM', 'BAR-HDBOXBLKM'),
+  ('e1000000-0000-0000-0000-000000000004', 'b1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-L', 'L', 25, 'BAR-HDBOXBLKL', 'BAR-HDBOXBLKL'),
+  ('e1000000-0000-0000-0000-000000000005', 'b1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-XL', 'XL', 10, 'BAR-HDBOXBLKXL', 'BAR-HDBOXBLKXL')
 ON CONFLICT (sku) DO NOTHING;
 
 -- Variants for Vintage Washed Boxy Tee
 INSERT INTO public.product_variants (id, product_id, sku, size, stock, barcode, barcode_data)
 VALUES
-  ('v1000000-0000-0000-0000-000000000006', 'p1000000-0000-0000-0000-000000000002', 'TEE-VN-GRY-XS', 'XS', 15, 'BAR-TEEVNGRYXS', 'BAR-TEEVNGRYXS'),
-  ('v1000000-0000-0000-0000-000000000007', 'p1000000-0000-0000-0000-000000000002', 'TEE-VN-GRY-S', 'S', 30, 'BAR-TEEVNGRYS', 'BAR-TEEVNGRYS'),
-  ('v1000000-0000-0000-0000-000000000008', 'p1000000-0000-0000-0000-000000000002', 'TEE-VN-GRY-M', 'M', 50, 'BAR-TEEVNGRYM', 'BAR-TEEVNGRYM'),
-  ('v1000000-0000-0000-0000-000000000009', 'p1000000-0000-0000-0000-000000000002', 'TEE-VN-GRY-L', 'L', 30, 'BAR-TEEVNGRYL', 'BAR-TEEVNGRYL'),
-  ('v1000000-0000-0000-0000-000000000010', 'p1000000-0000-0000-0000-000000000002', 'TEE-VN-GRY-XL', 'XL', 15, 'BAR-TEEVNGRYXL', 'BAR-TEEVNGRYXL')
+  ('e1000000-0000-0000-0000-000000000006', 'b1000000-0000-0000-0000-000000000002', 'TEE-VN-GRY-XS', 'XS', 15, 'BAR-TEEVNGRYXS', 'BAR-TEEVNGRYXS'),
+  ('e1000000-0000-0000-0000-000000000007', 'b1000000-0000-0000-0000-000000000002', 'TEE-VN-GRY-S', 'S', 30, 'BAR-TEEVNGRYS', 'BAR-TEEVNGRYS'),
+  ('e1000000-0000-0000-0000-000000000008', 'b1000000-0000-0000-0000-000000000002', 'TEE-VN-GRY-M', 'M', 50, 'BAR-TEEVNGRYM', 'BAR-TEEVNGRYM'),
+  ('e1000000-0000-0000-0000-000000000009', 'b1000000-0000-0000-0000-000000000002', 'TEE-VN-GRY-L', 'L', 30, 'BAR-TEEVNGRYL', 'BAR-TEEVNGRYL'),
+  ('e1000000-0000-0000-0000-000000000010', 'b1000000-0000-0000-0000-000000000002', 'TEE-VN-GRY-XL', 'XL', 15, 'BAR-TEEVNGRYXL', 'BAR-TEEVNGRYXL')
 ON CONFLICT (sku) DO NOTHING;

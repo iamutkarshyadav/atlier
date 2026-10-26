@@ -449,7 +449,7 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO public.products (id, title, description, price, stock, image_url, category_id, category, material, edition)
 VALUES
   (
-    'p1000000-0000-0000-0000-000000000001',
+    'b1000000-0000-0000-0000-000000000001',
     'Heavyweight Boxy Hoodie',
     'Custom-milled 480 GSM loopback organic French Terry. Engineered with an exaggerated dropped shoulder, double-layered architectural hood, and concealed side-seam pockets. Mineral washed for a vintage drape.',
     165.00,
@@ -461,7 +461,7 @@ VALUES
     'Drop 01 // Limited 150 Pieces'
   ),
   (
-    'p1000000-0000-0000-0000-000000000002',
+    'b1000000-0000-0000-0000-000000000002',
     'Vintage Washed Boxy Tee',
     '280 GSM heavyweight combed cotton jersey with distressed neck ribbing and raw edge blind hem. Sun-faded wash treatment creates individual character on every piece.',
     75.00,
@@ -473,7 +473,7 @@ VALUES
     'Drop 01 // Core Essential'
   ),
   (
-    'p1000000-0000-0000-0000-000000000003',
+    'b1000000-0000-0000-0000-000000000003',
     'Cropped Weatherproof Flight Bomber',
     'High-density technical nylon shell with quilted synthetic insulation. Cropped torso silhouette with elongated sleeves and custom matte nickel two-way zipper hardware.',
     285.00,
@@ -485,7 +485,7 @@ VALUES
     'Drop 01 // Archive Edition of 60'
   ),
   (
-    'p1000000-0000-0000-0000-000000000004',
+    'b1000000-0000-0000-0000-000000000004',
     'Pleated Selvedge Carpenter Pant',
     'Cut from 14oz shuttle-loomed Japanese raw black selvedge denim. Double front pleats create an elegant wide drape falling straight over chunky footwear.',
     210.00,
@@ -497,7 +497,7 @@ VALUES
     'Drop 01 // Strict Edition of 80'
   ),
   (
-    'p1000000-0000-0000-0000-000000000005',
+    'b1000000-0000-0000-0000-000000000005',
     'Architectural Raw Linen Smock',
     'Hand-loomed 380 GSM Belgian flax linen with flat-felled French seams, wide kimono-cut sleeves, and natural horn button closures.',
     240.00,
@@ -509,7 +509,7 @@ VALUES
     'Creator Atelier Spec 05'
   ),
   (
-    'p1000000-0000-0000-0000-000000000006',
+    'b1000000-0000-0000-0000-000000000006',
     'Relaxed Flared Minimalist Track Pant',
     'Custom 400 GSM double-knit jersey with center front pinch pleat and hidden zip ankle vents. Elasticized drawcord waist with custom metal aglets.',
     145.00,

@@ -113,7 +113,7 @@ export default function LuxuryCheckoutPage() {
         data: { session },
       } = await supabase.auth.getSession()
 
-      const currentUserId = session?.user?.id || 'u0000000-0000-0000-0000-000000000001'
+      const currentUserId = session?.user?.id || 'a0000000-0000-0000-0000-000000000001'
 
       // 1. Record patron address in dedicated public.addresses table
       try {

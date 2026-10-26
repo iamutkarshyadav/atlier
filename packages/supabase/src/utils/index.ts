@@ -82,7 +82,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
 
 export const DEFAULT_PRODUCTS: Product[] = [
   {
-    id: 'p1000000-0000-0000-0000-000000000001',
+    id: 'b1000000-0000-0000-0000-000000000001',
     title: 'Heavyweight Boxy Hoodie',
     description: 'Custom-milled 480 GSM loopback organic French Terry. Engineered with an exaggerated dropped shoulder, double-layered architectural hood, and concealed side-seam pockets. Mineral washed for a vintage drape.',
     price: 165.0,
@@ -97,7 +97,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'p1000000-0000-0000-0000-000000000002',
+    id: 'b1000000-0000-0000-0000-000000000002',
     title: 'Vintage Washed Boxy Tee',
     description: '280 GSM heavyweight combed cotton jersey with distressed neck ribbing and raw edge blind hem. Sun-faded wash treatment creates individual character on every piece.',
     price: 75.0,
@@ -112,7 +112,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'p1000000-0000-0000-0000-000000000003',
+    id: 'b1000000-0000-0000-0000-000000000003',
     title: 'Cropped Weatherproof Flight Bomber',
     description: 'High-density technical nylon shell with quilted synthetic insulation. Cropped torso silhouette with elongated sleeves and custom matte nickel two-way zipper hardware.',
     price: 285.0,
@@ -127,7 +127,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'p1000000-0000-0000-0000-000000000004',
+    id: 'b1000000-0000-0000-0000-000000000004',
     title: 'Pleated Selvedge Carpenter Pant',
     description: 'Cut from 14oz shuttle-loomed Japanese raw black selvedge denim. Double front pleats create an elegant wide drape falling straight over chunky footwear.',
     price: 210.0,
@@ -142,7 +142,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'p1000000-0000-0000-0000-000000000005',
+    id: 'b1000000-0000-0000-0000-000000000005',
     title: 'Architectural Raw Linen Smock',
     description: 'Hand-loomed 380 GSM Belgian flax linen with flat-felled French seams, wide kimono-cut sleeves, and natural horn button closures.',
     price: 240.0,
@@ -157,7 +157,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'p1000000-0000-0000-0000-000000000006',
+    id: 'b1000000-0000-0000-0000-000000000006',
     title: 'Relaxed Flared Minimalist Track Pant',
     description: 'Custom 400 GSM double-knit jersey with center front pinch pleat and hidden zip ankle vents. Elasticized drawcord waist with custom metal aglets.',
     price: 145.0,
@@ -175,47 +175,47 @@ export const DEFAULT_PRODUCTS: Product[] = [
 
 export const DEFAULT_PRODUCT_VARIANTS: ProductVariant[] = [
   // Heavyweight Boxy Hoodie
-  { id: 'v101', product_id: 'p1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-XS', size: 'XS', color: 'Faded Onyx', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 850, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v102', product_id: 'p1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-S',  size: 'S',  color: 'Faded Onyx', stock: 25, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 870, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v103', product_id: 'p1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-M',  size: 'M',  color: 'Faded Onyx', stock: 45, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 900, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v104', product_id: 'p1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-L',  size: 'L',  color: 'Faded Onyx', stock: 25, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 930, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v105', product_id: 'p1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-XL', size: 'XL', color: 'Faded Onyx', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 960, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v101', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-XS', size: 'XS', color: 'Faded Onyx', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 850, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v102', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-S',  size: 'S',  color: 'Faded Onyx', stock: 25, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 870, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v103', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-M',  size: 'M',  color: 'Faded Onyx', stock: 45, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 900, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v104', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-L',  size: 'L',  color: 'Faded Onyx', stock: 25, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 930, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v105', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-XL', size: 'XL', color: 'Faded Onyx', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 960, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 
   // Vintage Washed Boxy Tee
-  { id: 'v201', product_id: 'p1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-XS', size: 'XS', color: 'Chalk White', stock: 15, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 310, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v202', product_id: 'p1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-S',  size: 'S',  color: 'Chalk White', stock: 30, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 325, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v203', product_id: 'p1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-M',  size: 'M',  color: 'Chalk White', stock: 50, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 340, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v204', product_id: 'p1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-L',  size: 'L',  color: 'Chalk White', stock: 35, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 355, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v205', product_id: 'p1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-XL', size: 'XL', color: 'Chalk White', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 370, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v201', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-XS', size: 'XS', color: 'Chalk White', stock: 15, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 310, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v202', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-S',  size: 'S',  color: 'Chalk White', stock: 30, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 325, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v203', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-M',  size: 'M',  color: 'Chalk White', stock: 50, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 340, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v204', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-L',  size: 'L',  color: 'Chalk White', stock: 35, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 355, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v205', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-XL', size: 'XL', color: 'Chalk White', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 370, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 
   // Cropped Flight Bomber
-  { id: 'v301', product_id: 'p1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-S',  size: 'S',  color: 'Pitch Black', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 1100, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v302', product_id: 'p1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-M',  size: 'M',  color: 'Pitch Black', stock: 25, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 1150, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v303', product_id: 'p1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-L',  size: 'L',  color: 'Pitch Black', stock: 15, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 1200, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v304', product_id: 'p1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-XL', size: 'XL', color: 'Pitch Black', stock: 5,  price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 1250, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v301', product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-S',  size: 'S',  color: 'Pitch Black', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 1100, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v302', product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-M',  size: 'M',  color: 'Pitch Black', stock: 25, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 1150, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v303', product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-L',  size: 'L',  color: 'Pitch Black', stock: 15, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 1200, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v304', product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-XL', size: 'XL', color: 'Pitch Black', stock: 5,  price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 1250, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 
   // Pleated Carpenter Pant
-  { id: 'v401', product_id: 'p1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-30', size: '30', color: 'Raw Black', stock: 15, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 780, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v402', product_id: 'p1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-32', size: '32', color: 'Raw Black', stock: 30, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 800, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v403', product_id: 'p1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-34', size: '34', color: 'Raw Black', stock: 20, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 820, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v404', product_id: 'p1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-36', size: '36', color: 'Raw Black', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 840, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v401', product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-30', size: '30', color: 'Raw Black', stock: 15, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 780, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v402', product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-32', size: '32', color: 'Raw Black', stock: 30, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 800, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v403', product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-34', size: '34', color: 'Raw Black', stock: 20, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 820, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v404', product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-36', size: '36', color: 'Raw Black', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 840, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 
   // Architectural Raw Linen Smock
-  { id: 'v501', product_id: 'p1000000-0000-0000-0000-000000000005', sku: 'SMK-LNN-T1', size: 'Taille 01 (S/M)', color: 'Natural Ecru', stock: 20, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 520, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v502', product_id: 'p1000000-0000-0000-0000-000000000005', sku: 'SMK-LNN-T2', size: 'Taille 02 (L/XL)', color: 'Natural Ecru', stock: 25, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 560, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v501', product_id: 'b1000000-0000-0000-0000-000000000005', sku: 'SMK-LNN-T1', size: 'Taille 01 (S/M)', color: 'Natural Ecru', stock: 20, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 520, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v502', product_id: 'b1000000-0000-0000-0000-000000000005', sku: 'SMK-LNN-T2', size: 'Taille 02 (L/XL)', color: 'Natural Ecru', stock: 25, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 560, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 
   // Relaxed Flared Minimalist Track Pant
-  { id: 'v601', product_id: 'p1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-S',  size: 'S',  color: 'Washed Ink', stock: 15, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 650, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v602', product_id: 'p1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-M',  size: 'M',  color: 'Washed Ink', stock: 35, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 670, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v603', product_id: 'p1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-L',  size: 'L',  color: 'Washed Ink', stock: 20, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 690, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v604', product_id: 'p1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-XL', size: 'XL', color: 'Washed Ink', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 710, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v601', product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-S',  size: 'S',  color: 'Washed Ink', stock: 15, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 650, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v602', product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-M',  size: 'M',  color: 'Washed Ink', stock: 35, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 670, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v603', product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-L',  size: 'L',  color: 'Washed Ink', stock: 20, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 690, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v604', product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-XL', size: 'XL', color: 'Washed Ink', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 710, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 ]
 
 export const DEFAULT_ORDERS: OrderWithItems[] = [
   {
     id: 'ord-10000000-0000-0000-0000-000000000001',
     order_number: 'ATL-ORD-9821',
-    user_id: 'u1000000-0000-0000-0000-000000000001',
+    user_id: 'a0000000-0000-0000-0000-000000000001',
     status: 'processing',
     delivery_mode: 'try_on',
     try_on_status: 'reconciling',
@@ -231,7 +231,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
     invoice_number: 'INV-2026-1001',
     tracking_barcode: 'ATL-TRK-98219821',
     invoice_url: null,
-    delivery_partner_id: 'u1000000-0000-0000-0000-000000000003',
+    delivery_partner_id: 'd1000000-0000-0000-0000-000000000001',
     shipping_address: '742 Evergreen Terrace, Studio 4B, San Francisco, CA 94107',
     delivery_notes: 'White-glove 45m doorstep fitting session. Ring private courtyard bell 4B.',
     created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
@@ -240,7 +240,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
       {
         id: 'item-001',
         order_id: 'ord-10000000-0000-0000-0000-000000000001',
-        product_id: 'p1000000-0000-0000-0000-000000000001',
+        product_id: 'b1000000-0000-0000-0000-000000000001',
         quantity: 1,
         unit_price: 165.0,
         size: 'L',
@@ -248,7 +248,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
         rejection_reason: null,
         created_at: new Date().toISOString(),
         product: {
-          id: 'p1000000-0000-0000-0000-000000000001',
+          id: 'b1000000-0000-0000-0000-000000000001',
           title: 'Heavyweight Boxy Hoodie',
           image_url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
           price: 165.0,
@@ -258,7 +258,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
       {
         id: 'item-002',
         order_id: 'ord-10000000-0000-0000-0000-000000000001',
-        product_id: 'p1000000-0000-0000-0000-000000000004',
+        product_id: 'b1000000-0000-0000-0000-000000000004',
         quantity: 1,
         unit_price: 210.0,
         size: '32',
@@ -266,7 +266,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
         rejection_reason: null,
         created_at: new Date().toISOString(),
         product: {
-          id: 'p1000000-0000-0000-0000-000000000004',
+          id: 'b1000000-0000-0000-0000-000000000004',
           title: 'Pleated Selvedge Carpenter Pant',
           image_url: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=1200&q=85',
           price: 210.0,
@@ -276,7 +276,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
       {
         id: 'item-003',
         order_id: 'ord-10000000-0000-0000-0000-000000000001',
-        product_id: 'p1000000-0000-0000-0000-000000000002',
+        product_id: 'b1000000-0000-0000-0000-000000000002',
         quantity: 1,
         unit_price: 75.0,
         size: 'XL',
@@ -284,7 +284,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
         rejection_reason: 'Exaggerated boxy cut runs slightly wide across chest.',
         created_at: new Date().toISOString(),
         product: {
-          id: 'p1000000-0000-0000-0000-000000000002',
+          id: 'b1000000-0000-0000-0000-000000000002',
           title: 'Vintage Washed Boxy Tee',
           image_url: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85',
           price: 75.0,
@@ -296,7 +296,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
   {
     id: 'ord-10000000-0000-0000-0000-000000000002',
     order_number: 'ATL-ORD-9822',
-    user_id: 'u1000000-0000-0000-0000-000000000002',
+    user_id: 'a0000000-0000-0000-0000-000000000002',
     status: 'out_for_delivery',
     delivery_mode: 'direct',
     try_on_status: null,
@@ -312,7 +312,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
     invoice_number: 'INV-2026-1002',
     tracking_barcode: 'ATL-TRK-98229822',
     invoice_url: null,
-    delivery_partner_id: 'u1000000-0000-0000-0000-000000000003',
+    delivery_partner_id: 'd1000000-0000-0000-0000-000000000001',
     shipping_address: '180 Montgomery St, 15th Fl, San Francisco, CA 94104',
     delivery_notes: 'Direct priority dispatch. Reception desk open until 18:00.',
     created_at: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
@@ -321,7 +321,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
       {
         id: 'item-004',
         order_id: 'ord-10000000-0000-0000-0000-000000000002',
-        product_id: 'p1000000-0000-0000-0000-000000000003',
+        product_id: 'b1000000-0000-0000-0000-000000000003',
         quantity: 1,
         unit_price: 285.0,
         size: 'M',
@@ -329,7 +329,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
         rejection_reason: null,
         created_at: new Date().toISOString(),
         product: {
-          id: 'p1000000-0000-0000-0000-000000000003',
+          id: 'b1000000-0000-0000-0000-000000000003',
           title: 'Cropped Weatherproof Flight Bomber',
           image_url: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1200&q=85',
           price: 285.0,
@@ -339,7 +339,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
       {
         id: 'item-005',
         order_id: 'ord-10000000-0000-0000-0000-000000000002',
-        product_id: 'p1000000-0000-0000-0000-000000000006',
+        product_id: 'b1000000-0000-0000-0000-000000000006',
         quantity: 1,
         unit_price: 145.0,
         size: 'M',
@@ -347,7 +347,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
         rejection_reason: null,
         created_at: new Date().toISOString(),
         product: {
-          id: 'p1000000-0000-0000-0000-000000000006',
+          id: 'b1000000-0000-0000-0000-000000000006',
           title: 'Relaxed Flared Minimalist Track Pant',
           image_url: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=1200&q=85',
           price: 145.0,
@@ -359,7 +359,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
   {
     id: 'ord-10000000-0000-0000-0000-000000000003',
     order_number: 'ATL-ORD-9823',
-    user_id: 'u1000000-0000-0000-0000-000000000001',
+    user_id: 'a0000000-0000-0000-0000-000000000001',
     status: 'pending',
     delivery_mode: 'try_on',
     try_on_status: 'pending',
@@ -384,7 +384,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
       {
         id: 'item-006',
         order_id: 'ord-10000000-0000-0000-0000-000000000003',
-        product_id: 'p1000000-0000-0000-0000-000000000005',
+        product_id: 'b1000000-0000-0000-0000-000000000005',
         quantity: 1,
         unit_price: 240.0,
         size: 'Taille 01 (S/M)',
@@ -392,7 +392,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
         rejection_reason: null,
         created_at: new Date().toISOString(),
         product: {
-          id: 'p1000000-0000-0000-0000-000000000005',
+          id: 'b1000000-0000-0000-0000-000000000005',
           title: 'Architectural Raw Linen Smock',
           image_url: '/images/prod3-front.jpg',
           price: 240.0,
@@ -1147,7 +1147,7 @@ export async function createOrderWithItems(
       activeOrder = {
         id: `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         order_number: orderData.order_number || `ATL-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        user_id: orderData.user_id || 'u0000000-0000-0000-0000-000000000001',
+        user_id: orderData.user_id || 'a0000000-0000-0000-0000-000000000001',
         status: orderData.status || 'pending',
         delivery_mode: orderData.delivery_mode || 'direct',
         try_on_status: orderData.try_on_status || null,
@@ -1430,7 +1430,7 @@ export const DEFAULT_HERO_CONFIG = {
   ctaLabel: 'EXPLORE DROP 01',
   ctaLink: '/shop',
   secondaryCategory: 'Hoodies & Fleece',
-  featuredProductId: 'p1000000-0000-0000-0000-000000000001',
+  featuredProductId: 'b1000000-0000-0000-0000-000000000001',
 }
 
 export const DEFAULT_ETHOS_CONFIG = {

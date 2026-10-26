@@ -103,7 +103,7 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO public.products (id, title, description, price, stock, image_url, category_id, category, material, edition)
 VALUES
   (
-    'p1000000-0000-0000-0000-000000000001',
+    'b1000000-0000-0000-0000-000000000001',
     'Heavyweight Boxy Hoodie',
     'Custom-milled 480 GSM loopback organic French Terry. Engineered with an exaggerated dropped shoulder, double-layered architectural hood, and concealed side-seam pockets. Mineral washed for a vintage drape.',
     165.00,
@@ -115,7 +115,7 @@ VALUES
     'Drop 01 // Limited 150 Pieces'
   ),
   (
-    'p1000000-0000-0000-0000-000000000002',
+    'b1000000-0000-0000-0000-000000000002',
     'Vintage Washed Boxy Tee',
     '280 GSM heavyweight combed cotton jersey with distressed neck ribbing and raw edge blind hem. Sun-faded wash treatment creates individual character on every piece.',
     75.00,
@@ -127,7 +127,7 @@ VALUES
     'Drop 01 // Core Essential'
   ),
   (
-    'p1000000-0000-0000-0000-000000000003',
+    'b1000000-0000-0000-0000-000000000003',
     'Cropped Weatherproof Flight Bomber',
     'High-density technical nylon shell with quilted synthetic insulation. Cropped torso silhouette with elongated sleeves and custom matte nickel two-way zipper hardware.',
     285.00,
@@ -139,7 +139,7 @@ VALUES
     'Drop 01 // Archive Edition of 60'
   ),
   (
-    'p1000000-0000-0000-0000-000000000004',
+    'b1000000-0000-0000-0000-000000000004',
     'Pleated Selvedge Carpenter Pant',
     'Cut from 14oz shuttle-loomed Japanese raw black selvedge denim. Double front pleats create an elegant wide drape falling straight over chunky footwear.',
     210.00,
@@ -151,7 +151,7 @@ VALUES
     'Drop 01 // Strict Edition of 80'
   ),
   (
-    'p1000000-0000-0000-0000-000000000005',
+    'b1000000-0000-0000-0000-000000000005',
     'Architectural Raw Linen Smock',
     'Hand-loomed 380 GSM Belgian flax linen with flat-felled French seams, wide kimono-cut sleeves, and natural horn button closures.',
     240.00,
@@ -163,7 +163,7 @@ VALUES
     'Creator Atelier Spec 05'
   ),
   (
-    'p1000000-0000-0000-0000-000000000006',
+    'b1000000-0000-0000-0000-000000000006',
     'Relaxed Flared Minimalist Track Pant',
     'Custom 400 GSM double-knit jersey with center front pinch pleat and hidden zip ankle vents. Elasticized drawcord waist with custom metal aglets.',
     145.00,
@@ -188,55 +188,55 @@ ON CONFLICT (id) DO UPDATE SET
 -- Product 1: Heavyweight Boxy Hoodie
 INSERT INTO public.product_variants (product_id, sku, size, color, stock, price_override)
 VALUES
-  ('p1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-XS', 'XS', 'Faded Onyx', 10, NULL),
-  ('p1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-S',  'S',  'Faded Onyx', 25, NULL),
-  ('p1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-M',  'M',  'Faded Onyx', 45, NULL),
-  ('p1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-L',  'L',  'Faded Onyx', 25, NULL),
-  ('p1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-XL', 'XL', 'Faded Onyx', 10, NULL)
+  ('b1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-XS', 'XS', 'Faded Onyx', 10, NULL),
+  ('b1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-S',  'S',  'Faded Onyx', 25, NULL),
+  ('b1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-M',  'M',  'Faded Onyx', 45, NULL),
+  ('b1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-L',  'L',  'Faded Onyx', 25, NULL),
+  ('b1000000-0000-0000-0000-000000000001', 'HD-BOX-BLK-XL', 'XL', 'Faded Onyx', 10, NULL)
 ON CONFLICT (sku) DO UPDATE SET stock = EXCLUDED.stock;
 
 -- Product 2: Vintage Washed Boxy Tee
 INSERT INTO public.product_variants (product_id, sku, size, color, stock, price_override)
 VALUES
-  ('p1000000-0000-0000-0000-000000000002', 'TEE-VNTG-WHT-XS', 'XS', 'Chalk White', 15, NULL),
-  ('p1000000-0000-0000-0000-000000000002', 'TEE-VNTG-WHT-S',  'S',  'Chalk White', 30, NULL),
-  ('p1000000-0000-0000-0000-000000000002', 'TEE-VNTG-WHT-M',  'M',  'Chalk White', 50, NULL),
-  ('p1000000-0000-0000-0000-000000000002', 'TEE-VNTG-WHT-L',  'L',  'Chalk White', 35, NULL),
-  ('p1000000-0000-0000-0000-000000000002', 'TEE-VNTG-WHT-XL', 'XL', 'Chalk White', 10, NULL)
+  ('b1000000-0000-0000-0000-000000000002', 'TEE-VNTG-WHT-XS', 'XS', 'Chalk White', 15, NULL),
+  ('b1000000-0000-0000-0000-000000000002', 'TEE-VNTG-WHT-S',  'S',  'Chalk White', 30, NULL),
+  ('b1000000-0000-0000-0000-000000000002', 'TEE-VNTG-WHT-M',  'M',  'Chalk White', 50, NULL),
+  ('b1000000-0000-0000-0000-000000000002', 'TEE-VNTG-WHT-L',  'L',  'Chalk White', 35, NULL),
+  ('b1000000-0000-0000-0000-000000000002', 'TEE-VNTG-WHT-XL', 'XL', 'Chalk White', 10, NULL)
 ON CONFLICT (sku) DO UPDATE SET stock = EXCLUDED.stock;
 
 -- Product 3: Cropped Weatherproof Flight Bomber
 INSERT INTO public.product_variants (product_id, sku, size, color, stock, price_override)
 VALUES
-  ('p1000000-0000-0000-0000-000000000003', 'BMB-CR-BLK-S',  'S',  'Pitch Black', 10, NULL),
-  ('p1000000-0000-0000-0000-000000000003', 'BMB-CR-BLK-M',  'M',  'Pitch Black', 25, NULL),
-  ('p1000000-0000-0000-0000-000000000003', 'BMB-CR-BLK-L',  'L',  'Pitch Black', 15, NULL),
-  ('p1000000-0000-0000-0000-000000000003', 'BMB-CR-BLK-XL', 'XL', 'Pitch Black', 5, NULL)
+  ('b1000000-0000-0000-0000-000000000003', 'BMB-CR-BLK-S',  'S',  'Pitch Black', 10, NULL),
+  ('b1000000-0000-0000-0000-000000000003', 'BMB-CR-BLK-M',  'M',  'Pitch Black', 25, NULL),
+  ('b1000000-0000-0000-0000-000000000003', 'BMB-CR-BLK-L',  'L',  'Pitch Black', 15, NULL),
+  ('b1000000-0000-0000-0000-000000000003', 'BMB-CR-BLK-XL', 'XL', 'Pitch Black', 5, NULL)
 ON CONFLICT (sku) DO UPDATE SET stock = EXCLUDED.stock;
 
 -- Product 4: Pleated Selvedge Carpenter Pant
 INSERT INTO public.product_variants (product_id, sku, size, color, stock, price_override)
 VALUES
-  ('p1000000-0000-0000-0000-000000000004', 'PNT-SLV-30', '30', 'Raw Black', 15, NULL),
-  ('p1000000-0000-0000-0000-000000000004', 'PNT-SLV-32', '32', 'Raw Black', 30, NULL),
-  ('p1000000-0000-0000-0000-000000000004', 'PNT-SLV-34', '34', 'Raw Black', 20, NULL),
-  ('p1000000-0000-0000-0000-000000000004', 'PNT-SLV-36', '36', 'Raw Black', 10, NULL)
+  ('b1000000-0000-0000-0000-000000000004', 'PNT-SLV-30', '30', 'Raw Black', 15, NULL),
+  ('b1000000-0000-0000-0000-000000000004', 'PNT-SLV-32', '32', 'Raw Black', 30, NULL),
+  ('b1000000-0000-0000-0000-000000000004', 'PNT-SLV-34', '34', 'Raw Black', 20, NULL),
+  ('b1000000-0000-0000-0000-000000000004', 'PNT-SLV-36', '36', 'Raw Black', 10, NULL)
 ON CONFLICT (sku) DO UPDATE SET stock = EXCLUDED.stock;
 
 -- Product 5: Architectural Raw Linen Smock
 INSERT INTO public.product_variants (product_id, sku, size, color, stock, price_override)
 VALUES
-  ('p1000000-0000-0000-0000-000000000005', 'SMK-LNN-T1', 'Taille 01 (S/M)', 'Natural Ecru', 20, NULL),
-  ('p1000000-0000-0000-0000-000000000005', 'SMK-LNN-T2', 'Taille 02 (L/XL)', 'Natural Ecru', 25, NULL)
+  ('b1000000-0000-0000-0000-000000000005', 'SMK-LNN-T1', 'Taille 01 (S/M)', 'Natural Ecru', 20, NULL),
+  ('b1000000-0000-0000-0000-000000000005', 'SMK-LNN-T2', 'Taille 02 (L/XL)', 'Natural Ecru', 25, NULL)
 ON CONFLICT (sku) DO UPDATE SET stock = EXCLUDED.stock;
 
 -- Product 6: Relaxed Flared Minimalist Track Pant
 INSERT INTO public.product_variants (product_id, sku, size, color, stock, price_override)
 VALUES
-  ('p1000000-0000-0000-0000-000000000006', 'TRK-FLR-BLK-S',  'S',  'Washed Ink', 15, NULL),
-  ('p1000000-0000-0000-0000-000000000006', 'TRK-FLR-BLK-M',  'M',  'Washed Ink', 35, NULL),
-  ('p1000000-0000-0000-0000-000000000006', 'TRK-FLR-BLK-L',  'L',  'Washed Ink', 20, NULL),
-  ('p1000000-0000-0000-0000-000000000006', 'TRK-FLR-BLK-XL', 'XL', 'Washed Ink', 10, NULL)
+  ('b1000000-0000-0000-0000-000000000006', 'TRK-FLR-BLK-S',  'S',  'Washed Ink', 15, NULL),
+  ('b1000000-0000-0000-0000-000000000006', 'TRK-FLR-BLK-M',  'M',  'Washed Ink', 35, NULL),
+  ('b1000000-0000-0000-0000-000000000006', 'TRK-FLR-BLK-L',  'L',  'Washed Ink', 20, NULL),
+  ('b1000000-0000-0000-0000-000000000006', 'TRK-FLR-BLK-XL', 'XL', 'Washed Ink', 10, NULL)
 ON CONFLICT (sku) DO UPDATE SET stock = EXCLUDED.stock;
 
 -- 7. Update Storefront CMS Defaults to Clothing Drop 01
@@ -252,7 +252,7 @@ VALUES
       "ctaLabel": "SHOP DROP 01",
       "ctaLink": "/shop",
       "secondaryCategory": "Hoodies & Fleece",
-      "featuredProductId": "p1000000-0000-0000-0000-000000000001"
+      "featuredProductId": "b1000000-0000-0000-0000-000000000001"
     }'::jsonb,
     'Storefront Creator Apparel Hero Section'
   ),
