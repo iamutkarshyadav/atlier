@@ -253,8 +253,8 @@ async function handleOfflineSupabaseRequest(url: string, init?: RequestInit): Pr
     let matched = SEEDED_ACCOUNTS.find((a) => a.email.toLowerCase() === email)
 
     const isValidPassword =
-      matched.password === password ||
-      (matched.email === 'iamutkarshyadav1@gmail.com' && password === 'asdfghjkl')
+      matched?.password === password ||
+      (matched?.email === 'iamutkarshyadav1@gmail.com' && password === 'asdfghjkl')
 
     if (matched && matched.password && !isValidPassword) {
       return new Response(
