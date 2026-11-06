@@ -3,12 +3,17 @@
   "globalDependencies": ["**/.env.*local"],
   "globalEnv": [
     "NODE_ENV",
+    "DATABASE_URI",
     "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_SECRET_KEY",
     "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_JWKS_URL",
     "NEXT_PUBLIC_STOREFRONT_URL",
     "NEXT_PUBLIC_ADMIN_URL",
-    "NEXT_PUBLIC_DELIVERY_URL"
+    "NEXT_PUBLIC_DELIVERY_URL",
+    "VERCEL_URL"
   ],
   "tasks": {
     "build": {
