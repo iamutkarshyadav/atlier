@@ -17,6 +17,9 @@ export type TryOnStatus =
   | 'fitting_in_progress'
   | 'reconciled'
   | 'failed_absent'
+export type OrderType = 'standard' | 'bolt_try_on'
+export type BoltSessionStatus = 'scheduled' | 'en_route' | 'at_doorstep' | 'completed' | 'cancelled'
+export type TryOnDecision = 'pending' | 'kept' | 'rejected'
 
 export interface Database {
   public: {
@@ -216,11 +219,81 @@ export interface Database {
           }
         ]
       }
+      bolt_pincodes: {
+        Row: {
+          id: string
+          pincode: string
+          city: string
+          state: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          pincode: string
+          city: string
+          state?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          pincode?: string
+          city?: string
+          state?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bolt_timeslots: {
+        Row: {
+          id: string
+          label: string
+          slot_start: string | null
+          slot_end: string | null
+          cutoff_time: string
+          max_daily_capacity: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          label: string
+          slot_start?: string | null
+          slot_end?: string | null
+          cutoff_time?: string
+          max_daily_capacity?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          label?: string
+          slot_start?: string | null
+          slot_end?: string | null
+          cutoff_time?: string
+          max_daily_capacity?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           id: string
           order_number: string | null
           user_id: string
+          order_type: OrderType
+          bolt_pincode: string | null
+          bolt_timeslot_id: string | null
+          bolt_session_status: BoltSessionStatus | null
           status: OrderStatus
           delivery_mode: DeliveryMode
           try_on_status: TryOnStatus | null
@@ -246,6 +319,10 @@ export interface Database {
           id?: string
           order_number?: string | null
           user_id: string
+          order_type?: OrderType
+          bolt_pincode?: string | null
+          bolt_timeslot_id?: string | null
+          bolt_session_status?: BoltSessionStatus | null
           status?: OrderStatus
           delivery_mode?: DeliveryMode
           try_on_status?: TryOnStatus | null
@@ -271,6 +348,10 @@ export interface Database {
           id?: string
           order_number?: string | null
           user_id?: string
+          order_type?: OrderType
+          bolt_pincode?: string | null
+          bolt_timeslot_id?: string | null
+          bolt_session_status?: BoltSessionStatus | null
           status?: OrderStatus
           delivery_mode?: DeliveryMode
           try_on_status?: TryOnStatus | null
@@ -304,6 +385,12 @@ export interface Database {
             columns: ["delivery_partner_id"]
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_bolt_timeslot_id_fkey"
+            columns: ["bolt_timeslot_id"]
+            referencedRelation: "bolt_timeslots"
+            referencedColumns: ["id"]
           }
         ]
       }
@@ -316,6 +403,7 @@ export interface Database {
           unit_price: number
           size: string | null
           is_kept: boolean | null
+          try_on_decision: TryOnDecision
           rejection_reason: string | null
           created_at: string
         }
@@ -327,6 +415,7 @@ export interface Database {
           unit_price: number
           size?: string | null
           is_kept?: boolean | null
+          try_on_decision?: TryOnDecision
           rejection_reason?: string | null
           created_at?: string
         }
@@ -338,6 +427,7 @@ export interface Database {
           unit_price?: number
           size?: string | null
           is_kept?: boolean | null
+          try_on_decision?: TryOnDecision
           rejection_reason?: string | null
           created_at?: string
         }
@@ -552,11 +642,22 @@ export interface Database {
       order_status: OrderStatus
       delivery_mode: DeliveryMode
       try_on_status: TryOnStatus
+      order_type: OrderType
+      bolt_session_status: BoltSessionStatus
+      try_on_decision: TryOnDecision
     }
   }
 }
 
 // Model Type Aliases
+export type BoltPincode = Database['public']['Tables']['bolt_pincodes']['Row']
+export type BoltPincodeInsert = Database['public']['Tables']['bolt_pincodes']['Insert']
+export type BoltPincodeUpdate = Database['public']['Tables']['bolt_pincodes']['Update']
+
+export type BoltTimeslot = Database['public']['Tables']['bolt_timeslots']['Row']
+export type BoltTimeslotInsert = Database['public']['Tables']['bolt_timeslots']['Insert']
+export type BoltTimeslotUpdate = Database['public']['Tables']['bolt_timeslots']['Update']
+
 export type UserProfile = Database['public']['Tables']['users']['Row']
 export type UserInsert = Database['public']['Tables']['users']['Insert']
 export type UserUpdate = Database['public']['Tables']['users']['Update']
@@ -612,5 +713,6 @@ export interface OrderWithItems extends Order {
   order_items?: OrderItemWithProduct[]
   user?: UserProfile | null
   courier?: UserProfile | null
+  bolt_timeslot?: BoltTimeslot | null
 }
 

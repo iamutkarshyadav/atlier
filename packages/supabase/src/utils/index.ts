@@ -28,10 +28,13 @@ import type {
   PromotionalBannerInsert,
   OrderItemWithProduct,
   OrderWithItems,
+  BoltTimeslot,
+  BoltPincode,
 } from '../types/database.types'
 
 export * from '../types/database.types'
 export * from './barcode'
+export * from './boltAccounting'
 import { generateStandardBarcode, generateBarcodeDataUrl, generateOrderTrackingBarcode } from './barcode'
 
 // ==========================================
@@ -211,11 +214,84 @@ export const DEFAULT_PRODUCT_VARIANTS: ProductVariant[] = [
   { id: 'v604', product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-XL', size: 'XL', color: 'Washed Ink', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 710, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 ]
 
+export const DEFAULT_BOLT_TIMESLOTS: BoltTimeslot[] = [
+  {
+    id: 't1000000-0000-0000-0000-000000000001',
+    label: '10:00 AM - 12:00 PM (Morning Priority)',
+    slot_start: '10:00:00',
+    slot_end: '12:00:00',
+    cutoff_time: '09:00:00',
+    max_daily_capacity: 12,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 't1000000-0000-0000-0000-000000000002',
+    label: '12:00 PM - 02:00 PM (Midday Salon)',
+    slot_start: '12:00:00',
+    slot_end: '14:00:00',
+    cutoff_time: '11:00:00',
+    max_daily_capacity: 12,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 't1000000-0000-0000-0000-000000000003',
+    label: '02:00 PM - 04:00 PM (Afternoon Fitting)',
+    slot_start: '14:00:00',
+    slot_end: '16:00:00',
+    cutoff_time: '13:00:00',
+    max_daily_capacity: 15,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 't1000000-0000-0000-0000-000000000004',
+    label: '04:00 PM - 06:00 PM (Evening Express)',
+    slot_start: '16:00:00',
+    slot_end: '18:00:00',
+    cutoff_time: '15:00:00',
+    max_daily_capacity: 15,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 't1000000-0000-0000-0000-000000000005',
+    label: '06:00 PM - 08:00 PM (Sunset White-Glove)',
+    slot_start: '18:00:00',
+    slot_end: '20:00:00',
+    cutoff_time: '17:00:00',
+    max_daily_capacity: 10,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+]
+
 export const DEFAULT_ORDERS: OrderWithItems[] = [
   {
     id: 'ord-10000000-0000-0000-0000-000000000001',
     order_number: 'ATL-ORD-9821',
     user_id: 'a0000000-0000-0000-0000-000000000001',
+    order_type: 'bolt_try_on',
+    bolt_pincode: '560038',
+    bolt_timeslot_id: 't1000000-0000-0000-0000-000000000001',
+    bolt_timeslot: {
+      id: 't1000000-0000-0000-0000-000000000001',
+      label: '10:00 AM - 12:00 PM (Morning Priority)',
+      slot_start: '10:00:00',
+      slot_end: '12:00:00',
+      cutoff_time: '09:00:00',
+      max_daily_capacity: 12,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    bolt_session_status: 'at_doorstep',
     status: 'processing',
     delivery_mode: 'try_on',
     try_on_status: 'reconciling',
@@ -232,7 +308,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
     tracking_barcode: 'ATL-TRK-98219821',
     invoice_url: null,
     delivery_partner_id: 'd1000000-0000-0000-0000-000000000001',
-    shipping_address: '742 Evergreen Terrace, Studio 4B, San Francisco, CA 94107',
+    shipping_address: 'Flat 4B, Prestige Indiranagar, 100ft Road, Bengaluru, Karnataka 560038',
     delivery_notes: 'White-glove 45m doorstep fitting session. Ring private courtyard bell 4B.',
     created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
@@ -245,6 +321,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
         unit_price: 165.0,
         size: 'L',
         is_kept: true,
+        try_on_decision: 'kept',
         rejection_reason: null,
         created_at: new Date().toISOString(),
         product: {
@@ -263,6 +340,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
         unit_price: 210.0,
         size: '32',
         is_kept: true,
+        try_on_decision: 'kept',
         rejection_reason: null,
         created_at: new Date().toISOString(),
         product: {
@@ -281,6 +359,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
         unit_price: 75.0,
         size: 'XL',
         is_kept: false,
+        try_on_decision: 'rejected',
         rejection_reason: 'Exaggerated boxy cut runs slightly wide across chest.',
         created_at: new Date().toISOString(),
         product: {
@@ -297,6 +376,10 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
     id: 'ord-10000000-0000-0000-0000-000000000002',
     order_number: 'ATL-ORD-9822',
     user_id: 'a0000000-0000-0000-0000-000000000002',
+    order_type: 'standard',
+    bolt_pincode: null,
+    bolt_timeslot_id: null,
+    bolt_session_status: null,
     status: 'out_for_delivery',
     delivery_mode: 'direct',
     try_on_status: null,
@@ -326,6 +409,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
         unit_price: 285.0,
         size: 'M',
         is_kept: true,
+        try_on_decision: 'kept',
         rejection_reason: null,
         created_at: new Date().toISOString(),
         product: {
@@ -344,6 +428,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
         unit_price: 145.0,
         size: 'M',
         is_kept: true,
+        try_on_decision: 'kept',
         rejection_reason: null,
         created_at: new Date().toISOString(),
         product: {
@@ -360,6 +445,10 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
     id: 'ord-10000000-0000-0000-0000-000000000003',
     order_number: 'ATL-ORD-9823',
     user_id: 'a0000000-0000-0000-0000-000000000001',
+    order_type: 'bolt_try_on',
+    bolt_pincode: '560034',
+    bolt_timeslot_id: 't1000000-0000-0000-0000-000000000003',
+    bolt_session_status: 'scheduled',
     status: 'pending',
     delivery_mode: 'try_on',
     try_on_status: 'pending',
@@ -389,6 +478,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
         unit_price: 240.0,
         size: 'Taille 01 (S/M)',
         is_kept: null,
+        try_on_decision: 'pending',
         rejection_reason: null,
         created_at: new Date().toISOString(),
         product: {
@@ -791,48 +881,24 @@ export async function saveUserAddress(
 // 4. ORDER & LOGISTICS OPERATIONS
 // ==========================================
 
-export * from './ordersLedger'
-import { readLiveOrdersLedger, writeLiveOrderLedger, updateLiveOrderInLedger } from './ordersLedger'
-
 /**
  * Fetch all orders for the admin dashboard including joined order items, product details, and Try-On status.
- * Combines live PostgreSQL database rows with the persistent orders ledger to guarantee 100% order visibility.
+ * Authoritative query directly against PostgreSQL database with graceful fallback for empty catalogs.
  */
 export async function getAllOrders(supabase: SupabaseClient<Database>): Promise<OrderWithItems[]> {
-  let ledgerOrders = readLiveOrdersLedger()
-
-  if (typeof window !== 'undefined' && ledgerOrders.length === 0) {
-    try {
-      const apiRes = await fetch('/api/orders')
-      const apiJson = await apiRes.json()
-      if (apiJson.success && Array.isArray(apiJson.orders)) {
-        ledgerOrders = apiJson.orders
-      }
-    } catch {}
-  }
-
   try {
     const { data, error } = await supabase
       .from('orders')
-      .select('*, order_items(*, product:products(id, title, image_url, price, material))')
+      .select('*, bolt_timeslot:bolt_timeslots(*), order_items(*, product:products(id, title, image_url, price, material))')
       .order('created_at', { ascending: false })
 
     if (error || !data || data.length === 0) {
-      return ledgerOrders.length > 0 ? ledgerOrders : DEFAULT_ORDERS
+      return DEFAULT_ORDERS
     }
 
-    const dbOrders = data as unknown as OrderWithItems[]
-    
-    // Merge database orders with any ledger orders not yet in database
-    const dbOrderIds = new Set(dbOrders.map((o) => o.id))
-    const dbOrderNumbers = new Set(dbOrders.map((o) => o.order_number))
-    const additionalLedgerOrders = ledgerOrders.filter(
-      (lo) => !dbOrderIds.has(lo.id) && !dbOrderNumbers.has(lo.order_number)
-    )
-
-    return [...additionalLedgerOrders, ...dbOrders]
+    return data as unknown as OrderWithItems[]
   } catch (err) {
-    return ledgerOrders.length > 0 ? ledgerOrders : DEFAULT_ORDERS
+    return DEFAULT_ORDERS
   }
 }
 
@@ -843,38 +909,21 @@ export async function getOrderById(
   supabase: SupabaseClient<Database>,
   orderIdOrCode: string
 ): Promise<OrderWithItems | null> {
-  let ledgerOrders = readLiveOrdersLedger()
-  if (typeof window !== 'undefined' && ledgerOrders.length === 0) {
-    try {
-      const apiRes = await fetch('/api/orders')
-      const apiJson = await apiRes.json()
-      if (apiJson.success && Array.isArray(apiJson.orders)) {
-        ledgerOrders = apiJson.orders
-      }
-    } catch {}
-  }
   const cleanCode = orderIdOrCode.trim()
 
   try {
     const query = supabase
       .from('orders')
-      .select('*, order_items(*, product:products(id, title, image_url, price, material))')
+      .select('*, bolt_timeslot:bolt_timeslots(*), order_items(*, product:products(id, title, image_url, price, material))')
 
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanCode)
     const { data, error } = await (
-      cleanCode.includes('-') && cleanCode.length === 36
-        ? query.eq('id', cleanCode).single()
-        : query.or(`order_number.eq.${cleanCode},tracking_barcode.eq.${cleanCode}`).single()
+      isUuid
+        ? query.eq('id', cleanCode).maybeSingle()
+        : query.or(`order_number.eq.${cleanCode},tracking_barcode.eq.${cleanCode}`).maybeSingle()
     )
 
     if (error || !data) {
-      const fromLedger = ledgerOrders.find(
-        (o) =>
-          o.id === cleanCode ||
-          o.order_number?.toLowerCase() === cleanCode.toLowerCase() ||
-          o.tracking_barcode?.toLowerCase() === cleanCode.toLowerCase()
-      )
-      if (fromLedger) return fromLedger
-
       return (
         DEFAULT_ORDERS.find(
           (o) =>
@@ -886,14 +935,6 @@ export async function getOrderById(
     }
     return data as unknown as OrderWithItems
   } catch (err) {
-    const fromLedger = ledgerOrders.find(
-      (o) =>
-        o.id === cleanCode ||
-        o.order_number?.toLowerCase() === cleanCode.toLowerCase() ||
-        o.tracking_barcode?.toLowerCase() === cleanCode.toLowerCase()
-    )
-    if (fromLedger) return fromLedger
-
     return (
       DEFAULT_ORDERS.find(
         (o) =>
@@ -987,7 +1028,7 @@ export async function getAssignedDeliveries(
   try {
     const { data, error } = await supabase
       .from('orders')
-      .select('*, order_items(*, product:products(id, title, image_url, price, material))')
+      .select('*, bolt_timeslot:bolt_timeslots(*), order_items(*, product:products(id, title, image_url, price, material))')
       .eq('delivery_partner_id', partnerId)
       .order('created_at', { ascending: false })
 
@@ -1081,11 +1122,8 @@ export async function updateOrderStatus(
     .update(updatePayload)
     .eq('id', orderId)
 
-  // Always sync to live ledger
-  updateLiveOrderInLedger(orderId, updatePayload)
-
   if (error) {
-    return { success: true } // Non-blocking: updated in persistent ledger
+    return { success: false, error: error.message }
   }
   return { success: true }
 }
@@ -1109,18 +1147,15 @@ export async function assignOrderCourier(
     .update(updatePayload)
     .eq('id', orderId)
 
-  // Always sync to live ledger
-  updateLiveOrderInLedger(orderId, updatePayload)
-
   if (error) {
-    return { success: true }
+    return { success: false, error: error.message }
   }
   return { success: true }
 }
 
 /**
  * Create an order and its order_items in an atomic flow.
- * Persists to both Supabase PostgreSQL database and cross-app live orders ledger.
+ * Persists directly to the Supabase PostgreSQL database.
  */
 export async function createOrderWithItems(
   supabase: SupabaseClient<Database>,
@@ -1133,59 +1168,33 @@ export async function createOrderWithItems(
   }>
 ): Promise<{ data: Order | null; error?: string }> {
   try {
-    // 1. Attempt Supabase database insert
+    // 1. Insert order record into Supabase PostgreSQL
     const { data: newOrder, error: orderError } = await supabase
       .from('orders')
       .insert(orderData)
       .select()
       .single()
 
-    let activeOrder: Order | null = newOrder
-
-    // If Supabase table is not yet provisioned, construct resilient order record
-    if (!activeOrder) {
-      activeOrder = {
-        id: `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        order_number: orderData.order_number || `ATL-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        user_id: orderData.user_id || 'a0000000-0000-0000-0000-000000000001',
-        status: orderData.status || 'pending',
-        delivery_mode: orderData.delivery_mode || 'direct',
-        try_on_status: orderData.try_on_status || null,
-        try_on_window_start: orderData.try_on_window_start || null,
-        try_on_window_end: orderData.try_on_window_end || null,
-        fitting_started_at: null,
-        fitting_duration_minutes: orderData.fitting_duration_minutes || 45,
-        reconciled_at: null,
-        original_total: orderData.original_total ?? orderData.total,
-        total: orderData.total,
-        invoice_number: orderData.invoice_number || `INV-2026-${Date.now().toString().slice(-4)}`,
-        tracking_barcode: orderData.tracking_barcode || `ATL-TRK-${Date.now().toString().slice(-4)}`,
-        tax_amount: orderData.tax_amount || 0,
-        shipping_fee: orderData.shipping_fee || 0,
-        invoice_url: orderData.invoice_url || null,
-        delivery_partner_id: orderData.delivery_partner_id || null,
-        shipping_address: orderData.shipping_address || null,
-        delivery_notes: orderData.delivery_notes || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      } as Order
+    if (orderError || !newOrder) {
+      return { data: null, error: orderError?.message || 'Failed to create order record' }
     }
 
-    // 2. Insert items into Supabase
+    // 2. Insert items into order_items table
     if (items.length > 0) {
       const orderItemsPayload: OrderItemInsert[] = items.map((it) => ({
-        order_id: activeOrder!.id,
+        order_id: newOrder.id,
         product_id: it.productId,
         quantity: it.quantity,
         unit_price: it.unitPrice,
         size: it.size || null,
         is_kept: null,
+        try_on_decision: 'pending',
       }))
 
-      try {
-        await supabase.from('order_items').insert(orderItemsPayload)
-      } catch (itemsErr) {
-        // Handled via live ledger below
+      const { error: itemsErr } = await supabase.from('order_items').insert(orderItemsPayload)
+      if (itemsErr) {
+        console.error('Failed to insert order items:', itemsErr)
+        return { data: null, error: itemsErr.message }
       }
 
       // 3. Atomically decrement allocated variant inventory stock
@@ -1221,39 +1230,13 @@ export async function createOrderWithItems(
                 .eq('id', prod.id)
             }
           }
-        } catch {}
+        } catch (stockErr) {
+          console.warn('Inventory decrement warning:', stockErr)
+        }
       }
     }
 
-    // 4. Enrich order items with product titles and images for live ledger
-    const enrichedOrderItems = items.map((it, idx) => {
-      const prod = DEFAULT_PRODUCTS.find((p) => p.id === it.productId)
-      return {
-        id: `item_${activeOrder!.id}_${idx}`,
-        order_id: activeOrder!.id,
-        product_id: it.productId,
-        quantity: it.quantity,
-        unit_price: it.unitPrice,
-        size: it.size || null,
-        is_kept: null,
-        rejection_reason: null,
-        created_at: new Date().toISOString(),
-        product: prod || {
-          id: it.productId,
-          title: 'Curated Apparel Piece',
-          price: it.unitPrice,
-          image_url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
-        },
-      }
-    })
-
-    // 5. Write to cross-app live orders ledger
-    writeLiveOrderLedger({
-      ...activeOrder,
-      order_items: enrichedOrderItems as any,
-    })
-
-    return { data: activeOrder }
+    return { data: newOrder }
   } catch (err: any) {
     return { data: null, error: err?.message || 'Error processing order transaction' }
   }

@@ -3,6 +3,18 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { useState, useEffect } from 'react'
+import {
+  calculateSubtotal,
+  calculateTax,
+  calculateShippingFee,
+  calculateEstimatedTotal,
+  BOLT_MAX_TRY_ON_ITEMS,
+  BOLT_TRY_ON_FEE,
+  type DeliveryMode,
+} from './cartSubtotal'
+
+export type { DeliveryMode }
+export { BOLT_MAX_TRY_ON_ITEMS, BOLT_TRY_ON_FEE }
 
 export interface CartItem {
   id: string
@@ -16,7 +28,6 @@ export interface CartItem {
   size?: string
 }
 
-export type DeliveryMode = 'direct' | 'try_on'
 
 export interface TryOnWindow {
   date: string
@@ -27,15 +38,17 @@ interface CartStoreState {
   items: CartItem[]
   deliveryMode: DeliveryMode
   tryOnWindow: TryOnWindow | null
+  boltLimitWarning: string | null
 
   // Actions
-  addItem: (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => void
+  addItem: (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => boolean
   removeItem: (id: string) => void
   updateQuantity: (id: string, delta: number) => void
   setQuantity: (id: string, quantity: number) => void
   clearCart: () => void
   setDeliveryMode: (mode: DeliveryMode) => void
   setTryOnWindow: (window: TryOnWindow | null) => void
+  setBoltLimitWarning: (warning: string | null) => void
 
   // Computations
   getSubtotal: () => number
@@ -43,6 +56,7 @@ interface CartStoreState {
   getTax: () => number
   getShippingFee: () => number
   getEstimatedTotal: () => number
+  isOverBoltLimit: () => boolean
 }
 
 const DEFAULT_INITIAL_ITEMS: CartItem[] = [
@@ -73,6 +87,7 @@ export const useCartStore = create<CartStoreState>()(
     (set, get) => ({
       items: [],
       deliveryMode: 'direct',
+      boltLimitWarning: null,
       tryOnWindow: {
         date: new Date(Date.now() + 86400000).toLocaleDateString('en-US', {
           weekday: 'long',
@@ -82,9 +97,24 @@ export const useCartStore = create<CartStoreState>()(
         timeSlot: '14:30 – 15:15 (Doorstep Salon)',
       },
 
+      setBoltLimitWarning: (warning) => {
+        set({ boltLimitWarning: warning })
+      },
+
       addItem: (newItem) => {
         const currentItems = get().items
         const qtyToAdd = newItem.quantity && newItem.quantity > 0 ? newItem.quantity : 1
+        const currentCount = get().getItemCount()
+
+        // Bolt Try-On 5-item maximum enforcement
+        if (get().deliveryMode === 'try_on' && currentCount + qtyToAdd > BOLT_MAX_TRY_ON_ITEMS) {
+          set({
+            boltLimitWarning: `Bolt ⚡ Doorstep Try-On is limited to a maximum of ${BOLT_MAX_TRY_ON_ITEMS} pieces per fitting session. You currently have ${currentCount} item(s) in your salon tray.`,
+          })
+          return false
+        }
+
+        set({ boltLimitWarning: null })
         const existingIndex = currentItems.findIndex(
           (item) => item.productId === newItem.productId && item.size === newItem.size
         )
@@ -110,17 +140,30 @@ export const useCartStore = create<CartStoreState>()(
             ],
           })
         }
+        return true
       },
 
       removeItem: (id) => {
         set({
           items: get().items.filter((item) => item.id !== id),
+          boltLimitWarning: null,
         })
       },
 
       updateQuantity: (id, delta) => {
-        const updated = get()
-          .items.map((item) => {
+        const currentItems = get().items
+        const target = currentItems.find((it) => it.id === id)
+        if (target && delta > 0 && get().deliveryMode === 'try_on') {
+          if (get().getItemCount() + delta > BOLT_MAX_TRY_ON_ITEMS) {
+            set({
+              boltLimitWarning: `Bolt ⚡ Try-On cannot exceed ${BOLT_MAX_TRY_ON_ITEMS} items per appointment.`,
+            })
+            return
+          }
+        }
+
+        const updated = currentItems
+          .map((item) => {
             if (item.id === id) {
               const next = item.quantity + delta
               return next > 0 ? { ...item, quantity: next } : null
@@ -129,7 +172,7 @@ export const useCartStore = create<CartStoreState>()(
           })
           .filter((item): item is CartItem => item !== null)
 
-        set({ items: updated })
+        set({ items: updated, boltLimitWarning: null })
       },
 
       setQuantity: (id, quantity) => {
@@ -137,17 +180,37 @@ export const useCartStore = create<CartStoreState>()(
           get().removeItem(id)
           return
         }
+
+        if (get().deliveryMode === 'try_on') {
+          const otherItemsCount = get()
+            .items.filter((it) => it.id !== id)
+            .reduce((acc, curr) => acc + curr.quantity, 0)
+          if (otherItemsCount + quantity > BOLT_MAX_TRY_ON_ITEMS) {
+            set({
+              boltLimitWarning: `Bolt ⚡ Try-On cannot exceed ${BOLT_MAX_TRY_ON_ITEMS} items per appointment.`,
+            })
+            return
+          }
+        }
+
         set({
           items: get().items.map((item) => (item.id === id ? { ...item, quantity } : item)),
+          boltLimitWarning: null,
         })
       },
 
       clearCart: () => {
-        set({ items: [] })
+        set({ items: [], boltLimitWarning: null })
       },
 
       setDeliveryMode: (mode) => {
-        set({ deliveryMode: mode })
+        set({
+          deliveryMode: mode,
+          boltLimitWarning:
+            mode === 'try_on' && get().getItemCount() > BOLT_MAX_TRY_ON_ITEMS
+              ? `Bolt ⚡ Doorstep Try-On accommodates up to ${BOLT_MAX_TRY_ON_ITEMS} items. Please trim your selection to 5 items to proceed with Bolt.`
+              : null,
+        })
       },
 
       setTryOnWindow: (window) => {
@@ -156,7 +219,7 @@ export const useCartStore = create<CartStoreState>()(
 
       // Computed Helpers
       getSubtotal: () => {
-        return get().items.reduce((acc, curr) => acc + curr.price * curr.quantity, 0)
+        return calculateSubtotal(get().items)
       },
 
       getItemCount: () => {
@@ -164,20 +227,19 @@ export const useCartStore = create<CartStoreState>()(
       },
 
       getTax: () => {
-        return Number((get().getSubtotal() * 0.08).toFixed(2))
+        return calculateTax(get().getSubtotal())
       },
 
       getShippingFee: () => {
-        const subtotal = get().getSubtotal()
-        if (subtotal === 0) return 0.0
-        // Standard White-Glove Direct Acquisition: $25; At-Home Fitting Salon: $45
-        return get().deliveryMode === 'try_on' ? 45.0 : 25.0
+        return calculateShippingFee(get().getSubtotal(), get().deliveryMode)
       },
 
       getEstimatedTotal: () => {
-        const subtotal = get().getSubtotal()
-        if (subtotal === 0) return 0.0
-        return Number((subtotal + get().getShippingFee() + get().getTax()).toFixed(2))
+        return calculateEstimatedTotal(get().getSubtotal(), get().getShippingFee(), get().getTax())
+      },
+
+      isOverBoltLimit: () => {
+        return get().deliveryMode === 'try_on' && get().getItemCount() > BOLT_MAX_TRY_ON_ITEMS
       },
     }),
     {
@@ -207,5 +269,7 @@ export function useHydratedCart() {
     tax: isHydrated ? cart.getTax() : 0,
     shippingFee: isHydrated ? cart.getShippingFee() : 0,
     estimatedTotal: isHydrated ? cart.getEstimatedTotal() : 0,
+    isOverBoltLimit: isHydrated ? cart.isOverBoltLimit() : false,
+    boltLimitWarning: isHydrated ? cart.boltLimitWarning : null,
   }
 }

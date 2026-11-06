@@ -80,9 +80,10 @@ export default function OrderManifestDispatchPage({ params }: OrderManifestPageP
   }
 
   const trackingBarcode = order.tracking_barcode || `ATL-TRK-${order.id.slice(0, 8).toUpperCase()}`
-  const isTryOn = order.delivery_mode === 'try_on'
+  const isBolt = order.order_type === 'bolt_try_on'
+  const isTryOn = isBolt || order.delivery_mode === 'try_on'
   const recipientName = order.user?.name || (order.shipping_address ? order.shipping_address.split(',')[0] : 'Valued Patron')
-  const recipientPhone = order.user?.phone || '+1 (415) 555-0192'
+  const recipientPhone = order.user?.phone || '+91 98860 12345'
   const items = order.order_items || []
 
   return (
@@ -90,11 +91,11 @@ export default function OrderManifestDispatchPage({ params }: OrderManifestPageP
       {/* Top Bar */}
       <div className="flex items-center justify-between border-b border-[#222222] pb-4">
         <Link
-          href="/assigned-deliveries"
+          href="/manifest"
           className="inline-flex items-center gap-2 text-xs font-mono text-neutral-400 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Courier Route</span>
+          <span>Transit Manifest</span>
         </Link>
 
         <span className="text-[10px] font-mono uppercase tracking-caps text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-900 px-2 py-0.5">
@@ -180,7 +181,7 @@ export default function OrderManifestDispatchPage({ params }: OrderManifestPageP
       <div className="p-5 bg-[#111111] border-2 border-[#222222] space-y-3 font-mono">
         <div className="flex justify-between items-center text-xs border-b border-[#222222] pb-2">
           <span className="uppercase text-neutral-400 tracking-caps">Package Contents ({items.length} Works)</span>
-          <span className="text-white font-bold">${Number(order.total).toFixed(2)}</span>
+          <span className="text-white font-bold">₹{Number(order.total).toFixed(2)}</span>
         </div>
 
         <div className="space-y-2">
@@ -196,7 +197,7 @@ export default function OrderManifestDispatchPage({ params }: OrderManifestPageP
                 </p>
               </div>
               <span className="text-neutral-300 font-mono">
-                ${Number(item.unit_price).toFixed(2)}
+                ₹{Number(item.unit_price).toFixed(2)}
               </span>
             </div>
           ))}
@@ -205,7 +206,15 @@ export default function OrderManifestDispatchPage({ params }: OrderManifestPageP
 
       {/* Primary Action Button */}
       <div className="space-y-3 pt-2">
-        {isTryOn ? (
+        {isBolt ? (
+          <Button
+            onClick={() => router.push(`/bolt-session/${order.id}`)}
+            className="w-full py-4 text-sm font-bold uppercase tracking-wider bg-amber-400 hover:bg-amber-300 text-black flex items-center justify-center gap-2 shadow-lg"
+          >
+            <Clock className="w-4 h-4" />
+            <span>Launch Bolt ⚡ 45m Doorstep Fitting Session →</span>
+          </Button>
+        ) : isTryOn ? (
           <Button
             onClick={() => router.push(`/order/${order.id}/try-on`)}
             className="w-full py-4 text-sm font-bold uppercase tracking-wider bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center gap-2 shadow-lg"

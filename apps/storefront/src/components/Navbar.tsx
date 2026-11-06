@@ -129,13 +129,13 @@ export function Navbar() {
     }
   }
 
-  // Pre-formatted clean category labels
+  // Pre-formatted clean navigation labels
   const navItems = [
-    { label: 'All', href: '/#collection' },
-    { label: 'Hoodies', href: '/?category=hoodies#collection' },
-    { label: 'Tees', href: '/?category=tees#collection' },
-    { label: 'Outerwear', href: '/?category=outerwear#collection' },
-    { label: 'Pants', href: '/?category=pants#collection' },
+    { label: 'Catalogue', href: '/shop' },
+    { label: 'Bolt ⚡ Try-On', href: '/#bolt' },
+    { label: 'About', href: '/about' },
+    { label: 'Hoodies', href: '/shop?category=hoodies' },
+    { label: 'Denim & Pants', href: '/shop?category=pants' },
   ]
 
   return (

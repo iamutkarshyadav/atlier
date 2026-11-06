@@ -28,30 +28,10 @@ function DeliveryLoginContent() {
     try {
       const supabase = createBrowserClient()
 
-      let { data, error } = await supabase.auth.signInWithPassword({
-        email,
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
         password,
       })
-
-      // If courier doesn't exist yet in Supabase, provision courier account
-      if (error && (error.message.includes('Invalid login') || error.message.includes('Email not confirmed'))) {
-        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              name: 'Alex Rivera (Courier)',
-              role: 'delivery',
-            },
-          },
-        })
-
-        if (!signUpErr && signUpData.user) {
-          const retry = await supabase.auth.signInWithPassword({ email, password })
-          data = retry.data
-          error = retry.error
-        }
-      }
 
       if (error) {
         setErrorMessage(error.message)
@@ -65,7 +45,7 @@ function DeliveryLoginContent() {
         return
       }
 
-      // Verify Courier or Admin role
+      // Verify Courier or Admin role strictly from profile or verified metadata
       const { data: profile } = await supabase
         .from('users')
         .select('role')
@@ -73,7 +53,7 @@ function DeliveryLoginContent() {
         .single()
 
       const userRole = profile?.role || data.user.user_metadata?.role
-      const isCourier = userRole === 'delivery' || userRole === 'admin' || data.user.email?.includes('courier') || data.user.email?.includes('logistics')
+      const isCourier = userRole === 'delivery' || userRole === 'admin'
 
       if (!isCourier) {
         await supabase.auth.signOut()
@@ -82,7 +62,11 @@ function DeliveryLoginContent() {
         return
       }
 
-      router.push(redirectTo)
+      const safeRedirect = redirectTo.startsWith('/') && !redirectTo.startsWith('//')
+        ? redirectTo
+        : '/assigned-deliveries'
+
+      router.push(safeRedirect)
       router.refresh()
     } catch (err: any) {
       setErrorMessage(err?.message || 'Authentication error occurred.')

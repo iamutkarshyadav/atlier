@@ -4,397 +4,524 @@ import Link from 'next/link'
 import Image from 'next/image'
 import {
   ArrowRight,
-  Sparkles,
-  Scissors,
-  Layers,
+  Zap,
+  Clock,
   ShieldCheck,
   Check,
+  Star,
+  ChevronRight,
+  Sparkles,
+  Layers,
+  Scissors,
+  Truck,
+  HeartHandshake,
 } from 'lucide-react'
-import { Button } from '@repo/ui'
 import { createServerSupabaseClient } from '@repo/supabase/server'
 import {
   getStorefrontConfig,
-  getPromotionalBanners,
   getStorefrontProducts,
-  getProductVariants,
-  getCategories,
-  DEFAULT_HERO_CONFIG,
-  DEFAULT_ETHOS_CONFIG,
+  DEFAULT_PRODUCTS,
   type Product,
-  type ProductVariant,
 } from '@repo/supabase/utils'
 
-export const revalidate = 60 // On-demand ISR revalidation
+export const revalidate = 60
 
-export async function generateMetadata(): Promise<Metadata> {
-  const supabase = await createServerSupabaseClient()
-  const config = await getStorefrontConfig(supabase)
-  const hero = config.hero || DEFAULT_HERO_CONFIG
-
-  return {
-    title: `${hero.headline} ${hero.headlineItalic || ''} | Creator Apparel`,
-    description: hero.description,
-    openGraph: {
-      title: `${hero.headline} — Creator Apparel Drop 01`,
-      description: hero.description,
-      type: 'website',
-    },
-  }
+export const metadata: Metadata = {
+  title: 'ATELIER • Creator Apparel Drop 01 & Bolt ⚡ Doorstep Salon',
+  description:
+    'Luxury heavyweight creator apparel engineered from 480 GSM French Terry and Japanese raw selvedge denim. Try on up to 5 pieces at your doorstep with Bolt ⚡.',
 }
 
-export default async function CreatorClothingStorefrontPage({
-  searchParams,
-}: {
-  searchParams?: { category?: string }
-}) {
+const REVIEWS = [
+  {
+    id: 'rev-1',
+    author: 'Vikram Malhotra',
+    role: 'Architect & Creative Director',
+    city: 'Indiranagar, Bengaluru',
+    rating: 5,
+    title: 'The Bolt doorstep salon is revolutionary.',
+    text: 'I ordered the 480 GSM French Terry Hoodie and two sizes of the raw denim. The courier arrived right on time during the 10 AM slot. Trying both sizes at home before paying changed online shopping for me forever.',
+    garment: 'Heavyweight Boxy Hoodie',
+  },
+  {
+    id: 'rev-2',
+    author: 'Ananya Deshmukh',
+    role: 'Editorial Stylist',
+    city: 'Bandra West, Mumbai',
+    rating: 5,
+    title: 'Craftsmanship comparable to bespoke Japanese ateliers.',
+    text: 'The drape of the Raw Linen Smock is extraordinary. Zero synthetic polyester blending makes a massive difference in structure. The ₹99 doorstep fitting was flawless.',
+    garment: 'Architectural Raw Linen Smock',
+  },
+  {
+    id: 'rev-3',
+    author: 'Kabir Sen',
+    role: 'Industrial Designer',
+    city: 'Vasant Vihar, New Delhi',
+    rating: 5,
+    title: 'The weight of this fabric is unmatched.',
+    text: 'You cannot understand 480 GSM loopback cotton until you wear it. Kept the hoodie and track pants, handed back the oversized jacket. Settled via UPI in 10 seconds at the door.',
+    garment: 'Flared Minimalist Track Pant',
+  },
+  {
+    id: 'rev-4',
+    author: 'Pooja Reddy',
+    role: 'Studio Founder',
+    city: 'Jubilee Hills, Hyderabad',
+    rating: 5,
+    title: 'White-glove service in every detail.',
+    text: 'The private courier was courteous, professional, and patient. Having 45 minutes in front of my own mirror made all the difference. Will only purchase apparel this way now.',
+    garment: 'Japanese Selvedge Denim',
+  },
+]
+
+export default async function HomePage() {
   const supabase = await createServerSupabaseClient()
-  const selectedCategory = searchParams?.category || 'all'
+  let products: Product[] = []
 
-  // Fetch CMS config, promotional banners, apparel catalog, and categories in parallel
-  const [cmsConfig, activeBanners, products, categories] = await Promise.all([
-    getStorefrontConfig(supabase),
-    getPromotionalBanners(supabase, true),
-    getStorefrontProducts(supabase, selectedCategory),
-    getCategories(supabase),
-  ])
+  try {
+    const fetched = await getStorefrontProducts(supabase, 'all')
+    products = fetched && fetched.length > 0 ? fetched : DEFAULT_PRODUCTS
+  } catch {
+    products = DEFAULT_PRODUCTS
+  }
 
-  const hero = cmsConfig.hero || DEFAULT_HERO_CONFIG
-  const ethos = cmsConfig.ethos || DEFAULT_ETHOS_CONFIG
-
-  // Resolve Hero Featured Garment: Either bound in CMS or default to first product
-  const heroProduct =
-    (hero.featuredProductId
-      ? products.find((p) => p.id === hero.featuredProductId)
-      : null) || (products.length > 0 ? products[0]! : null)
-
-  // Fetch variant sizes for each product to display live size chips
-  const productVariantsMap: Record<string, ProductVariant[]> = {}
-  await Promise.all(
-    products.slice(0, 9).map(async (p) => {
-      const vars = await getProductVariants(supabase, p.id)
-      productVariantsMap[p.id] = vars
-    })
-  )
-
-  // Dynamic Category Navigation Tabs from Database
-  const categoryTabs = [
-    { label: 'ALL SILHOUETTES', slug: 'all' },
-    ...categories.map((c) => ({
-      label: c.name.toUpperCase(),
-      slug: c.slug,
-    })),
-  ]
-
-  // Primary active promotional banner from dynamic CMS
-  const primaryBanner = activeBanners.length > 0 ? activeBanners[0]! : null
+  // Curate 6 top-selling works for the featured gallery
+  const featuredProducts = products.slice(0, 6)
 
   return (
-    <div className="w-full flex flex-col">
+    <div className="bg-[#FAF9F6] text-[#121212] overflow-hidden selection:bg-black selection:text-white">
       {/* ========================================================= */}
-      {/* 1. DYNAMIC EDITORIAL HERO SECTION */}
+      {/* 1. CINEMATIC HERO SECTION */}
       {/* ========================================================= */}
-      <section className="relative px-4 sm:px-8 lg:px-12 py-8 lg:py-12 max-w-7xl mx-auto w-full min-h-[calc(100vh-5rem)] flex items-center">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center w-full">
-          {/* Left Column: Dynamic Headline, Story & Primary Actions */}
-          <div className="lg:col-span-7 flex flex-col justify-center space-y-6">
-            <div className="flex items-center gap-3">
-              <span className="text-xs uppercase tracking-[0.25em] text-neutral-400 font-mono font-semibold">
-                {hero.kicker || 'COLLECTION 01'}
-              </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#166534]" />
-              <span className="text-xs uppercase tracking-[0.2em] text-[#166534] font-mono font-semibold">
-                LIMITED RUN
-              </span>
-            </div>
+      <section className="relative min-h-[92vh] flex items-center justify-center bg-[#080808] text-white px-6 sm:px-12 py-20 overflow-hidden">
+        {/* Ambient editorial background imagery */}
+        <div className="absolute inset-0 opacity-40 mix-blend-luminosity scale-105 transition-transform duration-1000 ease-out">
+          <Image
+            src="https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=2000&q=85"
+            alt="Atelier Luxury Creator Apparel Editorial"
+            fill
+            priority
+            className="object-cover object-center filter grayscale contrast-125 brightness-90"
+          />
+        </div>
 
-            {/* Dynamic Headline configured from Admin CMS */}
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl xl:text-[5.25rem] font-black text-black tracking-tight leading-[0.95] uppercase">
-              {hero.headline || 'AUTONOMOUS'}{' '}
-              {hero.headlineItalic && (
-                <span className="text-[#166534] font-serif italic font-normal lowercase">
-                  {hero.headlineItalic}
-                </span>
-              )}
-              <br />
-              FOR THE CREATOR
+        {/* Sophisticated dark gradient overlays */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-transparent to-[#080808]/70" />
+        <div className="absolute inset-0 bg-radial-vignette opacity-80" />
+
+        <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8">
+          {/* Top Bolt Brand Pill */}
+          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 bg-amber-400/10 border border-amber-400/30 text-amber-300 text-xs font-mono uppercase tracking-[0.25em] backdrop-blur-md">
+            <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400 animate-pulse" />
+            <span>Introducing Bolt ⚡ Doorstep Try-On Salon</span>
+          </div>
+
+          {/* Main Cinematic Title */}
+          <div className="space-y-4">
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-light tracking-tight uppercase font-sans leading-[1.08]">
+              The Architecture <br />
+              <span className="font-serif italic font-normal lowercase tracking-normal text-amber-200/90">
+                of creator apparel
+              </span>
             </h1>
-
-            {/* Dynamic Description configured from Admin CMS */}
-            <p className="max-w-xl text-sm sm:text-base text-neutral-600 font-light leading-relaxed">
-              {hero.description ||
-                'Engineered heavyweight silhouettes cut from custom 480 GSM French Terry, 14oz Japanese selvedge denim, and technical outerwear. Made exclusively for the clothing creator.'}
+            <p className="max-w-2xl mx-auto text-sm sm:text-base text-zinc-300 font-light leading-relaxed font-sans">
+              Engineered in limited size allocations from custom milled 480 GSM French Terry and 14oz Japanese raw selvedge denim. Try on up to 5 pieces at home before paying.
             </p>
-
-            {/* Dynamic Hero CTA Buttons */}
-            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 max-w-lg">
-              <Link href={hero.ctaLink || '#collection'} className="flex-1">
-                <Button
-                  size="xl"
-                  className="w-full h-14 sm:h-16 bg-black hover:bg-neutral-800 text-white font-mono font-bold text-xs sm:text-sm tracking-[0.2em] uppercase rounded-none border border-black shadow-md flex items-center justify-center gap-3 group transition-all"
-                >
-                  <span>{hero.ctaLabel || 'SHOP DROP 01'}</span>
-                  <span className="w-2 h-2 rounded-full bg-[#166534]" />
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform text-[#166534]" />
-                </Button>
-              </Link>
-              <Link href="/?category=hoodies#collection">
-                <Button
-                  variant="outline"
-                  size="xl"
-                  className="w-full sm:w-auto h-14 sm:h-16 px-6 sm:px-8 border-2 border-neutral-300 hover:border-black text-black font-mono font-bold text-xs uppercase tracking-wider rounded-none transition-colors flex items-center justify-center gap-2"
-                >
-                  {hero.secondaryCategory ? `${hero.secondaryCategory.toUpperCase()} →` : 'HOODIES →'}
-                </Button>
-              </Link>
-            </div>
-
-            {/* Quality Specs Row */}
-            <div className="pt-4 flex flex-wrap items-center gap-4 sm:gap-6 text-[11px] font-mono text-neutral-500 uppercase tracking-wider border-t border-neutral-200">
-              <span className="flex items-center gap-1.5">
-                <span className="w-1 h-1 rounded-full bg-[#166534]" />
-                480 GSM French Terry
-              </span>
-              <span className="text-neutral-300">•</span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-1 h-1 rounded-full bg-[#166534]" />
-                14oz Selvedge Denim
-              </span>
-              <span className="text-neutral-300">•</span>
-              <span>45m Doorstep Try-On</span>
-            </div>
           </div>
 
-          {/* Right Column: Featured Garment Showcase Card */}
-          <div className="lg:col-span-5 w-full flex justify-center lg:justify-end">
-            {heroProduct && (
-              <Link href={`/product/${heroProduct.id}`} className="block w-full max-w-md group">
-                <div className="relative aspect-[4/5] max-h-[500px] lg:max-h-[540px] w-full overflow-hidden bg-neutral-100 border border-neutral-300 shadow-md">
-                  <Image
-                    src={heroProduct.image_url || '/images/prod1-primary.jpg'}
-                    alt={heroProduct.title}
-                    fill
-                    priority
-                    sizes="(max-width: 1024px) 100vw, 42vw"
-                    className="object-cover object-center transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105"
-                  />
-                  <div className="absolute top-3 left-3 bg-black text-white text-[10px] font-mono font-bold px-2.5 py-1 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#166534]" />
-                    <span>FEATURED SILHOUETTE</span>
-                  </div>
-                </div>
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+            <Link
+              href="/shop"
+              className="w-full sm:w-auto px-8 py-4 bg-amber-400 hover:bg-amber-300 text-black text-xs font-mono uppercase tracking-widest font-black transition-all duration-300 shadow-xl shadow-amber-400/15 flex items-center justify-center gap-2 group"
+            >
+              <Zap className="w-4 h-4 fill-black" />
+              <span>Experience Bolt ⚡ Try-On</span>
+              <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+            </Link>
 
-                <div className="mt-3 flex justify-between items-baseline text-xs font-mono">
-                  <span className="text-sm font-bold uppercase text-black group-hover:text-[#166534] transition-colors block">
-                    {heroProduct.title}
-                  </span>
-                  <span className="text-neutral-900 font-bold text-sm">
-                    ${Number(heroProduct.price).toFixed(2)} USD
-                  </span>
-                </div>
-              </Link>
-            )}
+            <Link
+              href="/shop"
+              className="w-full sm:w-auto px-8 py-4 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-mono uppercase tracking-widest font-semibold transition-all duration-300 backdrop-blur-sm"
+            >
+              Explore Drop 01 Catalog
+            </Link>
+          </div>
+
+          {/* Value Badges Banner */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-12 border-t border-white/10 text-[11px] font-mono text-zinc-400">
+            <div className="flex items-center justify-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span>₹99 Doorstep Hold Only</span>
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span>45-Min Home Fitting Window</span>
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span>Zero Return Friction</span>
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span>11+ Metro PINs Serviceable</span>
+            </div>
           </div>
         </div>
       </section>
 
       {/* ========================================================= */}
-      {/* 2. DYNAMIC PROMOTIONAL ANNOUNCEMENT BANNER */}
+      {/* 2. HOW BOLT ⚡ WORKS — 3-STEP INFOGRAPHIC */}
       {/* ========================================================= */}
-      <section className="px-4 sm:px-8 lg:px-12 py-16 sm:py-24 max-w-7xl mx-auto w-full">
-        {primaryBanner ? (
-          <div className="relative overflow-hidden bg-black text-white p-8 sm:p-14 border border-neutral-800 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            <div className="lg:col-span-8 space-y-4">
-              <span className="text-xs uppercase tracking-[0.25em] text-[#166534] font-mono font-bold block">
-                {primaryBanner.badge_text || 'ATELIER ANNOUNCEMENT'}
-              </span>
-              <h2 className="text-2xl sm:text-4xl font-bold uppercase text-white leading-tight tracking-tight">
-                {primaryBanner.title}
-              </h2>
-              {primaryBanner.subtitle && (
-                <p className="text-xs sm:text-sm text-neutral-400 font-light max-w-2xl leading-relaxed">
-                  {primaryBanner.subtitle}
-                </p>
-              )}
-              <div className="pt-2">
-                <Link href={primaryBanner.cta_link || '#collection'}>
-                  <Button
-                    variant="outline"
-                    size="default"
-                    className="text-white border-neutral-700 hover:border-[#166534] hover:text-[#166534] hover:bg-neutral-950 text-xs tracking-wider uppercase rounded-none"
-                  >
-                    {primaryBanner.cta_label || 'Explore Collection'} →
-                  </Button>
-                </Link>
-              </div>
+      <section id="bolt" className="py-24 sm:py-32 px-6 sm:px-12 bg-white border-b border-zinc-200">
+        <div className="max-w-7xl mx-auto space-y-16">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/10 text-amber-700 text-xs font-mono uppercase font-bold tracking-widest border border-amber-500/20">
+              <Zap className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+              White-Glove Salon Experience
             </div>
-
-            {primaryBanner.image_url && (
-              <div className="lg:col-span-4 relative h-48 lg:h-56 w-full overflow-hidden border border-neutral-800 hidden sm:block">
-                <Image
-                  src={primaryBanner.image_url}
-                  alt={primaryBanner.title}
-                  fill
-                  className="object-cover object-center grayscale hover:grayscale-0 transition-all duration-700"
-                />
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="relative overflow-hidden bg-black text-white p-8 sm:p-14 border border-neutral-800 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            <div className="lg:col-span-8 space-y-4">
-              <span className="text-xs uppercase tracking-[0.25em] text-[#166534] font-mono font-bold block">
-                FABRIC & TEXTILE LAB
-              </span>
-              <h2 className="text-2xl sm:text-4xl font-bold uppercase text-white leading-tight tracking-tight">
-                ZERO POLYESTER BLENDS.{' '}
-                <span className="text-[#166534] font-serif italic font-normal lowercase">
-                  architectural
-                </span>{' '}
-                DRAPE.
-              </h2>
-              <p className="text-xs sm:text-sm text-neutral-400 font-light max-w-2xl leading-relaxed">
-                Every garment is milled from 100% natural organic cotton, heavy Japanese selvedge denim,
-                and vintage enzymatic wash treatments. Strict unit runs per size ensure unrepeatable rarity.
-              </p>
-              <div className="pt-2">
-                <Link href="#collection">
-                  <Button
-                    variant="outline"
-                    size="default"
-                    className="text-white border-neutral-700 hover:border-[#166534] hover:text-[#166534] hover:bg-neutral-950 text-xs tracking-wider uppercase rounded-none"
-                  >
-                    DISCOVER APPAREL SPECIFICATIONS →
-                  </Button>
-                </Link>
-              </div>
-            </div>
-
-            <div className="lg:col-span-4 relative h-48 lg:h-56 w-full overflow-hidden border border-neutral-800 hidden sm:block">
-              <Image
-                src="/images/prod3-front.jpg"
-                alt="Raw Selvedge Linen Smock"
-                fill
-                className="object-cover object-center grayscale hover:grayscale-0 transition-all duration-700"
-              />
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* ========================================================= */}
-      {/* 3. DYNAMIC CLOTHING COLLECTION & SIZE RUNS */}
-      {/* ========================================================= */}
-      <section id="collection" className="px-4 sm:px-8 lg:px-12 py-12 sm:py-16 max-w-7xl mx-auto w-full space-y-8 sm:space-y-10 scroll-mt-24">
-        {/* Header with Heading & Category Pills */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-black pb-6">
-          <div>
-            <span className="text-xs uppercase tracking-[0.25em] text-neutral-400 font-mono block font-semibold">
-              CATALOGUE
-            </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase text-black tracking-tight mt-1">
-              CURRENT <span className="text-[#166534] font-serif italic font-normal lowercase">apparel</span> EDITIONS
+            <h2 className="text-3xl sm:text-4xl font-light tracking-tight uppercase font-sans">
+              How Doorstep Try-On Works
             </h2>
+            <p className="text-sm text-zinc-600 font-light leading-relaxed">
+              Experience the luxury of high-end boutique dressing in the privacy of your residence before committing to a purchase.
+            </p>
           </div>
 
-          {/* Dynamic Category Filter Pills */}
-          <div className="flex flex-wrap items-center gap-2">
-            {categoryTabs.map((tab) => {
-              const isActive = selectedCategory === tab.slug
-              return (
-                <Link
-                  key={tab.slug}
-                  href={tab.slug === 'all' ? '/#collection' : `/?category=${tab.slug}#collection`}
-                  className={`px-3 py-1.5 text-xs font-mono font-medium tracking-wider uppercase transition-all border ${
-                    isActive
-                      ? 'bg-[#166534] text-white border-[#166534] shadow-sm'
-                      : 'bg-white text-neutral-600 border-neutral-300 hover:border-black hover:text-black'
-                  }`}
-                >
-                  {tab.label}
-                </Link>
-              )
-            })}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+            {/* Step 1 */}
+            <div className="p-8 bg-[#FAF9F6] border border-zinc-200 hover:border-black transition-all duration-300 space-y-5 relative group">
+              <div className="flex justify-between items-start">
+                <span className="text-3xl font-serif italic text-zinc-400 group-hover:text-black transition-colors">
+                  01
+                </span>
+                <span className="p-3 bg-white border border-zinc-200 text-zinc-800">
+                  <Scissors className="w-5 h-5" />
+                </span>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold uppercase tracking-tight font-sans">
+                  Curate Your Fitting
+                </h3>
+                <p className="text-xs text-zinc-600 leading-relaxed font-light">
+                  Select up to 5 curated garments in multiple sizes or silhouettes. Pay only a nominal ₹99 booking hold at checkout.
+                </p>
+              </div>
+              <div className="pt-2 text-[11px] font-mono text-zinc-500 flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Max 5 pieces • No upfront cart charge</span>
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="p-8 bg-[#FAF9F6] border border-zinc-200 hover:border-amber-400 transition-all duration-300 space-y-5 relative group shadow-sm">
+              <div className="flex justify-between items-start">
+                <span className="text-3xl font-serif italic text-amber-600">
+                  02
+                </span>
+                <span className="p-3 bg-amber-400 text-black">
+                  <Clock className="w-5 h-5" />
+                </span>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold uppercase tracking-tight font-sans">
+                  45m Doorstep Salon
+                </h3>
+                <p className="text-xs text-zinc-600 leading-relaxed font-light">
+                  An Atelier courier arrives in an insured transit vehicle during your chosen IST window. Try everything on in front of your personal mirrors.
+                </p>
+              </div>
+              <div className="pt-2 text-[11px] font-mono text-amber-700 flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                <span>Private 45-minute fitting window</span>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="p-8 bg-[#FAF9F6] border border-zinc-200 hover:border-black transition-all duration-300 space-y-5 relative group">
+              <div className="flex justify-between items-start">
+                <span className="text-3xl font-serif italic text-zinc-400 group-hover:text-black transition-colors">
+                  03
+                </span>
+                <span className="p-3 bg-white border border-zinc-200 text-zinc-800">
+                  <HeartHandshake className="w-5 h-5" />
+                </span>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold uppercase tracking-tight font-sans">
+                  Keep What You Love
+                </h3>
+                <p className="text-xs text-zinc-600 leading-relaxed font-light">
+                  Hand back any sizes or cuts you decline. Settle only what you retain via instant UPI QR or Card, with your ₹99 deposit credited.
+                </p>
+              </div>
+              <div className="pt-2 text-[11px] font-mono text-zinc-500 flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Instant UPI • Deposit credited back</span>
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* Apparel Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-          {products.map((item) => {
-            const variants = productVariantsMap[item.id] || []
-            const activeSizes = variants.filter((v) => v.stock > 0).map((v) => v.size)
+      {/* ========================================================= */}
+      {/* 3. FEATURED CURATED CATALOG GRID */}
+      {/* ========================================================= */}
+      <section className="py-24 sm:py-32 px-6 sm:px-12 bg-[#FAF9F6]">
+        <div className="max-w-7xl mx-auto space-y-12">
+          {/* Section Header */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-zinc-200 pb-6">
+            <div>
+              <span className="text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 block mb-1">
+                Drop 01 Edition
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-light uppercase tracking-tight font-sans">
+                Curated Works for Try-On
+              </h2>
+            </div>
 
-            return (
-              <Link
-                key={item.id}
-                href={`/product/${item.id}`}
-                className="group flex flex-col justify-between h-full border border-neutral-200/80 hover:border-black p-4 bg-white transition-all duration-300 shadow-sm hover:shadow-md"
+            <Link
+              href="/shop"
+              className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest font-bold text-zinc-800 hover:text-black transition-colors group"
+            >
+              <span>View All Pieces ({products.length})</span>
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </div>
+
+          {/* Products Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {featuredProducts.map((product) => (
+              <div
+                key={product.id}
+                className="group flex flex-col bg-white border border-zinc-200 hover:border-black transition-all duration-300"
               >
-                {/* Product Image */}
-                <div className="relative aspect-[4/5] w-full overflow-hidden bg-neutral-100 border border-neutral-200/60">
+                {/* Image Container with Hover Zoom */}
+                <Link
+                  href={`/product/${product.id}`}
+                  className="relative aspect-[4/5] bg-zinc-100 overflow-hidden block"
+                >
                   <Image
-                    src={item.image_url || '/images/prod1-primary.jpg'}
-                    alt={item.title}
+                    src={product.image_url || '/images/prod1-primary.jpg'}
+                    alt={product.title}
                     fill
-                    sizes="(max-width: 1024px) 100vw, 33vw"
-                    className="object-cover object-center transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
                   />
-                </div>
 
-                {/* Details */}
-                <div className="space-y-2 pt-3">
-                  <div className="flex justify-between items-baseline gap-2">
-                    <h3 className="text-sm sm:text-base font-bold uppercase text-black group-hover:text-[#166534] transition-colors truncate">
-                      {item.title}
-                    </h3>
-                    <span className="font-mono text-sm text-neutral-900 font-bold shrink-0">
-                      ${Number(item.price).toFixed(2)}
+                  {/* Bolt Available Tag */}
+                  <div className="absolute top-3 left-3 z-10">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-mono font-bold uppercase bg-black text-amber-400 tracking-wider shadow">
+                      <Zap className="w-2.5 h-2.5 fill-amber-400" />
+                      Bolt ⚡ Available
                     </span>
                   </div>
 
-                  <p className="text-xs text-neutral-500 font-light truncate">
-                    {item.material || item.category}
-                  </p>
+                  {/* Stock Pill */}
+                  <div className="absolute top-3 right-3 z-10">
+                    <span className="px-2 py-0.5 text-[9px] font-mono uppercase bg-white/90 backdrop-blur-sm text-zinc-800 border border-zinc-200">
+                      {product.stock > 0 ? `${product.stock} units` : 'Sold out'}
+                    </span>
+                  </div>
+                </Link>
 
-                  {/* Size Matrix Availability Chips */}
-                  <div className="pt-2 flex items-center justify-between border-t border-neutral-100 text-[10px] font-mono">
-                    <span className="text-neutral-400 uppercase">Available Sizes:</span>
-                    <div className="flex items-center gap-1 font-semibold text-neutral-800">
-                      {activeSizes.length > 0 ? (
-                        activeSizes.slice(0, 5).map((s) => (
-                          <span
-                            key={s}
-                            className="px-1.5 py-0.5 bg-neutral-100 border border-neutral-300/80 group-hover:border-black transition-colors"
-                          >
-                            {s}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-rose-500 font-bold">SOLD OUT</span>
-                      )}
+                {/* Card Info */}
+                <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-baseline gap-2">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                        {product.category || 'Drop 01'}
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-400">
+                        {product.edition || '100% Cotton'}
+                      </span>
                     </div>
+
+                    <Link
+                      href={`/product/${product.id}`}
+                      className="block group-hover:underline underline-offset-4"
+                    >
+                      <h3 className="text-base font-bold text-zinc-900 tracking-tight font-sans">
+                        {product.title}
+                      </h3>
+                    </Link>
+
+                    <p className="text-xs text-zinc-500 line-clamp-1 font-light">
+                      {product.material || 'Heavyweight French Terry'}
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-zinc-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-mono uppercase text-zinc-400">
+                        Price
+                      </p>
+                      <p className="text-base font-bold font-mono text-zinc-900">
+                        ₹{Number(product.price).toFixed(2)}
+                      </p>
+                    </div>
+
+                    <Link
+                      href={`/product/${product.id}`}
+                      className="px-4 py-2 bg-zinc-900 hover:bg-black text-white text-[11px] font-mono uppercase tracking-wider font-semibold transition-colors flex items-center gap-1.5"
+                    >
+                      <span>Try-On</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
                   </div>
                 </div>
-              </Link>
-            )
-          })}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* ========================================================= */}
-      {/* 4. DYNAMIC BRAND ETHOS STATEMENT */}
+      {/* 4. EDITORIAL TEXTILE MANIFESTO SPLIT */}
       {/* ========================================================= */}
-      <section className="px-4 sm:px-8 lg:px-12 py-20 sm:py-28 max-w-4xl mx-auto text-center space-y-6 w-full">
-        <span className="text-xs uppercase tracking-[0.3em] text-neutral-400 font-mono block font-semibold">
-          {ethos.pretitle || 'ATELIER SPECIFICATION'}
-        </span>
-        <blockquote className="text-3xl sm:text-5xl lg:text-6xl font-black text-black leading-tight uppercase tracking-tight">
-          &ldquo;{ethos.statement || 'ENGINEERED PROPORTION & SUBSTANTIAL WEIGHT.'}&rdquo;
-        </blockquote>
-        {ethos.subtext && (
-          <p className="text-xs sm:text-sm text-neutral-600 font-light max-w-2xl mx-auto leading-relaxed">
-            {ethos.subtext}
-          </p>
-        )}
+      <section className="bg-black text-white py-24 sm:py-32 px-6 sm:px-12 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          <div className="lg:col-span-6 space-y-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 text-zinc-300 text-xs font-mono uppercase tracking-widest border border-white/20">
+              <Layers className="w-3.5 h-3.5 text-amber-400" />
+              The Textile Standard
+            </div>
+
+            <h2 className="text-3xl sm:text-5xl font-light uppercase tracking-tight font-sans leading-tight">
+              Crafted in Wakayama. <br />
+              <span className="font-serif italic font-normal text-amber-200">
+                zero synthetic compromise.
+              </span>
+            </h2>
+
+            <p className="text-sm text-zinc-400 leading-relaxed font-light">
+              Conventional luxury fashion relies on cheap elastane blends that pill within months. Atelier garments are constructed from single-origin combed cotton knitted on vintage loopwheel machines at sluggish speeds to create an indestructible drape.
+            </p>
+
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-zinc-800 text-xs font-mono">
+              <div>
+                <p className="text-amber-400 font-bold text-lg">480 GSM</p>
+                <p className="text-zinc-400 text-[11px] uppercase mt-0.5">Heavyweight Loopback Fleece</p>
+              </div>
+              <div>
+                <p className="text-amber-400 font-bold text-lg">14.5 OZ</p>
+                <p className="text-zinc-400 text-[11px] uppercase mt-0.5">Japanese Raw Selvedge Denim</p>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <Link
+                href="/about"
+                className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-white hover:text-amber-300 transition-colors underline underline-offset-8"
+              >
+                <span>Read our Mill & Heritage Story</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="lg:col-span-6 relative aspect-[4/3] bg-zinc-900 border border-zinc-800 overflow-hidden">
+            <Image
+              src="https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85"
+              alt="Atelier Cotton Weaving Mill Detail"
+              fill
+              className="object-cover filter contrast-110 grayscale"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================= */}
+      {/* 5. USER REVIEWS & SOCIAL PROOF */}
+      {/* ========================================================= */}
+      <section className="py-24 sm:py-32 px-6 sm:px-12 bg-[#FAF9F6] border-t border-zinc-200">
+        <div className="max-w-7xl mx-auto space-y-16">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <div className="flex items-center justify-center gap-1 text-amber-500 mb-2">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+              ))}
+              <span className="text-xs font-mono text-zinc-600 font-bold ml-2">
+                4.9 / 5.0 (280+ Patron Fittings)
+              </span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-light uppercase tracking-tight font-sans">
+              Doorstep Fitting Experiences
+            </h2>
+            <p className="text-sm text-zinc-600 font-light leading-relaxed">
+              Dispatches delivered to private residences across Bengaluru, Mumbai, Delhi NCR, and Hyderabad.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {REVIEWS.map((rev) => (
+              <div
+                key={rev.id}
+                className="p-8 bg-white border border-zinc-200 hover:border-black transition-all duration-300 space-y-4 flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex text-amber-400">
+                      {[...Array(rev.rating)].map((_, idx) => (
+                        <Star key={idx} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                      ))}
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5">
+                      <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                      Verified Bolt Fitting
+                    </span>
+                  </div>
+
+                  <h3 className="text-base font-bold text-zinc-900 font-sans tracking-tight">
+                    &ldquo;{rev.title}&rdquo;
+                  </h3>
+
+                  <p className="text-xs text-zinc-600 leading-relaxed font-light">
+                    {rev.text}
+                  </p>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-100 flex items-center justify-between text-xs font-mono">
+                  <div>
+                    <p className="font-bold text-zinc-900">{rev.author}</p>
+                    <p className="text-[11px] text-zinc-500">{rev.role} • {rev.city}</p>
+                  </div>
+                  <span className="text-[10px] text-zinc-400 bg-zinc-50 px-2 py-1 border border-zinc-100">
+                    {rev.garment}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================= */}
+      {/* 6. CALLOUT: CHECK PIN AVAILABILITY & DISPATCH */}
+      {/* ========================================================= */}
+      <section className="py-20 px-6 sm:px-12 bg-amber-400 text-black">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-8 text-center sm:text-left">
+          <div className="space-y-2">
+            <span className="text-xs font-mono uppercase tracking-widest font-black flex items-center justify-center sm:justify-start gap-1.5">
+              <Zap className="w-4 h-4 fill-black" />
+              White-Glove Fleet Active in Your City
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-black uppercase font-sans tracking-tight">
+              Ready to try Bolt ⚡ at your doorstep?
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-900 font-sans">
+              Book a 45-minute fitting salon for Drop 01. Pay only for what fits you perfectly.
+            </p>
+          </div>
+
+          <Link
+            href="/shop"
+            className="px-8 py-4 bg-black hover:bg-zinc-800 text-white font-mono text-xs uppercase tracking-widest font-bold shrink-0 transition-colors shadow-2xl"
+          >
+            Start Your Try-On Bag →
+          </Link>
+        </div>
       </section>
     </div>
   )

@@ -75,24 +75,24 @@ export default function LuxuryCustomersPage() {
     setNotification(null)
 
     try {
-      const supabase = createBrowserClient()
-      const { data, error } = await supabase.auth.signUp({
-        email: courierEmail.trim(),
-        password: courierPassword,
-        options: {
-          data: {
-            name: courierName.trim(),
-            role: 'delivery',
-          },
-        },
+      const res = await fetch('/api/admin/create-courier', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: courierName.trim(),
+          email: courierEmail.trim(),
+          password: courierPassword,
+        }),
       })
 
-      if (error) {
-        setNotification({ type: 'error', message: error.message })
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        setNotification({ type: 'error', message: data.error || 'Failed to create courier' })
       } else {
         setNotification({
           type: 'success',
-          message: `Delivery Courier "${courierName}" registered with credentials ${courierEmail}. Assigned role 'delivery'.`,
+          message: data.message || `Delivery Courier "${courierName}" registered with credentials ${courierEmail}. Assigned role 'delivery'.`,
         })
         setCourierName('')
         setCourierEmail('')

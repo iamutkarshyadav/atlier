@@ -33,6 +33,24 @@ EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
 
+DO $$ BEGIN
+  CREATE TYPE public.order_type AS ENUM ('standard', 'bolt_try_on');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE public.bolt_session_status AS ENUM ('scheduled', 'en_route', 'at_doorstep', 'completed', 'cancelled');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE public.try_on_decision AS ENUM ('pending', 'kept', 'rejected');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
 -- 3. Users Table (Synced with auth.users)
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -77,6 +95,39 @@ CREATE TABLE IF NOT EXISTS public.products (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+-- 5b. Product Variants Table
+CREATE TABLE IF NOT EXISTS public.product_variants (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  sku TEXT UNIQUE NOT NULL,
+  size TEXT NOT NULL,
+  color TEXT,
+  stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+  price_override NUMERIC(10, 2) CHECK (price_override IS NULL OR price_override >= 0),
+  barcode TEXT,
+  barcode_data TEXT,
+  barcode_url TEXT,
+  weight_grams INTEGER,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_variants_product_id ON public.product_variants(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_variants_sku ON public.product_variants(sku);
+
+-- 5c. Product Media Table
+CREATE TABLE IF NOT EXISTS public.product_media (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  alt_text TEXT,
+  is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_media_product_id ON public.product_media(product_id);
+
 -- 6. Patron Addresses Table
 CREATE TABLE IF NOT EXISTS public.addresses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -95,11 +146,44 @@ CREATE TABLE IF NOT EXISTS public.addresses (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+-- 6b. Bolt PIN Codes Table (Serviceability Engine)
+CREATE TABLE IF NOT EXISTS public.bolt_pincodes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pincode VARCHAR(10) NOT NULL UNIQUE,
+  city TEXT NOT NULL,
+  state TEXT NOT NULL DEFAULT 'India',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_bolt_pincodes_pincode ON public.bolt_pincodes(pincode);
+CREATE INDEX IF NOT EXISTS idx_bolt_pincodes_is_active ON public.bolt_pincodes(is_active);
+
+-- 6c. Bolt Delivery Time Slots Table
+CREATE TABLE IF NOT EXISTS public.bolt_timeslots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  label TEXT NOT NULL,
+  slot_start TIME,
+  slot_end TIME,
+  cutoff_time TIME NOT NULL DEFAULT '09:00:00',
+  max_daily_capacity INTEGER NOT NULL DEFAULT 15,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_bolt_timeslots_is_active ON public.bolt_timeslots(is_active);
+
 -- 7. Orders Table
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_number TEXT,
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+  order_type public.order_type NOT NULL DEFAULT 'standard',
+  bolt_pincode VARCHAR(10) DEFAULT NULL,
+  bolt_timeslot_id UUID REFERENCES public.bolt_timeslots(id) ON DELETE SET NULL DEFAULT NULL,
+  bolt_session_status public.bolt_session_status DEFAULT NULL,
   status public.order_status NOT NULL DEFAULT 'pending',
   delivery_mode public.delivery_mode NOT NULL DEFAULT 'direct',
   try_on_status public.try_on_status DEFAULT NULL,
@@ -131,8 +215,36 @@ CREATE TABLE IF NOT EXISTS public.order_items (
   unit_price NUMERIC(10, 2) NOT NULL CHECK (unit_price >= 0),
   size TEXT DEFAULT NULL,
   is_kept BOOLEAN DEFAULT NULL,
+  try_on_decision public.try_on_decision NOT NULL DEFAULT 'pending',
   rejection_reason TEXT DEFAULT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 8b. Storefront Configuration Table (CMS)
+CREATE TABLE IF NOT EXISTS public.storefront_config (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT UNIQUE NOT NULL,
+  value JSONB NOT NULL,
+  description TEXT,
+  updated_by UUID,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 8c. Promotional Banners Table (CMS)
+CREATE TABLE IF NOT EXISTS public.promotional_banners (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  subtitle TEXT,
+  badge_text TEXT,
+  image_url TEXT,
+  cta_label TEXT NOT NULL DEFAULT 'Shop Now',
+  cta_link TEXT NOT NULL DEFAULT '/shop',
+  display_order INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  start_date TIMESTAMPTZ,
+  end_date TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
 -- 9. Helper Security Definer Functions
@@ -222,6 +334,40 @@ SET email_confirmed_at = COALESCE(email_confirmed_at, timezone('utc'::text, now(
     confirmed_at = COALESCE(confirmed_at, timezone('utc'::text, now()))
 WHERE email_confirmed_at IS NULL;
 
+-- RPC: Atomic Variant Stock Adjustment
+CREATE OR REPLACE FUNCTION public.adjust_variant_stock(
+  p_variant_id UUID,
+  p_delta INTEGER
+)
+RETURNS TABLE (
+  variant_id UUID,
+  new_stock INTEGER,
+  product_id UUID,
+  new_product_stock INTEGER
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_prod_id UUID;
+  v_new_stock INTEGER;
+  v_prod_stock INTEGER;
+BEGIN
+  UPDATE public.product_variants
+  SET stock = GREATEST(0, stock + p_delta), updated_at = now()
+  WHERE id = p_variant_id
+  RETURNING product_variants.stock, product_variants.product_id
+  INTO v_new_stock, v_prod_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Variant with id % not found', p_variant_id;
+  END IF;
+
+  SELECT stock INTO v_prod_stock FROM public.products WHERE id = v_prod_id;
+  RETURN QUERY SELECT p_variant_id, v_new_stock, v_prod_id, v_prod_stock;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.set_current_timestamp_updated_at()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -257,15 +403,67 @@ CREATE TRIGGER set_addresses_timestamp
   BEFORE UPDATE ON public.addresses
   FOR EACH ROW EXECUTE PROCEDURE public.set_current_timestamp_updated_at();
 
+DROP TRIGGER IF EXISTS set_bolt_pincodes_timestamp ON public.bolt_pincodes;
+CREATE TRIGGER set_bolt_pincodes_timestamp
+  BEFORE UPDATE ON public.bolt_pincodes
+  FOR EACH ROW EXECUTE PROCEDURE public.set_current_timestamp_updated_at();
+
+DROP TRIGGER IF EXISTS set_bolt_timeslots_timestamp ON public.bolt_timeslots;
+CREATE TRIGGER set_bolt_timeslots_timestamp
+  BEFORE UPDATE ON public.bolt_timeslots
+  FOR EACH ROW EXECUTE PROCEDURE public.set_current_timestamp_updated_at();
+
 -- ==============================================================================
 -- 11. ROW LEVEL SECURITY (RLS) POLICIES
 -- ==============================================================================
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.product_variants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.product_media ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.addresses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.storefront_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.promotional_banners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bolt_pincodes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bolt_timeslots ENABLE ROW LEVEL SECURITY;
+
+-- Bolt PIN Codes RLS:
+DROP POLICY IF EXISTS "Public read bolt_pincodes" ON public.bolt_pincodes;
+CREATE POLICY "Public read bolt_pincodes" ON public.bolt_pincodes FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admin write bolt_pincodes" ON public.bolt_pincodes;
+CREATE POLICY "Admin write bolt_pincodes" ON public.bolt_pincodes FOR ALL USING (public.get_user_role(auth.uid()) = 'admin') WITH CHECK (public.get_user_role(auth.uid()) = 'admin');
+
+-- Bolt Time Slots RLS:
+DROP POLICY IF EXISTS "Public read bolt_timeslots" ON public.bolt_timeslots;
+CREATE POLICY "Public read bolt_timeslots" ON public.bolt_timeslots FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admin write bolt_timeslots" ON public.bolt_timeslots;
+CREATE POLICY "Admin write bolt_timeslots" ON public.bolt_timeslots FOR ALL USING (public.get_user_role(auth.uid()) = 'admin') WITH CHECK (public.get_user_role(auth.uid()) = 'admin');
+
+-- Product Variants RLS:
+DROP POLICY IF EXISTS "Public read product_variants" ON public.product_variants;
+CREATE POLICY "Public read product_variants" ON public.product_variants FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admin write product_variants" ON public.product_variants;
+CREATE POLICY "Admin write product_variants" ON public.product_variants FOR ALL USING (public.get_user_role(auth.uid()) = 'admin');
+
+-- Product Media RLS:
+DROP POLICY IF EXISTS "Public read product_media" ON public.product_media;
+CREATE POLICY "Public read product_media" ON public.product_media FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admin write product_media" ON public.product_media;
+CREATE POLICY "Admin write product_media" ON public.product_media FOR ALL USING (public.get_user_role(auth.uid()) = 'admin');
+
+-- Storefront Config RLS:
+DROP POLICY IF EXISTS "Public read storefront_config" ON public.storefront_config;
+CREATE POLICY "Public read storefront_config" ON public.storefront_config FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admin write storefront_config" ON public.storefront_config;
+CREATE POLICY "Admin write storefront_config" ON public.storefront_config FOR ALL USING (public.get_user_role(auth.uid()) = 'admin');
+
+-- Promotional Banners RLS:
+DROP POLICY IF EXISTS "Public read promotional_banners" ON public.promotional_banners;
+CREATE POLICY "Public read promotional_banners" ON public.promotional_banners FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admin write promotional_banners" ON public.promotional_banners;
+CREATE POLICY "Admin write promotional_banners" ON public.promotional_banners FOR ALL USING (public.get_user_role(auth.uid()) = 'admin');
 
 -- Categories RLS:
 -- Everyone (visitors & patrons) can view categories
@@ -424,7 +622,12 @@ CREATE INDEX IF NOT EXISTS idx_products_category_id ON public.products(category_
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON public.orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_delivery_partner_id ON public.orders(delivery_partner_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_order_type ON public.orders(order_type);
+CREATE INDEX IF NOT EXISTS idx_orders_bolt_pincode ON public.orders(bolt_pincode);
+CREATE INDEX IF NOT EXISTS idx_orders_bolt_timeslot_id ON public.orders(bolt_timeslot_id);
+CREATE INDEX IF NOT EXISTS idx_orders_bolt_session_status ON public.orders(bolt_session_status);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_try_on_decision ON public.order_items(try_on_decision);
 CREATE INDEX IF NOT EXISTS idx_addresses_user_id ON public.addresses(user_id);
 
 -- ==============================================================================
@@ -529,4 +732,44 @@ ON CONFLICT (id) DO UPDATE SET
   category = EXCLUDED.category,
   material = EXCLUDED.material,
   edition = EXCLUDED.edition;
+
+-- ==============================================================================
+-- 13. BOLT ⚡ SEED DATA (Indian Metro PIN Codes & IST Timeslots)
+-- ==============================================================================
+
+-- Seed Indian Metro Serviceability
+INSERT INTO public.bolt_pincodes (pincode, city, state, is_active)
+VALUES
+  ('560001', 'Bengaluru', 'Karnataka', true),
+  ('560034', 'Bengaluru', 'Karnataka', true),
+  ('560038', 'Bengaluru', 'Karnataka', true),
+  ('560102', 'Bengaluru', 'Karnataka', true),
+  ('560103', 'Bengaluru', 'Karnataka', true),
+  ('400001', 'Mumbai', 'Maharashtra', true),
+  ('400050', 'Mumbai', 'Maharashtra', true),
+  ('400051', 'Mumbai', 'Maharashtra', true),
+  ('110001', 'New Delhi', 'Delhi', true),
+  ('122002', 'Gurugram', 'Haryana', true),
+  ('500081', 'Hyderabad', 'Telangana', true)
+ON CONFLICT (pincode) DO UPDATE SET
+  city = EXCLUDED.city,
+  state = EXCLUDED.state,
+  is_active = EXCLUDED.is_active;
+
+-- Seed Indian Time Slots (IST Windows)
+INSERT INTO public.bolt_timeslots (id, label, slot_start, slot_end, cutoff_time, max_daily_capacity, is_active)
+VALUES
+  ('t1000000-0000-0000-0000-000000000001', '10:00 AM - 12:00 PM (Morning Priority)', '10:00:00', '12:00:00', '09:00:00', 12, true),
+  ('t1000000-0000-0000-0000-000000000002', '12:00 PM - 02:00 PM (Midday Salon)', '12:00:00', '14:00:00', '11:00:00', 12, true),
+  ('t1000000-0000-0000-0000-000000000003', '02:00 PM - 04:00 PM (Afternoon Fitting)', '14:00:00', '16:00:00', '13:00:00', 15, true),
+  ('t1000000-0000-0000-0000-000000000004', '04:00 PM - 06:00 PM (Evening Express)', '16:00:00', '18:00:00', '15:00:00', 15, true),
+  ('t1000000-0000-0000-0000-000000000005', '06:00 PM - 08:00 PM (Sunset White-Glove)', '18:00:00', '20:00:00', '17:00:00', 10, true)
+ON CONFLICT (id) DO UPDATE SET
+  label = EXCLUDED.label,
+  slot_start = EXCLUDED.slot_start,
+  slot_end = EXCLUDED.slot_end,
+  cutoff_time = EXCLUDED.cutoff_time,
+  max_daily_capacity = EXCLUDED.max_daily_capacity,
+  is_active = EXCLUDED.is_active;
+
 

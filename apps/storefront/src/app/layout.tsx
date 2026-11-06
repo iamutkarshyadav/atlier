@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { Navbar } from '../components/Navbar'
 import { Footer } from '../components/Footer'
+import { BoltServiceabilityBanner } from '../components/BoltServiceabilityBanner'
 
 export const metadata: Metadata = {
   title: 'ATELIER • Creator Apparel Drop',
@@ -16,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen flex flex-col bg-[#FAFAFA] text-[#0A0A0C] antialiased selection:bg-neutral-900 selection:text-white">
+        <BoltServiceabilityBanner />
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />

@@ -34,9 +34,9 @@ export async function middleware(request: NextRequest) {
 
         const profile = data as { role?: string } | null
         const userRole = profile?.role || user.user_metadata?.role
-        if (userRole === 'delivery' || userRole === 'admin' || user.email?.includes('courier') || user.email?.includes('logistics')) {
+        if (userRole === 'delivery' || userRole === 'admin') {
           const manifestUrl = request.nextUrl.clone()
-          manifestUrl.pathname = '/assigned-deliveries'
+          manifestUrl.pathname = '/manifest'
           return NextResponse.redirect(manifestUrl)
         }
       } catch {
@@ -64,7 +64,7 @@ export async function middleware(request: NextRequest) {
 
     const profile = data as { role?: string } | null
     const userRole = profile?.role || user.user_metadata?.role
-    const isCourier = userRole === 'delivery' || userRole === 'admin' || user.email?.includes('courier') || user.email?.includes('logistics')
+    const isCourier = userRole === 'delivery' || userRole === 'admin'
 
     if (!isCourier) {
       const loginUrl = request.nextUrl.clone()
@@ -73,7 +73,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
   } catch (err) {
-    console.warn('Delivery role verification notice:', err)
+    console.error('CRITICAL: Delivery role verification failed. Enforcing fail-closed gate:', err)
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/login'
+    loginUrl.searchParams.set('error', 'session_verification_failed')
+    return NextResponse.redirect(loginUrl)
   }
 
   return response

@@ -18,27 +18,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // 2. Lockdown Dangerous Development Auth API Backdoors in Production
-  if (
-    pathname.startsWith('/api/auth/promote-user') ||
-    pathname.startsWith('/api/auth/demo-admin')
-  ) {
-    if (process.env.NODE_ENV === 'production' && !request.headers.get('x-admin-setup-key')) {
-      return NextResponse.json(
-        { error: 'Forbidden: Setup backdoors are strictly disabled in production.' },
-        { status: 403 }
-      )
-    }
-  }
-
-  // Allow standard internal Next API routes if needed, otherwise continue to auth checks
-  if (pathname.startsWith('/api')) {
-    return NextResponse.next()
-  }
-
+  const isApiRoute = pathname.startsWith('/api')
   const { supabase, response } = createMiddlewareClient(request)
 
-  // 3. Validate Authenticated Supabase Session
+  // 2. Validate Authenticated Supabase Session
   const {
     data: { user },
     error,
@@ -70,15 +53,21 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // 4. Protected Routes: Valid session is strictly mandatory
+  // 3. Protected Routes: Valid session is strictly mandatory
   if (error || !user) {
+    if (isApiRoute) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Valid admin session required' },
+        { status: 401 }
+      )
+    }
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
     loginUrl.searchParams.set('redirectTo', pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  // 5. Authoritative Database Role Verification (STRICT FAIL-CLOSED)
+  // 4. Authoritative Database Role Verification (STRICT FAIL-CLOSED)
   // Rejects client-side user_metadata and email substring heuristics
   try {
     const { data: profile, error: profileErr } = (await supabase
@@ -91,6 +80,12 @@ export async function middleware(request: NextRequest) {
     const verifiedRole = profile?.role || (profileErr ? user.app_metadata?.role : null)
 
     if (verifiedRole !== 'admin') {
+      if (isApiRoute) {
+        return NextResponse.json(
+          { error: 'Forbidden: Sovereign administrator privileges required' },
+          { status: 403 }
+        )
+      }
       const loginUrl = request.nextUrl.clone()
       loginUrl.pathname = '/login'
       loginUrl.searchParams.set('error', 'unauthorized_role')
@@ -99,6 +94,12 @@ export async function middleware(request: NextRequest) {
   } catch (err) {
     // FAIL-CLOSED: Any transient error, timeout, or DB disconnection terminates the session
     console.error('CRITICAL: Admin role verification failed. Enforcing fail-closed gate:', err)
+    if (isApiRoute) {
+      return NextResponse.json(
+        { error: 'Internal session verification failed' },
+        { status: 500 }
+      )
+    }
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
     loginUrl.searchParams.set('error', 'session_verification_failed')

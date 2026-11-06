@@ -559,7 +559,7 @@ export function ActiveTryOnEngine({
                       {item.title}
                     </h3>
                     <p className="font-mono text-xs text-neutral-300 font-semibold mt-1">
-                      ${item.price.toFixed(2)} USD
+                      ₹{item.price.toFixed(2)}
                     </p>
                   </div>
 
@@ -654,22 +654,22 @@ export function ActiveTryOnEngine({
 
             <div className="flex justify-between text-neutral-400">
               <span>Original Manifest Value</span>
-              <span>${initialManifestTotal.toFixed(2)} USD</span>
+              <span>₹{initialManifestTotal.toFixed(2)}</span>
             </div>
 
             <div className="flex justify-between text-emerald-400 font-semibold">
               <span>Kept Merchandise ({keptItems.length} Works)</span>
-              <span>${keptSubtotal.toFixed(2)} USD</span>
+              <span>₹{keptSubtotal.toFixed(2)}</span>
             </div>
 
             <div className="flex justify-between text-neutral-400">
               <span>Fitting Concierge Logistics</span>
-              <span>${conciergeFee.toFixed(2)} USD</span>
+              <span>₹{conciergeFee.toFixed(2)}</span>
             </div>
 
             <div className="flex justify-between text-neutral-400">
               <span>Applicable Sales Tax (8%)</span>
-              <span>${tax.toFixed(2)} USD</span>
+              <span>₹{tax.toFixed(2)}</span>
             </div>
 
             <div className="border-t border-[#333333] pt-3 flex justify-between items-center text-sm">
@@ -677,7 +677,7 @@ export function ActiveTryOnEngine({
                 Final Billable Total
               </span>
               <span className="font-mono text-xl font-black text-white">
-                ${finalTotal.toFixed(2)} USD
+                ₹{finalTotal.toFixed(2)}
               </span>
             </div>
           </div>
@@ -694,7 +694,7 @@ export function ActiveTryOnEngine({
                 Synchronizing Ledger with Supabase...
               </span>
             ) : (
-              <span>Finalize & Commit Reconciled Order (${finalTotal.toFixed(2)})</span>
+              <span>Finalize & Commit Reconciled Order (₹{finalTotal.toFixed(2)})</span>
             )}
           </button>
         </div>
@@ -737,7 +737,7 @@ export function ActiveTryOnEngine({
             </div>
             <div className="flex justify-between pt-1 text-sm font-bold">
               <span className="text-white uppercase tracking-caps">Billed Amount</span>
-              <span className="text-emerald-400">${finalTotal.toFixed(2)} USD</span>
+              <span className="text-emerald-400">₹{finalTotal.toFixed(2)}</span>
             </div>
           </div>
 

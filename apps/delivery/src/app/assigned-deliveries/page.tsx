@@ -21,6 +21,7 @@ import {
   X,
   Search,
   AlertCircle,
+  Zap,
 } from 'lucide-react'
 import { createBrowserClient } from '@repo/supabase/browser'
 import { updateOrderStatus, getAllOrders } from '@repo/supabase/utils'
@@ -476,6 +477,29 @@ export default function LuxuryAssignedDeliveriesPage() {
             </span>
           </div>
         </div>
+
+        {/* Bolt Manifest Banner */}
+        <Link
+          href="/manifest"
+          className="flex items-center justify-between p-3.5 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/40 hover:border-amber-400 transition-colors group"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-amber-400 text-black">
+              <Zap className="w-4 h-4 fill-black" />
+            </div>
+            <div>
+              <p className="text-xs font-mono font-bold text-white uppercase group-hover:text-amber-400 transition-colors">
+                Bolt ⚡ White-Glove Doorstep Try-On Fleet Active
+              </p>
+              <p className="text-[11px] font-mono text-neutral-400">
+                View 45m fitting salon stops, PIN serviceability & live settlement
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-mono text-amber-400 font-bold uppercase hidden sm:inline">
+            Open Manifest →
+          </span>
+        </Link>
 
         <h1 className="text-3xl sm:text-4xl font-extrabold uppercase tracking-tight text-white font-mono">
           Active Shipments

@@ -106,26 +106,27 @@ export default function CustomerOrdersPage() {
     router.refresh()
   }
 
-  // Filter orders for the current user if logged in
-  const visibleOrders = orders.filter((o) => {
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim()
-      const matchNum = o.order_number?.toLowerCase().includes(q)
-      const matchTrack = o.tracking_barcode?.toLowerCase().includes(q)
-      const matchProd = o.order_items?.some((i) => i.product?.title?.toLowerCase().includes(q))
-      if (matchNum || matchTrack || matchProd) return true
-    }
+  // Filter orders strictly for the current authenticated user
+  const visibleOrders = (!userEmail || !userId)
+    ? []
+    : orders.filter((o) => {
+        const matchesUser =
+          (userId && o.user_id === userId) ||
+          (o.user as any)?.email?.toLowerCase() === userEmail.toLowerCase() ||
+          (o.shipping_address && o.shipping_address.toLowerCase().includes(userEmail.toLowerCase()))
 
-    if (userEmail) {
-      const matchesEmail =
-        (o.user as any)?.email?.toLowerCase() === userEmail.toLowerCase() ||
-        (o.shipping_address && o.shipping_address.toLowerCase().includes(userEmail.toLowerCase())) ||
-        (userId && o.user_id === userId)
-      return matchesEmail
-    }
+        if (!matchesUser) return false
 
-    return true
-  })
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase().trim()
+          const matchNum = o.order_number?.toLowerCase().includes(q)
+          const matchTrack = o.tracking_barcode?.toLowerCase().includes(q)
+          const matchProd = o.order_items?.some((i) => i.product?.title?.toLowerCase().includes(q))
+          return Boolean(matchNum || matchTrack || matchProd)
+        }
+
+        return true
+      })
 
   // Helper: Status label and badge
   const getStatusBadge = (status: OrderStatus) => {
@@ -321,6 +322,29 @@ export default function CustomerOrdersPage() {
               Synchronizing orders with fulfillment atelier...
             </p>
           </div>
+        ) : !userEmail ? (
+          /* Unauthenticated Gate */
+          <div className="py-20 px-6 bg-white border border-neutral-200 text-center space-y-6 shadow-sm">
+            <div className="w-14 h-14 bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto text-neutral-400">
+              <ShoppingBag className="w-7 h-7 text-neutral-400" />
+            </div>
+            <div className="space-y-1.5">
+              <h2 className="text-xl font-serif text-black">Please Log In</h2>
+              <p className="text-xs text-neutral-500 font-light max-w-sm mx-auto">
+                Sign in to your patron account to view your verified orders, invoices, and live delivery status.
+              </p>
+            </div>
+            <div className="pt-2 flex justify-center gap-3">
+              <Link href="/login?callbackUrl=/orders">
+                <Button
+                  size="lg"
+                  className="px-8 h-12 bg-black hover:bg-neutral-800 text-white font-mono font-bold text-xs uppercase tracking-wider rounded-none"
+                >
+                  Sign In to View Orders →
+                </Button>
+              </Link>
+            </div>
+          </div>
         ) : visibleOrders.length === 0 ? (
           /* Empty Orders State */
           <div className="py-20 px-6 bg-white border border-neutral-200 text-center space-y-6 shadow-sm">
@@ -330,9 +354,7 @@ export default function CustomerOrdersPage() {
             <div className="space-y-1.5">
               <h2 className="text-xl font-serif text-black">No Orders on File</h2>
               <p className="text-xs text-neutral-500 font-light max-w-sm mx-auto">
-                {userEmail
-                  ? `We could not find any orders associated with ${userEmail}.`
-                  : 'You have not placed any orders during this session yet.'}
+                We could not find any active or past orders associated with your account.
               </p>
             </div>
             <div className="pt-2">
@@ -372,7 +394,9 @@ export default function CustomerOrdersPage() {
                           {ord.order_number || ord.id}
                         </span>
                         <span className="text-[10px] font-mono bg-neutral-100 text-neutral-600 px-2 py-0.5 border border-neutral-200">
-                          {ord.delivery_mode === 'try_on' ? 'Try-On Booking' : 'Direct Dispatch'}
+                          {ord.order_type === 'bolt_try_on' || ord.delivery_mode === 'try_on'
+                            ? 'Bolt ⚡ Try-On Booking'
+                            : 'Standard Dispatch'}
                         </span>
                       </div>
                       <p className="text-[11px] font-mono text-neutral-400">Placed on {orderDate}</p>
@@ -427,7 +451,7 @@ export default function CustomerOrdersPage() {
 
                             <div className="text-right">
                               <span className="font-mono text-xs font-bold text-black">
-                                ${(Number(item.unit_price) * (item.quantity || 1)).toFixed(2)}
+                                ₹{(Number(item.unit_price) * (item.quantity || 1)).toLocaleString('en-IN')}
                               </span>
                               {item.is_kept === true && (
                                 <span className="block text-[10px] font-mono text-emerald-600 font-bold">
@@ -485,8 +509,8 @@ export default function CustomerOrdersPage() {
                     <span className="uppercase text-neutral-500 font-bold tracking-wider">
                       TOTAL REALIZED
                     </span>
-                    <span className="text-base font-bold text-black">
-                      ${Number(ord.total || ord.original_total || 0).toFixed(2)} USD
+                    <span className="text-base font-bold text-black font-mono">
+                      ₹{Number(ord.total || ord.original_total || 0).toLocaleString('en-IN')} INR
                     </span>
                   </div>
                 </div>

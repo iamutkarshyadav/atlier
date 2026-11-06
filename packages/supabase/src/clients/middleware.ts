@@ -1,9 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { Database, UserRole } from '../types/database.types'
+import { createResilientFetch } from './resilientFetch'
 
 /**
  * Initializes Supabase client in Next.js Edge Middleware and preserves cookie headers.
+ * Configured with resilient fetch adapter to handle offline/disconnected development seamlessly.
  */
 export function createMiddlewareClient(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -12,8 +14,11 @@ export function createMiddlewareClient(request: NextRequest) {
     },
   })
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/"/g, '')
+  const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.replace(/"/g, '')
+
+  const supabaseUrl = rawUrl || 'http://127.0.0.1:54321'
+  const supabaseKey = rawKey || 'dummy-anon-key'
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseKey, {
     cookies: {
@@ -29,6 +34,9 @@ export function createMiddlewareClient(request: NextRequest) {
           supabaseResponse.cookies.set(name, value, options)
         )
       },
+    },
+    global: {
+      fetch: createResilientFetch({ timeoutMs: 2000 }),
     },
   })
 

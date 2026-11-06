@@ -11,7 +11,11 @@ import { createBrowserClient } from '@repo/supabase/browser'
 function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/#collection'
+  const rawCallbackUrl = searchParams.get('callbackUrl') || '/#collection'
+  const callbackUrl =
+    rawCallbackUrl.startsWith('/') && !rawCallbackUrl.startsWith('//')
+      ? rawCallbackUrl
+      : '/#collection'
   const isFromCheckout = callbackUrl.includes('/checkout')
 
   const [name, setName] = useState('')

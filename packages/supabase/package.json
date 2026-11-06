@@ -12,6 +12,9 @@
     "./middleware": "./src/clients/middleware.ts",
     "./utils": "./src/utils/index.ts"
   },
+  "scripts": {
+    "test": "vitest run"
+  },
   "dependencies": {
     "@supabase/ssr": "^0.5.1",
     "@supabase/supabase-js": "^2.45.4"
@@ -23,6 +26,7 @@
     "@repo/config-typescript": "workspace:*",
     "@types/node": "^20.14.0",
     "next": "^14.2.15",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
   }
 }
