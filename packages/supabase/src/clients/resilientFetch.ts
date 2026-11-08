@@ -52,6 +52,13 @@ export interface MockUserAccount {
 
 export const SEEDED_ACCOUNTS: MockUserAccount[] = [
   {
+    id: 'b0000000-0000-0000-0000-794156472275',
+    email: 'test.admin@atelier.internal',
+    name: 'Test Admin',
+    role: 'admin',
+    password: 'admin-secret-2026',
+  },
+  {
     id: 'a0000000-0000-0000-0000-000000000001',
     email: 'eleanor.vance@salon.com',
     name: 'Eleanor Vance',

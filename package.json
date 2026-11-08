@@ -8,6 +8,7 @@
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
+    "create-admin": "node packages/supabase/scripts/create_admin_user.js",
     "clean": "turbo run clean && rimraf node_modules"
   },
   "devDependencies": {
