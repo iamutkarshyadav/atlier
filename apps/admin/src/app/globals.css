@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,19 +7,17 @@
 :root {
   --background: 240 10% 4%;
   --foreground: 0 0% 95%;
-  --font-space-grotesk: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-serif: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'Space Grotesk', monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Geist Mono', monospace;
 }
 
 @layer base {
   *, ::before, ::after {
-    font-family: 'Space Grotesk', var(--font-space-grotesk), -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-sans);
   }
   
   body, html {
-    font-family: 'Space Grotesk', var(--font-space-grotesk), -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-sans);
     background-color: #09090B;
     color: #F4F4F5;
     -webkit-font-smoothing: antialiased;
@@ -28,6 +26,10 @@
   input, button, select, textarea {
     font-family: inherit;
   }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 ::selection {

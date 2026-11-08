@@ -11,10 +11,47 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      colors: {
+        chrome: {
+          950: '#09090B',
+          900: '#121215',
+          850: '#18181B',
+          800: '#27272A',
+          700: '#3F3F46',
+        },
+        status: {
+          emerald: {
+            bg: '#064E3B',
+            text: '#34D399',
+            border: '#059669',
+          },
+          amber: {
+            bg: '#78350F',
+            text: '#FBBF24',
+            border: '#D97706',
+          },
+          rose: {
+            bg: '#881337',
+            text: '#FDA4AF',
+            border: '#E11D48',
+          },
+          cyan: {
+            bg: '#164E63',
+            text: '#67E8F9',
+            border: '#0891B2',
+          },
+        },
+      },
+      fontSize: {
+        '2xs': ['10px', '12px'],
+        'xs': ['11px', '14px'],
+        'sm': ['12px', '16px'],
+        'base': ['13px', '18px'],
+        'lg': ['15px', '22px'],
+      },
       fontFamily: {
-        sans: ["var(--font-space-grotesk)", "'Space Grotesk'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
-        serif: ["var(--font-space-grotesk)", "'Space Grotesk'", "sans-serif"],
-        mono: ["var(--font-space-grotesk)", "'Space Grotesk'", "monospace"],
+        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        mono: ["'JetBrains Mono'", "'Geist Mono'", "monospace"],
       },
     },
   },

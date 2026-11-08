@@ -10,9 +10,53 @@ import {
 
 export const dynamic = 'force-dynamic'
 
+const AUTHORIZED_ROLES = ['admin', 'warehouse_manager', 'store_manager', 'pos_cashier']
+
+async function verifyStaffSession(supabase: any) {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return {
+      authorized: false,
+      response: NextResponse.json(
+        { error: 'Unauthorized: Valid staff session required' },
+        { status: 401 }
+      ),
+    }
+  }
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const role = profile?.role || user.app_metadata?.role
+
+  if (!role || !AUTHORIZED_ROLES.includes(role)) {
+    return {
+      authorized: false,
+      response: NextResponse.json(
+        { error: 'Forbidden: Omnichannel staff privileges required' },
+        { status: 403 }
+      ),
+    }
+  }
+
+  return { authorized: true, user, role }
+}
+
 export async function GET() {
   try {
     const supabase = await createServerSupabaseClient()
+    const auth = await verifyStaffSession(supabase)
+    if (!auth.authorized) {
+      return auth.response
+    }
+
     const orders = await getAllOrders(supabase)
     return NextResponse.json({ success: true, orders })
   } catch (err: any) {
@@ -25,6 +69,12 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = await createServerSupabaseClient()
+    const auth = await verifyStaffSession(supabase)
+    if (!auth.authorized) {
+      return auth.response
+    }
+
     const body = await req.json()
     const { orderData, items } = body
 
@@ -35,7 +85,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const supabase = await createServerSupabaseClient()
     const result = await createOrderWithItems(supabase, orderData, items)
 
     if (!result.data) {
@@ -63,6 +112,12 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const supabase = await createServerSupabaseClient()
+    const auth = await verifyStaffSession(supabase)
+    if (!auth.authorized) {
+      return auth.response
+    }
+
     const body = await req.json()
     const { orderId, status, courierId, deliveryNotes } = body
 
@@ -72,8 +127,6 @@ export async function PATCH(req: NextRequest) {
         { status: 400 }
       )
     }
-
-    const supabase = await createServerSupabaseClient()
 
     if (courierId !== undefined) {
       await assignOrderCourier(supabase, orderId, courierId === 'unassigned' ? null : courierId)

@@ -1,7 +1,7 @@
 import React from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Plus, ArrowLeft } from 'lucide-react'
+import { Plus, ArrowLeftRight, FileText, Warehouse } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { createServerSupabaseClient } from '@repo/supabase/server'
 import { getCompleteInventory } from '@repo/supabase/utils'
@@ -10,8 +10,8 @@ import { InventoryDataGrid } from '@/components/InventoryDataGrid'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'Inventory & Variant Matrix | Atelier Gustavo Admin',
-  description: 'Enterprise Variant-Aware Product Information Management & Warehouse Symbology Engine',
+  title: 'Multi-Location Inventory Matrix | Atelier ERP',
+  description: 'Omnichannel inventory distribution, shelf-level WMS bin allocation, and variant matrix.',
 }
 
 export default async function InventoryPimPage() {
@@ -19,34 +19,44 @@ export default async function InventoryPimPage() {
   const initialProducts = await getCompleteInventory(supabase)
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-4 font-mono pb-16">
       {/* Editorial Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[#23232A] pb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-chrome-800 pb-3">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] tracking-widest uppercase text-neutral-400 font-mono font-bold">
-              AMAZON-GRADE PIM • WAREHOUSE LOGISTICS
-            </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span className="text-[10px] text-emerald-400 font-mono">CODE 128 ACTIVE</span>
-          </div>
-
-          <h1 className="text-2xl sm:text-3xl font-light text-white uppercase tracking-tight font-serif">
-            Variant Matrix & Inventory Grid
+          <h1 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
+            <Warehouse className="w-4 h-4 text-emerald-400" />
+            <span>Multi-Location Inventory Matrix</span>
           </h1>
-
-          <p className="text-xs text-neutral-400 mt-1 font-sans max-w-2xl">
-            Granular size-variant stock allocation, atomic RPC inline adjustments, visual Code 128 symbology, and direct thermal label printing for high-throughput fulfillment.
+          <p className="text-2xs text-zinc-400">
+            Available-To-Promise (ATP) aggregation, shelf bin allocations, barcode labels, and safety thresholds
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Link href="/inventory/transfers">
+            <Button
+              variant="terminal"
+              size="sm"
+              className="h-7 px-2.5 text-2xs bg-chrome-900 text-zinc-300 border border-chrome-800 hover:bg-chrome-850 flex items-center gap-1.5"
+            >
+              <ArrowLeftRight className="w-3 h-3 text-amber-400" /> Stock Transfers
+            </Button>
+          </Link>
+          <Link href="/inventory/ledger">
+            <Button
+              variant="terminal"
+              size="sm"
+              className="h-7 px-2.5 text-2xs bg-chrome-900 text-zinc-300 border border-chrome-800 hover:bg-chrome-850 flex items-center gap-1.5"
+            >
+              <FileText className="w-3 h-3 text-cyan-400" /> Audit Ledger
+            </Button>
+          </Link>
           <Link href="/inventory/new">
             <Button
               size="sm"
-              className="bg-[#166534] hover:bg-[#14532d] text-white font-semibold text-xs border-none flex items-center gap-2 font-mono"
+              className="h-7 px-3 text-2xs bg-zinc-100 hover:bg-white text-zinc-950 font-semibold rounded-none flex items-center gap-1.5"
             >
-              <Plus className="w-3.5 h-3.5" /> Launch New Garment
+              <Plus className="w-3.5 h-3.5" /> Launch Garment
             </Button>
           </Link>
         </div>

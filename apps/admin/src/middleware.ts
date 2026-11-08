@@ -1,19 +1,26 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createMiddlewareClient } from '@repo/supabase/middleware'
 
+const STATIC_FILE_REGEX = /\.(ico|jpg|jpeg|png|gif|svg|webp|css|js|woff|woff2|ttf|eot)$/i
+const VALID_STAFF_ROLES = ['admin', 'warehouse_manager', 'store_manager', 'pos_cashier']
+
 /**
- * Sovereign Admin Portal Middleware
- * Strict FAIL-CLOSED security architecture.
- * Patches fail-open bypass, email substring escalation, and client metadata spoofing.
+ * Sovereign Omnichannel Admin Portal Middleware
+ * Strict FAIL-CLOSED security architecture with granular role-based route scoping.
+ * Patches:
+ *  - Dot-path bypass via strict static regex
+ *  - Email substring escalation
+ *  - Expanded staff roles with route scoping (pos_cashier, store_manager, warehouse_manager, admin)
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // 1. Allow static files, Next.js internals, and health checks
+  // 1. Allow static assets, Next.js internals, and public icons
   if (
-    pathname.startsWith('/_next') ||
-    pathname.includes('.') ||
-    pathname === '/favicon.ico'
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/public/') ||
+    pathname === '/favicon.ico' ||
+    STATIC_FILE_REGEX.test(pathname)
   ) {
     return NextResponse.next()
   }
@@ -30,7 +37,6 @@ export async function middleware(request: NextRequest) {
   const isLoginPage = pathname.startsWith('/login')
 
   if (isLoginPage) {
-    // If user is already authenticated with verified 'admin' database role, forward to dashboard
     if (user && !error) {
       try {
         const { data: profile } = (await supabase
@@ -41,10 +47,10 @@ export async function middleware(request: NextRequest) {
 
         const verifiedRole = profile?.role || user.app_metadata?.role
 
-        if (verifiedRole === 'admin') {
-          const dashboardUrl = request.nextUrl.clone()
-          dashboardUrl.pathname = '/dashboard'
-          return NextResponse.redirect(dashboardUrl)
+        if (verifiedRole && VALID_STAFF_ROLES.includes(verifiedRole)) {
+          const targetUrl = request.nextUrl.clone()
+          targetUrl.pathname = verifiedRole === 'pos_cashier' ? '/pos' : '/dashboard'
+          return NextResponse.redirect(targetUrl)
         }
       } catch {
         // Fall through to login page
@@ -57,7 +63,7 @@ export async function middleware(request: NextRequest) {
   if (error || !user) {
     if (isApiRoute) {
       return NextResponse.json(
-        { error: 'Unauthorized: Valid admin session required' },
+        { error: 'Unauthorized: Valid staff session required' },
         { status: 401 }
       )
     }
@@ -68,7 +74,6 @@ export async function middleware(request: NextRequest) {
   }
 
   // 4. Authoritative Database Role Verification (STRICT FAIL-CLOSED)
-  // Rejects client-side user_metadata and email substring heuristics
   try {
     const { data: profile, error: profileErr } = (await supabase
       .from('users')
@@ -76,13 +81,12 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .single()) as { data: { role?: string } | null; error: any }
 
-    // Authoritative check: profile table role, or server-managed app_metadata if table unprovisioned
     const verifiedRole = profile?.role || (profileErr ? user.app_metadata?.role : null)
 
-    if (verifiedRole !== 'admin') {
+    if (!verifiedRole || !VALID_STAFF_ROLES.includes(verifiedRole)) {
       if (isApiRoute) {
         return NextResponse.json(
-          { error: 'Forbidden: Sovereign administrator privileges required' },
+          { error: 'Forbidden: Omnichannel staff privileges required' },
           { status: 403 }
         )
       }
@@ -91,9 +95,31 @@ export async function middleware(request: NextRequest) {
       loginUrl.searchParams.set('error', 'unauthorized_role')
       return NextResponse.redirect(loginUrl)
     }
+
+    // 5. Granular Route-Level Scoping for Cashiers
+    if (verifiedRole === 'pos_cashier') {
+      const isAllowedCashierPath =
+        pathname.startsWith('/pos') ||
+        pathname.startsWith('/orders') ||
+        pathname.startsWith('/inventory') ||
+        pathname.startsWith('/invoice') ||
+        pathname.startsWith('/api/orders') ||
+        pathname.startsWith('/api/invoice')
+
+      if (!isAllowedCashierPath) {
+        if (isApiRoute) {
+          return NextResponse.json(
+            { error: 'Forbidden: Cashier role is restricted to POS, Orders, and Inventory lookup' },
+            { status: 403 }
+          )
+        }
+        const posUrl = request.nextUrl.clone()
+        posUrl.pathname = '/pos'
+        return NextResponse.redirect(posUrl)
+      }
+    }
   } catch (err) {
-    // FAIL-CLOSED: Any transient error, timeout, or DB disconnection terminates the session
-    console.error('CRITICAL: Admin role verification failed. Enforcing fail-closed gate:', err)
+    console.error('CRITICAL: Staff role verification failed. Enforcing fail-closed gate:', err)
     if (isApiRoute) {
       return NextResponse.json(
         { error: 'Internal session verification failed' },

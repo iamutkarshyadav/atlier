@@ -86,6 +86,27 @@ export const SEEDED_ACCOUNTS: MockUserAccount[] = [
     role: 'delivery',
     password: 'courier-secret-2026',
   },
+  {
+    id: 'd0000000-0000-0000-0000-000000000001',
+    email: 'warehouse@atelier.internal',
+    name: 'Warehouse Operations Manager',
+    role: 'warehouse_manager',
+    password: 'warehouse-secret-2026',
+  },
+  {
+    id: 'd0000000-0000-0000-0000-000000000002',
+    email: 'store.manager@atelier.internal',
+    name: 'Indiranagar Boutique Manager',
+    role: 'store_manager',
+    password: 'store-secret-2026',
+  },
+  {
+    id: 'd0000000-0000-0000-0000-000000000003',
+    email: 'cashier@atelier.internal',
+    name: 'Boutique POS Cashier',
+    role: 'pos_cashier',
+    password: 'cashier-secret-2026',
+  },
 ]
 
 export const SEEDED_PINCODES: Record<string, { city: string; state: string }> = {
@@ -101,6 +122,85 @@ export const SEEDED_PINCODES: Record<string, { city: string; state: string }> = 
   '122002': { city: 'Gurugram', state: 'Haryana' },
   '500081': { city: 'Hyderabad', state: 'Telangana' },
 }
+
+export const SEEDED_LOCATIONS = [
+  {
+    id: 'l1000000-0000-0000-0000-000000000001',
+    code: 'BLR-WH01',
+    name: 'Atelier Central Mother Hub (Bengaluru)',
+    type: 'warehouse',
+    gstin: '29AAAAA0000A1Z5',
+    state_code: '29',
+    address_line1: 'Phase 1, Electronic City Industrial Area',
+    address_line2: null,
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    pincode: '560100',
+    phone: '+91 80 4000 1100',
+    email: 'hub.blr@atelier.com',
+    is_active: true,
+    online_fulfillment_priority: 10,
+    online_safety_buffer: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'l1000000-0000-0000-0000-000000000002',
+    code: 'BLR-ST01',
+    name: 'Indiranagar Flagship Boutique (Bengaluru)',
+    type: 'boutique',
+    gstin: '29AAAAA0000A1Z5',
+    state_code: '29',
+    address_line1: '100 Feet Road, HAL 2nd Stage, Indiranagar',
+    address_line2: null,
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    pincode: '560038',
+    phone: '+91 80 4000 2200',
+    email: 'indiranagar@atelier.com',
+    is_active: true,
+    online_fulfillment_priority: 20,
+    online_safety_buffer: 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'l1000000-0000-0000-0000-000000000003',
+    code: 'BOM-ST01',
+    name: 'Kala Ghoda Heritage Boutique (Mumbai)',
+    type: 'boutique',
+    gstin: '27AAAAA0000A1Z5',
+    state_code: '27',
+    address_line1: 'VB Gandhi Marg, Kala Ghoda, Fort',
+    address_line2: null,
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    pincode: '400001',
+    phone: '+91 22 4000 3300',
+    email: 'mumbai@atelier.com',
+    is_active: true,
+    online_fulfillment_priority: 30,
+    online_safety_buffer: 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+]
+
+export const SEEDED_ZONES = [
+  { id: 'z1000000-0000-0000-0000-000000000001', location_id: 'l1000000-0000-0000-0000-000000000001', code: 'RCV', name: 'Receiving Dock 01', type: 'receiving_dock', is_active: true, created_at: new Date().toISOString() },
+  { id: 'z1000000-0000-0000-0000-000000000002', location_id: 'l1000000-0000-0000-0000-000000000001', code: 'BLK', name: 'Central Bulk Racks', type: 'bulk_storage', is_active: true, created_at: new Date().toISOString() },
+  { id: 'z1000000-0000-0000-0000-000000000003', location_id: 'l1000000-0000-0000-0000-000000000001', code: 'DSK', name: 'Outbound Dispatch Bay', type: 'dispatch_bay', is_active: true, created_at: new Date().toISOString() },
+  { id: 'z1000000-0000-0000-0000-000000000004', location_id: 'l1000000-0000-0000-0000-000000000002', code: 'FLR', name: 'Indiranagar Sales Floor', type: 'sales_floor', is_active: true, created_at: new Date().toISOString() },
+  { id: 'z1000000-0000-0000-0000-000000000005', location_id: 'l1000000-0000-0000-0000-000000000002', code: 'STK', name: 'Indiranagar Backroom Stock', type: 'backroom_stock', is_active: true, created_at: new Date().toISOString() },
+  { id: 'z1000000-0000-0000-0000-000000000006', location_id: 'l1000000-0000-0000-0000-000000000002', code: 'QRN', name: 'Indiranagar Fitting Quarantine', type: 'fitting_room_quarantine', is_active: true, created_at: new Date().toISOString() },
+]
+
+export const SEEDED_SHELVES = [
+  { id: 's1000000-0000-0000-0000-000000000001', location_id: 'l1000000-0000-0000-0000-000000000001', zone_id: 'z1000000-0000-0000-0000-000000000002', coordinate: 'BLK-A-01-A1', barcode: 'LOC-BLR01-BLK-A-01-A1', assigned_category_id: null, max_unit_capacity: 500, is_active: true, last_cycle_count_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 's1000000-0000-0000-0000-000000000002', location_id: 'l1000000-0000-0000-0000-000000000001', zone_id: 'z1000000-0000-0000-0000-000000000002', coordinate: 'BLK-A-01-A2', barcode: 'LOC-BLR01-BLK-A-01-A2', assigned_category_id: null, max_unit_capacity: 500, is_active: true, last_cycle_count_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 's1000000-0000-0000-0000-000000000003', location_id: 'l1000000-0000-0000-0000-000000000002', zone_id: 'z1000000-0000-0000-0000-000000000004', coordinate: 'FLR-RACK-01', barcode: 'LOC-BLR02-FLR-RACK-01', assigned_category_id: null, max_unit_capacity: 100, is_active: true, last_cycle_count_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 's1000000-0000-0000-0000-000000000004', location_id: 'l1000000-0000-0000-0000-000000000002', zone_id: 'z1000000-0000-0000-0000-000000000006', coordinate: 'QRN-BIN-01', barcode: 'LOC-BLR02-QRN-BIN-01', assigned_category_id: null, max_unit_capacity: 50, is_active: true, last_cycle_count_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+]
 
 function base64UrlEncode(str: string): string {
   if (typeof btoa === 'function') {
@@ -274,16 +374,12 @@ async function handleOfflineSupabaseRequest(url: string, init?: RequestInit): Pr
     }
 
     if (!matched && email) {
-      // Allow dynamic sign-in for customer patron accounts during E2E testing
-      const isRoleAdmin = email.includes('admin')
-      const isRoleCourier = email.includes('courier') || email.includes('delivery')
-      const role: UserRole = isRoleAdmin ? 'admin' : isRoleCourier ? 'delivery' : 'customer'
-
+      // Dynamic sign-in for unknown accounts: strictly default to 'customer' (NO substring escalation)
       matched = {
         id: `mock-user-${Date.now()}`,
         email,
         name: email.split('@')[0] || 'Patron',
-        role,
+        role: 'customer',
         password,
       }
     }
@@ -348,7 +444,7 @@ async function handleOfflineSupabaseRequest(url: string, init?: RequestInit): Pr
   if (url.includes('/auth/v1/signup')) {
     const email = (bodyJson?.email || '').trim().toLowerCase()
     const name = bodyJson?.data?.name || email.split('@')[0] || 'Patron'
-    const role: UserRole = (bodyJson?.data?.role as UserRole) || 'customer'
+    const role: UserRole = 'customer' // Hardcoded: Client metadata cannot specify administrative role
 
     const account: MockUserAccount = {
       id: `patron-${Date.now()}`,
@@ -404,12 +500,12 @@ async function handleOfflineSupabaseRequest(url: string, init?: RequestInit): Pr
     )
 
     if (!matched && targetId) {
-      // Fallback matching by token format
+      // Fallback matching strictly defaults to 'customer'
       matched = {
         id: targetId,
         email: 'user@atelier.internal',
         name: 'Atelier User',
-        role: targetId.includes('admin') ? 'admin' : targetId.includes('courier') ? 'delivery' : 'customer',
+        role: 'customer',
       }
     }
 
@@ -541,7 +637,368 @@ async function handleOfflineSupabaseRequest(url: string, init?: RequestInit): Pr
     })
   }
 
-  // L. Default Fallback for all other endpoints
+  // L. PostgREST: locations (/rest/v1/locations)
+  if (url.includes('/rest/v1/locations')) {
+    const idMatch = url.match(/id=eq\.([^&]+)/)
+    const targetId = idMatch ? decodeURIComponent(idMatch[1]) : null
+    const filtered = targetId ? SEEDED_LOCATIONS.filter((l) => l.id === targetId) : SEEDED_LOCATIONS
+    const accept = getHeader(init?.headers, 'Accept')
+    const isSingle = accept.includes('vnd.pgrst.object+json')
+    return new Response(JSON.stringify(isSingle ? filtered[0] || null : filtered), {
+      status: isSingle && !filtered[0] ? 404 : 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Range': `0-${filtered.length ? filtered.length - 1 : 0}/${filtered.length}`,
+      },
+    })
+  }
+
+  // M. PostgREST: location_zones (/rest/v1/location_zones)
+  if (url.includes('/rest/v1/location_zones')) {
+    const locMatch = url.match(/location_id=eq\.([^&]+)/)
+    const targetLoc = locMatch ? decodeURIComponent(locMatch[1]) : null
+    const filtered = targetLoc ? SEEDED_ZONES.filter((z) => z.location_id === targetLoc) : SEEDED_ZONES
+    return new Response(JSON.stringify(filtered), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // N. PostgREST: shelves (/rest/v1/shelves)
+  if (url.includes('/rest/v1/shelves')) {
+    const locMatch = url.match(/location_id=eq\.([^&]+)/)
+    const targetLoc = locMatch ? decodeURIComponent(locMatch[1]) : null
+    const filtered = targetLoc ? SEEDED_SHELVES.filter((s) => s.location_id === targetLoc) : SEEDED_SHELVES
+    return new Response(JSON.stringify(filtered), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // O. PostgREST: shelf_inventory (/rest/v1/shelf_inventory)
+  if (url.includes('/rest/v1/shelf_inventory')) {
+    const shelfMatch = url.match(/shelf_id=eq\.([^&]+)/)
+    const targetShelf = shelfMatch ? decodeURIComponent(shelfMatch[1]) : null
+    const mockInventory = DEFAULT_PRODUCT_VARIANTS.map((v, idx) => ({
+      id: `si-${idx + 1}`,
+      shelf_id: targetShelf || 's1000000-0000-0000-0000-000000000001',
+      variant_id: v.id,
+      quantity: Math.max(0, Math.floor(v.stock / 2)),
+      updated_at: new Date().toISOString(),
+      variant: v,
+    }))
+    return new Response(JSON.stringify(mockInventory), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // P. PostgREST: inventory_levels (/rest/v1/inventory_levels)
+  if (url.includes('/rest/v1/inventory_levels')) {
+    const locMatch = url.match(/location_id=eq\.([^&]+)/)
+    const targetLoc = locMatch ? decodeURIComponent(locMatch[1]) : null
+    const mockLevels = DEFAULT_PRODUCT_VARIANTS.map((v, idx) => ({
+      id: `il-${idx + 1}`,
+      location_id: targetLoc || 'l1000000-0000-0000-0000-000000000001',
+      variant_id: v.id,
+      on_hand: v.stock,
+      reserved: 0,
+      available: v.stock,
+      reorder_point: 5,
+      reorder_quantity: 20,
+      updated_at: new Date().toISOString(),
+    }))
+    return new Response(JSON.stringify(mockLevels), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // Q. PostgREST: suppliers (/rest/v1/suppliers)
+  if (url.includes('/rest/v1/suppliers')) {
+    if (method === 'POST') {
+      const newSup = {
+        id: `sup-${Date.now()}`,
+        vendor_code: bodyJson?.vendor_code || `SUP-${Date.now().toString().slice(-4)}`,
+        name: bodyJson?.name || 'New Supplier',
+        gstin: bodyJson?.gstin || '29AAAAA0000A1Z5',
+        contact_person: bodyJson?.contact_person || 'Marco Rossi',
+        email: bodyJson?.email || 'vendor@atelier.internal',
+        phone: bodyJson?.phone || '+91 80 4000 0000',
+        address_line1: bodyJson?.address_line1 || 'Via Vergnasco, 2',
+        city: bodyJson?.city || 'Bengaluru',
+        state: bodyJson?.state || 'Karnataka',
+        state_code: bodyJson?.state_code || '29',
+        pincode: bodyJson?.pincode || '560001',
+        payment_terms: bodyJson?.payment_terms || 'NET_30',
+        lead_time_days: bodyJson?.lead_time_days || 14,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      return new Response(JSON.stringify(newSup), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    const supList = [
+      {
+        id: 'sup-00000000-0000-0000-0000-000000000001',
+        vendor_code: 'SUP-CERRUTI-01',
+        name: 'Lanificio F.lli Cerruti 1881',
+        gstin: '29AAAAA0000A1Z5',
+        contact_person: 'Marco Rossi',
+        email: 'orders@cerruti1881.it',
+        phone: '+39 015 6191',
+        address_line1: 'Via Vergnasco, 2',
+        city: 'Biella',
+        state: 'Piedmont',
+        state_code: 'IT',
+        pincode: '13900',
+        payment_terms: 'NET_30',
+        lead_time_days: 14,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        id: 'sup-00000000-0000-0000-0000-000000000002',
+        vendor_code: 'SUP-LORO-02',
+        name: 'Loro Piana Mills & Cashmere',
+        gstin: '27AAAAA0000A1Z5',
+        contact_person: 'Chiara Bellini',
+        email: 'b2b@loropiana.com',
+        phone: '+39 0163 2011',
+        address_line1: 'Corso Rolandi, 10',
+        city: 'Quarona',
+        state: 'Vercelli',
+        state_code: 'IT',
+        pincode: '13017',
+        payment_terms: 'NET_45',
+        lead_time_days: 21,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ]
+    return new Response(JSON.stringify(supList), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // R. PostgREST: purchase_orders (/rest/v1/purchase_orders)
+  if (url.includes('/rest/v1/purchase_orders')) {
+    if (method === 'POST') {
+      const newPO = {
+        id: `po-${Date.now()}`,
+        po_number: bodyJson?.po_number || `PO-${Date.now()}`,
+        supplier_id: bodyJson?.supplier_id || 'sup-00000000-0000-0000-0000-000000000001',
+        destination_location_id: bodyJson?.destination_location_id || 'l1000000-0000-0000-0000-000000000001',
+        status: bodyJson?.status || 'draft',
+        expected_delivery_date: bodyJson?.expected_delivery_date || new Date().toISOString().slice(0, 10),
+        subtotal: bodyJson?.subtotal || 0,
+        tax_amount: bodyJson?.tax_amount || 0,
+        total_amount: bodyJson?.total_amount || 0,
+        created_by: 'admin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      return new Response(JSON.stringify(newPO), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    const poList = [
+      {
+        id: 'po-00000000-0000-0000-0000-000000000001',
+        po_number: 'PO-20261108-0001',
+        supplier_id: 'sup-00000000-0000-0000-0000-000000000001',
+        destination_location_id: 'l1000000-0000-0000-0000-000000000001',
+        status: 'issued',
+        expected_delivery_date: '2026-11-20',
+        subtotal: 4200.0,
+        tax_amount: 504.0,
+        total_amount: 4704.0,
+        created_by: 'admin',
+        created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        id: 'po-00000000-0000-0000-0000-000000000002',
+        po_number: 'PO-20261108-0002',
+        supplier_id: 'sup-00000000-0000-0000-0000-000000000002',
+        destination_location_id: 'l1000000-0000-0000-0000-000000000002',
+        status: 'partially_received',
+        expected_delivery_date: '2026-11-15',
+        subtotal: 8900.0,
+        tax_amount: 1068.0,
+        total_amount: 9968.0,
+        created_by: 'admin',
+        created_at: new Date(Date.now() - 3600000 * 48).toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ]
+    return new Response(JSON.stringify(poList), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // S. PostgREST: stock_transfers (/rest/v1/stock_transfers)
+  if (url.includes('/rest/v1/stock_transfers')) {
+    if (method === 'POST') {
+      const newTrf = {
+        id: `trf-${Date.now()}`,
+        transfer_number: bodyJson?.transfer_number || `TRF-${Date.now()}`,
+        source_location_id: bodyJson?.source_location_id || 'l1000000-0000-0000-0000-000000000001',
+        destination_location_id: bodyJson?.destination_location_id || 'l1000000-0000-0000-0000-000000000002',
+        status: 'draft',
+        eway_bill_number: bodyJson?.eway_bill_number || null,
+        dispatched_at: null,
+        received_at: null,
+        created_by: 'admin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      return new Response(JSON.stringify(newTrf), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    const trfList = [
+      {
+        id: 'trf-00000000-0000-0000-0000-000000000001',
+        transfer_number: 'TRF-20261108-0001',
+        source_location_id: 'l1000000-0000-0000-0000-000000000001',
+        destination_location_id: 'l1000000-0000-0000-0000-000000000002',
+        status: 'in_transit',
+        eway_bill_number: 'EWB-20261108-9842',
+        dispatched_at: new Date().toISOString(),
+        received_at: null,
+        created_by: 'admin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ]
+    return new Response(JSON.stringify(trfList), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // T. PostgREST: inventory_ledger (/rest/v1/inventory_ledger)
+  if (url.includes('/rest/v1/inventory_ledger')) {
+    const mockLedger = [
+      {
+        id: 'led-1',
+        transaction_timestamp: new Date().toISOString(),
+        variant_id: 'v1000000-0000-0000-0000-000000000001',
+        location_id: 'l1000000-0000-0000-0000-000000000001',
+        from_shelf_id: null,
+        to_shelf_id: 's1000000-0000-0000-0000-000000000001',
+        movement_type: 'inbound_grn',
+        quantity: 25,
+        balance_after: 25,
+        reference_doc_type: 'purchase_order',
+        reference_doc_id: 'PO-20261108-0001',
+        operator_id: 'admin',
+        notes: 'Initial opening stock putaway into bulk storage',
+      },
+      {
+        id: 'led-2',
+        transaction_timestamp: new Date(Date.now() - 3600000).toISOString(),
+        variant_id: 'v1000000-0000-0000-0000-000000000002',
+        location_id: 'l1000000-0000-0000-0000-000000000002',
+        from_shelf_id: 's1000000-0000-0000-0000-000000000003',
+        to_shelf_id: null,
+        movement_type: 'pos_sale',
+        quantity: -1,
+        balance_after: 4,
+        reference_doc_type: 'pos_order',
+        reference_doc_id: 'POS-20261108-0012',
+        operator_id: 'cashier',
+        notes: 'Boutique walk-in client checkout',
+      },
+    ]
+    return new Response(JSON.stringify(mockLedger), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // U. RPC Calls (/rest/v1/rpc/...)
+  if (url.includes('/rest/v1/rpc/receive_grn_and_putaway')) {
+    return new Response(
+      JSON.stringify({
+        grn_number: `GRN-${Date.now().toString().slice(-4)}`,
+        status: 'completed',
+        quantity_received: bodyJson?.p_quantity_received || 10,
+        success: true,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  if (url.includes('/rest/v1/rpc/process_pos_checkout')) {
+    const randSeq = Math.floor(1000 + Math.random() * 9000)
+    return new Response(
+      JSON.stringify({
+        order_id: `ord-pos-${Date.now()}`,
+        order_number: `POS-20261108-${randSeq}`,
+        invoice_number: `INV-20261108-${randSeq}`,
+        total: bodyJson?.p_total_amount || 1850.0,
+        balance_due: 0,
+        success: true,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  if (url.includes('/rest/v1/rpc/move_shelf_stock')) {
+    return new Response(
+      JSON.stringify({
+        quantity_moved: bodyJson?.p_quantity || 1,
+        success: true,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  if (url.includes('/rest/v1/rpc/execute_stock_transfer')) {
+    return new Response(
+      JSON.stringify({
+        status: bodyJson?.p_action === 'dispatch' ? 'in_transit' : 'received',
+        success: true,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  if (url.includes('/rest/v1/rpc/allocate_and_pick_online_order')) {
+    return new Response(
+      JSON.stringify({
+        status: bodyJson?.p_action === 'allocate' ? 'allocated' : 'picked',
+        allocated_location_id: bodyJson?.p_location_id || 'l1000000-0000-0000-0000-000000000001',
+        success: true,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  if (url.includes('/rest/v1/rpc/process_boris_return')) {
+    return new Response(
+      JSON.stringify({
+        restocked_shelf_id: bodyJson?.p_target_shelf_id || 's1000000-0000-0000-0000-000000000001',
+        condition: bodyJson?.p_condition || 'pass',
+        refund_mode: bodyJson?.p_refund_mode || 'store_credit',
+        success: true,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  // V. Default Fallback for all other endpoints
   return new Response(JSON.stringify([]), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },

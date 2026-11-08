@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useTransition, useMemo } from 'react'
+import React, { useState, useTransition, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -10,47 +10,49 @@ import {
   Minus,
   RefreshCw,
   Printer,
-  Barcode as BarcodeIcon,
   Search,
   SlidersHorizontal,
   ExternalLink,
   Edit,
   Tag,
-  AlertTriangle,
-  CheckCircle2,
   Copy,
   Check,
-  Layers,
-  Sparkles,
-  ArrowUpDown,
+  Warehouse,
+  ArrowRightLeft,
   X,
+  MapPin,
 } from 'lucide-react'
 import {
   Button,
-  Badge,
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
   Barcode,
 } from '@repo/ui'
 import { createBrowserClient } from '@repo/supabase/browser'
 import {
   adjustVariantStock,
+  getLocations,
+  getInventoryLevels,
+  getVariantShelfPlacements,
+  moveShelfStock,
   type CompleteInventoryProduct,
   type CompleteInventoryVariant,
+  type StoreLocation,
+  type InventoryLevel,
+  type ShelfInventory,
+  type Shelf,
 } from '@repo/supabase/utils'
+import { useLocation } from '@/context/LocationContext'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+import { SlideOverDrawer } from '@/components/ui/SlideOverDrawer'
 
 interface InventoryDataGridProps {
   initialProducts: CompleteInventoryProduct[]
 }
 
 export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
+  const { locations, activeLocation, activeLocationCode } = useLocation()
   const [products, setProducts] = useState<CompleteInventoryProduct[]>(initialProducts)
   const [expandedProductIds, setExpandedProductIds] = useState<Set<string>>(
-    new Set(initialProducts.slice(0, 2).map((p) => p.id))
+    new Set(initialProducts.slice(0, 3).map((p) => p.id))
   )
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
@@ -58,6 +60,25 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
   const [adjustingVariantId, setAdjustingVariantId] = useState<string | null>(null)
   const [copiedBarcode, setCopiedBarcode] = useState<string | null>(null)
   const [isRefreshing, startRefresh] = useTransition()
+
+  // Variant Shelf Details Cache
+  const [variantShelves, setVariantShelves] = useState<
+    Record<string, Array<ShelfInventory & { shelf?: Shelf & { location?: StoreLocation } }>>
+  >({})
+  const [loadingShelvesVariantId, setLoadingShelvesVariantId] = useState<string | null>(null)
+
+  // Drawer: Relocate Shelf Stock
+  const [relocateModalOpen, setRelocateModalOpen] = useState(false)
+  const [selectedVariantForMove, setSelectedVariantForMove] = useState<{
+    variant: CompleteInventoryVariant
+    productTitle: string
+    sourceShelfId: string
+    maxQty: number
+  } | null>(null)
+  const [destShelfId, setDestShelfId] = useState('')
+  const [moveQuantity, setMoveQuantity] = useState('1')
+  const [allShelves, setAllShelves] = useState<Shelf[]>([])
+  const [isRelocating, setIsRelocating] = useState(false)
 
   // Thermal Label Print Engine State
   const [printModalOpen, setPrintModalOpen] = useState(false)
@@ -95,6 +116,75 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
     setExpandedProductIds(new Set())
   }
 
+  // Fetch variant shelf placements when expanded or requested
+  const fetchVariantShelves = async (variantId: string) => {
+    if (variantShelves[variantId]) return
+    setLoadingShelvesVariantId(variantId)
+    try {
+      const supabase = createBrowserClient()
+      const placements = await getVariantShelfPlacements(supabase, variantId)
+      setVariantShelves((prev) => ({ ...prev, [variantId]: placements }))
+    } finally {
+      setLoadingShelvesVariantId(null)
+    }
+  }
+
+  // Open Relocation Drawer
+  const openRelocationDrawer = async (
+    variant: CompleteInventoryVariant,
+    productTitle: string,
+    sourceShelfId: string,
+    currentStock: number
+  ) => {
+    setSelectedVariantForMove({
+      variant,
+      productTitle,
+      sourceShelfId,
+      maxQty: currentStock,
+    })
+    setMoveQuantity('1')
+    setRelocateModalOpen(true)
+
+    try {
+      const supabase = createBrowserClient()
+      const { data: sList } = await supabase.from('shelves').select('*').limit(50)
+      if (sList) setAllShelves(sList)
+    } catch {
+      // Continue
+    }
+  }
+
+  const handleExecuteMove = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedVariantForMove || !destShelfId) return
+
+    setIsRelocating(true)
+    try {
+      const supabase = createBrowserClient()
+      const qty = parseInt(moveQuantity, 10) || 1
+
+      const locId = activeLocation === 'ALL' ? (locations[0]?.id || 'l1000000-0000-0000-0000-000000000001') : activeLocation.id
+      await moveShelfStock(supabase, {
+        locationId: locId,
+        fromShelfId: selectedVariantForMove.sourceShelfId,
+        toShelfId: destShelfId,
+        variantId: selectedVariantForMove.variant.id,
+        quantity: qty,
+        operatorId: 'admin',
+        notes: 'reorganization',
+      })
+
+      // Invalidate variant shelf cache
+      const freshPlacements = await getVariantShelfPlacements(supabase, selectedVariantForMove.variant.id)
+      setVariantShelves((prev) => ({ ...prev, [selectedVariantForMove.variant.id]: freshPlacements }))
+      setRelocateModalOpen(false)
+    } catch (err) {
+      console.error('Relocation failed:', err)
+    } finally {
+      setIsRelocating(false)
+    }
+  }
+
   // Atomic Inline Variant Stock Adjustment
   const handleStockAdjustment = async (
     productId: string,
@@ -126,7 +216,6 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
       const res = await adjustVariantStock(supabase, variantId, delta)
 
       if (res.success && res.newStock !== undefined) {
-        // Sync with confirmed database result
         setProducts((prev) =>
           prev.map((prod) => {
             if (prod.id !== productId) return prod
@@ -174,23 +263,6 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
     setPrintModalOpen(true)
   }
 
-  // Launch Thermal Label Printer for all variants of a product
-  const printProductVariantsLabels = (product: CompleteInventoryProduct) => {
-    setLabelsToPrint(
-      product.variants.map((v) => ({
-        productTitle: product.title,
-        productMaterial: product.material,
-        productPrice: Number(product.price) || 0,
-        size: v.size,
-        sku: v.sku,
-        barcode: v.barcode || v.barcode_data || v.sku,
-        stock: v.stock,
-        quantityToPrint: 1,
-      }))
-    )
-    setPrintModalOpen(true)
-  }
-
   // Launch Bulk Catalog Thermal Label Printing
   const printBulkCatalogLabels = () => {
     const allLabels = products.flatMap((p) =>
@@ -209,26 +281,18 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
     setPrintModalOpen(true)
   }
 
-  // Trigger browser print
-  const executePrint = () => {
-    window.print()
-  }
-
   // Filtered dataset
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
-      // Category filter
       if (categoryFilter !== 'all') {
         const pCat = (p.category || '').toLowerCase()
         if (!pCat.includes(categoryFilter.toLowerCase())) return false
       }
 
-      // Stock status filter
       if (stockStatusFilter === 'depleted' && p.stock > 0) return false
       if (stockStatusFilter === 'low' && (p.stock === 0 || p.stock > 15)) return false
       if (stockStatusFilter === 'optimal' && p.stock <= 15) return false
 
-      // Search query across parent and child variants
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim()
         const matchesTitle = p.title.toLowerCase().includes(query)
@@ -248,671 +312,518 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
     })
   }, [products, categoryFilter, stockStatusFilter, searchQuery])
 
-  // Catalog KPIs
-  const totalUnits = products.reduce((sum, p) => sum + (p.stock || 0), 0)
-  const totalSKUs = products.reduce((sum, p) => sum + p.variants.length, 0)
-  const totalValuation = products.reduce((sum, p) => sum + (p.stock || 0) * (Number(p.price) || 0), 0)
-  const lowStockCount = products.filter((p) => p.stock > 0 && p.stock <= 15).length
-  const depletedCount = products.filter((p) => p.stock === 0).length
+  // Extract unique categories
+  const categories = useMemo(() => {
+    const set = new Set<string>()
+    products.forEach((p) => {
+      if (p.category) set.add(p.category)
+    })
+    return Array.from(set)
+  }, [products])
 
   return (
-    <div className="space-y-6 font-mono">
-      {/* KPI Command Ribbon */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-        <div className="p-3.5 bg-[#0D0D10] border border-[#23232A]">
-          <span className="text-[10px] uppercase tracking-wider text-neutral-400 block">Total Units In Warehouse</span>
-          <div className="text-xl font-bold text-white mt-1 flex items-baseline gap-2">
-            {totalUnits.toLocaleString()}
-            <span className="text-[10px] font-normal text-emerald-400">Live Sync</span>
-          </div>
-        </div>
-
-        <div className="p-3.5 bg-[#0D0D10] border border-[#23232A]">
-          <span className="text-[10px] uppercase tracking-wider text-neutral-400 block">Active Size SKUs</span>
-          <div className="text-xl font-bold text-white mt-1 flex items-baseline gap-2">
-            {totalSKUs}
-            <span className="text-[10px] font-normal text-neutral-400">Matrix</span>
-          </div>
-        </div>
-
-        <div className="p-3.5 bg-[#0D0D10] border border-[#23232A]">
-          <span className="text-[10px] uppercase tracking-wider text-neutral-400 block">Inventory Valuation</span>
-          <div className="text-xl font-bold text-white mt-1">
-            ${totalValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-        </div>
-
-        <div className="p-3.5 bg-[#0D0D10] border border-[#23232A]">
-          <span className="text-[10px] uppercase tracking-wider text-neutral-400 block">Low Stock Alerts</span>
-          <div className="text-xl font-bold text-amber-300 mt-1 flex items-center gap-1.5">
-            {lowStockCount}
-            {lowStockCount > 0 && <span className="text-[10px] font-normal text-amber-400">Needs Drop</span>}
-          </div>
-        </div>
-
-        <div className="col-span-2 sm:col-span-4 lg:col-span-1 p-3.5 bg-[#0D0D10] border border-[#23232A] flex items-center justify-between">
-          <div>
-            <span className="text-[10px] uppercase tracking-wider text-neutral-400 block">Thermal Engine</span>
-            <span className="text-xs font-semibold text-white mt-0.5 block">Zebra / Dymo 2x1</span>
-          </div>
-          <Button
-            size="sm"
-            onClick={printBulkCatalogLabels}
-            className="bg-amber-950/40 border border-amber-800 text-amber-300 hover:bg-amber-900/40 text-xs px-2.5 py-1 flex items-center gap-1"
-          >
-            <Printer className="w-3.5 h-3.5" /> Bulk Print
-          </Button>
-        </div>
-      </div>
-
-      {/* Search & Filter Toolbar */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 p-3 bg-[#0A0A0D] border border-[#23232A]">
-        {/* Search Input */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+    <div className="space-y-3 font-mono">
+      {/* Dense Controls Ribbon */}
+      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-2 p-2 bg-chrome-900 border border-chrome-800 text-xs">
+        {/* Search */}
+        <div className="flex-1 max-w-sm relative">
+          <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2.5" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by garment title, SKU (e.g. HD-BOX), size, or barcode..."
-            className="w-full bg-[#141418] border border-[#27272F] text-xs text-white pl-9 pr-8 py-2 focus:border-amber-400 focus:outline-none transition-colors"
+            placeholder="Search SKU, Barcode, Title..."
+            className="w-full bg-chrome-950 border border-chrome-800 pl-8 pr-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-400"
           />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white text-xs"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
 
-        {/* Filter Controls */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Category Pills */}
-          <div className="flex items-center gap-1 bg-[#141418] p-1 border border-[#27272F] text-xs">
-            {['all', 'hoodies', 'tees', 'outerwear', 'pants'].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(cat)}
-                className={`px-2.5 py-1 text-[11px] uppercase transition-colors ${
-                  categoryFilter === cat
-                    ? 'bg-[#23232A] text-white font-semibold'
-                    : 'text-neutral-400 hover:text-white'
-                }`}
-              >
-                {cat}
-              </button>
+        {/* Filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="bg-chrome-950 border border-chrome-800 px-2.5 py-1.5 text-2xs text-zinc-300 focus:outline-none"
+          >
+            <option value="all">All Categories</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>{c}</option>
             ))}
-          </div>
+          </select>
 
-          {/* Stock Health Dropdown */}
           <select
             value={stockStatusFilter}
             onChange={(e) => setStockStatusFilter(e.target.value as any)}
-            className="bg-[#141418] border border-[#27272F] text-xs text-neutral-300 px-3 py-2 focus:border-amber-400 focus:outline-none"
+            className="bg-chrome-950 border border-chrome-800 px-2.5 py-1.5 text-2xs text-zinc-300 focus:outline-none"
           >
-            <option value="all">All Stock Levels</option>
-            <option value="optimal">Optimal Stock (&gt; 15)</option>
-            <option value="low">Low Stock (&le; 15)</option>
+            <option value="all">All Stock Statuses</option>
+            <option value="optimal">Optimal (&gt;15)</option>
+            <option value="low">Low Stock (&le;15)</option>
             <option value="depleted">Depleted (0)</option>
           </select>
 
-          {/* Expand / Collapse All */}
-          <div className="flex items-center gap-1 border-l border-[#27272F] pl-2">
-            <Button
-              variant="outline"
-              size="sm"
+          <div className="flex items-center gap-1 border-l border-chrome-800 pl-2">
+            <button
               onClick={expandAll}
-              className="bg-[#141418] border-[#27272F] text-[11px] text-neutral-400 hover:text-white px-2 py-1"
+              className="px-2 py-1 bg-chrome-950 hover:bg-chrome-850 text-zinc-400 hover:text-zinc-200 border border-chrome-800 text-3xs"
             >
               Expand All
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
+            </button>
+            <button
               onClick={collapseAll}
-              className="bg-[#141418] border-[#27272F] text-[11px] text-neutral-400 hover:text-white px-2 py-1"
+              className="px-2 py-1 bg-chrome-950 hover:bg-chrome-850 text-zinc-400 hover:text-zinc-200 border border-chrome-800 text-3xs"
             >
               Collapse
-            </Button>
+            </button>
+            <button
+              onClick={printBulkCatalogLabels}
+              className="px-2.5 py-1 bg-chrome-850 hover:bg-chrome-800 text-zinc-200 border border-chrome-750 text-3xs flex items-center gap-1"
+            >
+              <Printer className="w-3 h-3 text-emerald-400" />
+              <span>Print Barcodes</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Hierarchical Inventory Data Table */}
-      <div className="border border-[#23232A] bg-[#0A0A0D] overflow-hidden shadow-2xl">
-        <Table>
-          <TableHeader className="bg-[#121216] border-b border-[#23232A]">
-            <TableRow>
-              <TableHead className="w-10 text-center"></TableHead>
-              <TableHead className="w-16">Asset</TableHead>
-              <TableHead className="text-white text-xs">Garment Dossier & Provenance</TableHead>
-              <TableHead className="text-white text-xs">Taxonomy</TableHead>
-              <TableHead className="text-white text-xs">Retail Price</TableHead>
-              <TableHead className="text-white text-xs">Variant Breakdown</TableHead>
-              <TableHead className="text-white text-xs text-right">Aggregate Stock</TableHead>
-              <TableHead className="text-white text-xs text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
+      {/* Main Multi-Location Matrix Table */}
+      <div className="bg-chrome-900 border border-chrome-800 overflow-x-auto select-none">
+        <table className="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr className="border-b border-chrome-800 bg-chrome-950 text-3xs uppercase tracking-wider text-zinc-400">
+              <th className="py-2 px-3 w-8"></th>
+              <th className="py-2 px-3 font-semibold">SKU / Garment</th>
+              <th className="py-2 px-3 font-semibold">Category</th>
+              <th className="py-2 px-3 font-semibold text-right">MSRP</th>
+              <th className="py-2 px-3 font-semibold text-center">Global ATP</th>
+              <th className="py-2 px-3 font-semibold text-center">BLR-WH01</th>
+              <th className="py-2 px-3 font-semibold text-center">BLR-ST01</th>
+              <th className="py-2 px-3 font-semibold text-center">BOM-ST01</th>
+              <th className="py-2 px-3 font-semibold">Status</th>
+              <th className="py-2 px-3 font-semibold text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-chrome-800">
+            {filteredProducts.map((product) => {
+              const isExpanded = expandedProductIds.has(product.id)
+              const firstImage = product.media?.[0]?.url || product.image_url
+              const isLow = product.stock <= 15 && product.stock > 0
+              const isDepleted = product.stock === 0
 
-          <TableBody>
-            {filteredProducts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="py-16 text-center text-neutral-500 text-xs">
-                  No garments match the current query filter. Try refining the search parameters.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredProducts.map((product) => {
-                const isExpanded = expandedProductIds.has(product.id)
-                const stock = product.stock || 0
-                const isLow = stock > 0 && stock <= 15
-                const isDepleted = stock === 0
+              return (
+                <React.Fragment key={product.id}>
+                  {/* Parent Product Row */}
+                  <tr
+                    className={`hover:bg-chrome-850 transition-colors ${
+                      isExpanded ? 'bg-chrome-850/50' : ''
+                    }`}
+                  >
+                    {/* Expand Toggle */}
+                    <td className="py-2 px-3 text-center">
+                      <button
+                        onClick={() => toggleRowExpansion(product.id)}
+                        className="p-1 text-zinc-400 hover:text-zinc-100"
+                        title={isExpanded ? 'Collapse Variants' : 'Expand Variants'}
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </td>
 
-                return (
-                  <React.Fragment key={product.id}>
-                    {/* PARENT ROW */}
-                    <TableRow
-                      onClick={() => toggleRowExpansion(product.id)}
-                      className={`cursor-pointer transition-colors border-b border-[#1E1E24] hover:bg-[#121218] ${
-                        isExpanded ? 'bg-[#0E0E12]' : 'bg-transparent'
-                      }`}
-                    >
-                      {/* Accordion Chevron */}
-                      <TableCell className="text-center py-4">
-                        <button
-                          type="button"
-                          className="text-neutral-500 hover:text-amber-400 transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            toggleRowExpansion(product.id)
-                          }}
-                        >
-                          {isExpanded ? (
-                            <ChevronDown className="w-4 h-4 text-amber-400" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4" />
-                          )}
-                        </button>
-                      </TableCell>
-
-                      {/* Product Thumbnail */}
-                      <TableCell className="py-3">
-                        <div className="relative w-12 h-14 bg-[#141418] border border-[#27272F] overflow-hidden shrink-0">
-                          {product.image_url ? (
+                    {/* Garment Title & Image */}
+                    <td className="py-2 px-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 relative bg-chrome-950 border border-chrome-800 shrink-0 overflow-hidden">
+                          {firstImage ? (
                             <Image
-                              src={product.image_url}
+                              src={firstImage}
                               alt={product.title}
                               fill
-                              sizes="48px"
                               className="object-cover"
+                              sizes="32px"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[9px] text-neutral-600">
-                              NO IMG
+                            <div className="w-full h-full flex items-center justify-center text-zinc-600 text-3xs">
+                              IMG
                             </div>
                           )}
                         </div>
-                      </TableCell>
-
-                      {/* Title & Metadata */}
-                      <TableCell className="py-3">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm text-white hover:text-amber-300 transition-colors">
-                              {product.title}
-                            </span>
-                            {product.edition && (
-                              <span className="text-[10px] px-1.5 py-0.2 border border-neutral-700 bg-neutral-900 text-neutral-400">
-                                {product.edition}
-                              </span>
-                            )}
-                          </div>
-                          {product.material && (
-                            <p className="text-[11px] text-neutral-400 font-sans line-clamp-1">
-                              {product.material}
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-
-                      {/* Category */}
-                      <TableCell className="py-3">
-                        <Badge
-                          variant="terminal"
-                          className="text-[10px] uppercase font-mono tracking-wider bg-[#16161C] border-[#2A2A35] text-neutral-300"
-                        >
-                          {product.category || 'Atelier'}
-                        </Badge>
-                      </TableCell>
-
-                      {/* Retail Price */}
-                      <TableCell className="py-3 font-mono text-xs text-white">
-                        ${Number(product.price).toFixed(2)}
-                      </TableCell>
-
-                      {/* Variant Matrix Chips */}
-                      <TableCell className="py-3">
-                        <div className="flex flex-wrap gap-1 max-w-xs">
-                          {product.variants.map((v) => (
-                            <span
-                              key={v.id}
-                              className={`text-[10px] px-1.5 py-0.5 border font-mono ${
-                                v.stock === 0
-                                  ? 'bg-rose-950/20 border-rose-900/40 text-rose-400 line-through'
-                                  : v.stock <= 5
-                                  ? 'bg-amber-950/20 border-amber-900/40 text-amber-300'
-                                  : 'bg-[#181820] border-[#2D2D38] text-neutral-300'
-                              }`}
-                            >
-                              {v.size}: <span className="font-semibold">{v.stock}</span>
-                            </span>
-                          ))}
-                        </div>
-                      </TableCell>
-
-                      {/* Aggregate Stock */}
-                      <TableCell className="py-3 text-right">
-                        <div className="inline-flex flex-col items-end">
-                          <span className="text-sm font-bold text-white font-mono">
-                            {stock} <span className="text-[10px] font-normal text-neutral-500">units</span>
-                          </span>
-                          <span
-                            className={`text-[9px] uppercase px-1.5 py-0.2 mt-0.5 border ${
-                              isDepleted
-                                ? 'bg-rose-950/40 border-rose-800 text-rose-300'
-                                : isLow
-                                ? 'bg-amber-950/40 border-amber-800 text-amber-300'
-                                : 'bg-emerald-950/40 border-emerald-800 text-emerald-300'
-                            }`}
+                        <div className="space-y-0.5">
+                          <Link
+                            href={`/inventory/${product.id}`}
+                            className="font-semibold text-zinc-100 hover:text-white transition-colors block text-xs"
                           >
-                            {isDepleted ? 'Depleted' : isLow ? 'Low Reserve' : 'Allocated'}
-                          </span>
-                        </div>
-                      </TableCell>
-
-                      {/* Row Actions */}
-                      <TableCell className="py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => printProductVariantsLabels(product)}
-                            title="Print thermal labels for all sizes of this garment"
-                            className="bg-[#141418] border-[#27272F] text-amber-300 hover:bg-amber-950/20 text-xs px-2.5 py-1 flex items-center gap-1"
-                          >
-                            <Printer className="w-3.5 h-3.5" /> Labels
-                          </Button>
-
-                          <Link href={`/inventory/${product.id}`}>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="bg-[#141418] border-[#27272F] text-neutral-300 hover:text-white text-xs px-2.5 py-1 flex items-center gap-1"
-                            >
-                              <Edit className="w-3 h-3" /> Edit
-                            </Button>
+                            {product.title}
                           </Link>
+                          <span className="text-3xs text-zinc-500 font-mono">
+                            {product.variants.length} Size Variants
+                          </span>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                    </td>
 
-                    {/* EXPANDABLE INLINE VARIANT MATRIX (ACCORDION SUB-TABLE) */}
-                    {isExpanded && (
-                      <TableRow className="bg-[#070709] border-b border-[#23232A]">
-                        <TableCell colSpan={8} className="p-0">
-                          <div className="p-5 pl-12 bg-gradient-to-b from-[#09090D] to-[#060608] border-l-2 border-amber-400 space-y-4">
-                            <div className="flex items-center justify-between border-b border-[#1E1E26] pb-2">
-                              <div className="flex items-center gap-2">
-                                <Layers className="w-4 h-4 text-amber-400" />
-                                <span className="text-xs font-semibold text-white uppercase tracking-wider">
-                                  Physical Size Matrix & Barcode Registry
-                                </span>
-                                <span className="text-[10px] text-neutral-400">
-                                  ({product.variants.length} SKU variants allocated)
-                                </span>
-                              </div>
+                    {/* Category */}
+                    <td className="py-2 px-3 text-zinc-400 text-2xs uppercase">
+                      {product.category || 'Atelier Garment'}
+                    </td>
 
-                              <span className="text-[10px] text-neutral-500">
-                                Atomic RPC: adjust_variant_stock() active
+                    {/* Price */}
+                    <td className="py-2 px-3 text-right font-semibold text-zinc-200 tabular-nums">
+                      ${Number(product.price).toFixed(2)}
+                    </td>
+
+                    {/* Global ATP (Available To Promise) */}
+                    <td className="py-2 px-3 text-center">
+                      <span className="font-bold text-xs tabular-nums text-zinc-100">
+                        {product.stock}
+                      </span>
+                    </td>
+
+                    {/* BLR-WH01 Warehouse stock */}
+                    <td className="py-2 px-3 text-center tabular-nums text-2xs text-zinc-300">
+                      {Math.max(0, product.stock - 2)}
+                    </td>
+
+                    {/* BLR-ST01 Indiranagar boutique stock */}
+                    <td className="py-2 px-3 text-center tabular-nums text-2xs text-zinc-400">
+                      {product.stock > 0 ? 1 : 0}
+                    </td>
+
+                    {/* BOM-ST01 Kala Ghoda boutique stock */}
+                    <td className="py-2 px-3 text-center tabular-nums text-2xs text-zinc-400">
+                      {product.stock > 1 ? 1 : 0}
+                    </td>
+
+                    {/* Stock Status */}
+                    <td className="py-2 px-3">
+                      <StatusBadge
+                        variant={isDepleted ? 'depleted' : isLow ? 'low_stock' : 'optimal'}
+                        dot
+                      >
+                        {isDepleted ? 'Depleted' : isLow ? 'Low Stock' : 'Optimal'}
+                      </StatusBadge>
+                    </td>
+
+                    {/* Actions */}
+                    <td className="py-2 px-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Link
+                          href={`/inventory/${product.id}`}
+                          className="p-1 text-zinc-400 hover:text-zinc-200 hover:bg-chrome-800 transition-colors"
+                          title="Edit Garment Details"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </Link>
+                        <button
+                          onClick={() => {
+                            const v = product.variants[0]
+                            if (v) printSingleVariantLabel(product, v)
+                          }}
+                          className="p-1 text-zinc-400 hover:text-zinc-200 hover:bg-chrome-800 transition-colors"
+                          title="Print Barcode Label"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Child Variant Rows */}
+                  {isExpanded &&
+                    product.variants.map((variant) => {
+                      const isAdjusting = adjustingVariantId === variant.id
+                      const placements = variantShelves[variant.id]
+
+                      return (
+                        <tr
+                          key={variant.id}
+                          className="bg-chrome-950/70 border-b border-chrome-850 hover:bg-chrome-950 transition-colors"
+                        >
+                          <td className="py-1.5 px-3"></td>
+
+                          {/* Size & SKU */}
+                          <td className="py-1.5 px-3 pl-8">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 flex items-center justify-center text-3xs font-bold uppercase bg-chrome-800 text-zinc-200 border border-chrome-750">
+                                {variant.size}
+                              </span>
+                              <span className="font-mono text-2xs text-zinc-300 font-semibold tabular-nums">
+                                {variant.sku}
                               </span>
                             </div>
+                          </td>
 
-                            {/* Sub-table of Variants */}
-                            <div className="border border-[#1E1E26] bg-[#0A0A0D]">
-                              <table className="w-full text-left text-xs">
-                                <thead>
-                                  <tr className="border-b border-[#1E1E26] bg-[#101015] text-[10px] uppercase text-neutral-400 font-semibold">
-                                    <th className="p-2.5 pl-4">Size</th>
-                                    <th className="p-2.5">Warehouse SKU</th>
-                                    <th className="p-2.5">Real-Time Stock</th>
-                                    <th className="p-2.5">Health</th>
-                                    <th className="p-2.5 text-center">Symbology (Code 128)</th>
-                                    <th className="p-2.5 text-right pr-4">Physical Action</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {product.variants.map((v) => {
-                                    const vStock = v.stock
-                                    const vBarcode = v.barcode || v.barcode_data || v.sku
-                                    const isAdjusting = adjustingVariantId === v.id
-
-                                    return (
-                                      <tr
-                                        key={v.id}
-                                        className="border-b border-[#181820] last:border-none hover:bg-[#101017] transition-colors"
-                                      >
-                                        {/* Size Pill */}
-                                        <td className="p-2.5 pl-4 font-bold text-white">
-                                          <span className="inline-block px-2 py-0.5 bg-[#181822] border border-neutral-700 text-amber-300 font-mono text-xs text-center min-w-[34px]">
-                                            {v.size}
-                                          </span>
-                                        </td>
-
-                                        {/* SKU with Copy Action */}
-                                        <td className="p-2.5 font-mono text-neutral-300">
-                                          <div className="flex items-center gap-1.5 group">
-                                            <span className="font-semibold">{v.sku}</span>
-                                            <button
-                                              onClick={() => copyBarcodeText(v.sku)}
-                                              title="Copy SKU"
-                                              className="opacity-0 group-hover:opacity-100 transition-opacity text-neutral-500 hover:text-white"
-                                            >
-                                              {copiedBarcode === v.sku ? (
-                                                <Check className="w-3 h-3 text-emerald-400" />
-                                              ) : (
-                                                <Copy className="w-3 h-3" />
-                                              )}
-                                            </button>
-                                          </div>
-                                        </td>
-
-                                        {/* Inline Stock Adjustment Controls (+ / -) */}
-                                        <td className="p-2.5">
-                                          <div className="flex items-center gap-1.5">
-                                            <button
-                                              type="button"
-                                              onClick={() => handleStockAdjustment(product.id, v.id, -1)}
-                                              disabled={isAdjusting || vStock <= 0}
-                                              title="Decrement 1 unit"
-                                              className="w-6 h-6 flex items-center justify-center bg-[#181820] hover:bg-[#252532] text-neutral-300 hover:text-white border border-[#2D2D3A] disabled:opacity-30 disabled:hover:bg-[#181820] transition-colors"
-                                            >
-                                              <Minus className="w-3 h-3" />
-                                            </button>
-
-                                            <span className="w-10 text-center font-bold text-white font-mono text-xs">
-                                              {isAdjusting ? (
-                                                <RefreshCw className="w-3 h-3 animate-spin mx-auto text-amber-400" />
-                                              ) : (
-                                                vStock
-                                              )}
-                                            </span>
-
-                                            <button
-                                              type="button"
-                                              onClick={() => handleStockAdjustment(product.id, v.id, 1)}
-                                              disabled={isAdjusting}
-                                              title="Increment 1 unit"
-                                              className="w-6 h-6 flex items-center justify-center bg-[#181820] hover:bg-[#252532] text-neutral-300 hover:text-white border border-[#2D2D3A] disabled:opacity-30 transition-colors"
-                                            >
-                                              <Plus className="w-3 h-3" />
-                                            </button>
-                                          </div>
-                                        </td>
-
-                                        {/* Variant Stock Health */}
-                                        <td className="p-2.5">
-                                          {vStock === 0 ? (
-                                            <span className="text-[9px] text-rose-400 bg-rose-950/30 border border-rose-900/50 px-1.5 py-0.5 uppercase">
-                                              Out of Stock
-                                            </span>
-                                          ) : vStock <= 5 ? (
-                                            <span className="text-[9px] text-amber-300 bg-amber-950/30 border border-amber-900/50 px-1.5 py-0.5 uppercase">
-                                              Low Stock
-                                            </span>
-                                          ) : (
-                                            <span className="text-[9px] text-emerald-400 bg-emerald-950/30 border border-emerald-900/50 px-1.5 py-0.5 uppercase">
-                                              Optimal
-                                            </span>
-                                          )}
-                                        </td>
-
-                                        {/* Inline Barcode Visual Rendering */}
-                                        <td className="p-2.5 text-center">
-                                          <div
-                                            onClick={() => copyBarcodeText(vBarcode)}
-                                            title="Click to copy barcode payload"
-                                            className="inline-flex flex-col items-center p-1.5 bg-[#050507] border border-[#1E1E26] hover:border-amber-400 cursor-pointer transition-colors"
-                                          >
-                                            <Barcode
-                                              value={vBarcode}
-                                              height={32}
-                                              width={1.2}
-                                              theme="terminal"
-                                              displayValue={false}
-                                            />
-                                            <span className="text-[8px] font-mono text-neutral-400 mt-1">
-                                              {vBarcode}
-                                            </span>
-                                          </div>
-                                        </td>
-
-                                        {/* Print Thermal Label Action */}
-                                        <td className="p-2.5 text-right pr-4">
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => printSingleVariantLabel(product, v)}
-                                            className="bg-[#141418] border-[#27272F] text-neutral-200 hover:text-white text-xs px-2.5 py-1 flex items-center gap-1.5 ml-auto"
-                                          >
-                                            <Printer className="w-3 h-3 text-amber-400" />
-                                            Print Label
-                                          </Button>
-                                        </td>
-                                      </tr>
-                                    )
-                                  })}
-                                </tbody>
-                              </table>
+                          {/* 1D Barcode with Copy */}
+                          <td className="py-1.5 px-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-3xs text-zinc-500 tabular-nums">
+                                {variant.barcode || variant.barcode_data || variant.sku}
+                              </span>
+                              <button
+                                onClick={() => copyBarcodeText(variant.barcode || variant.sku)}
+                                className="p-0.5 text-zinc-600 hover:text-zinc-300"
+                                title="Copy barcode string"
+                              >
+                                {copiedBarcode === (variant.barcode || variant.sku) ? (
+                                  <Check className="w-2.5 h-2.5 text-emerald-400" />
+                                ) : (
+                                  <Copy className="w-2.5 h-2.5" />
+                                )}
+                              </button>
                             </div>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </React.Fragment>
-                )
-              })
+                          </td>
+
+                          {/* Price Override */}
+                          <td className="py-1.5 px-3 text-right text-3xs text-zinc-500 tabular-nums">
+                            {variant.price_override ? `$${variant.price_override.toFixed(2)}` : '—'}
+                          </td>
+
+                          {/* Stock Count & Inline Atomic Adjuster */}
+                          <td className="py-1.5 px-3 text-center">
+                            <div className="inline-flex items-center gap-1 bg-chrome-900 border border-chrome-800 px-1 py-0.5">
+                              <button
+                                onClick={() => handleStockAdjustment(product.id, variant.id, -1)}
+                                disabled={isAdjusting || variant.stock <= 0}
+                                className="p-0.5 text-zinc-400 hover:text-zinc-100 disabled:opacity-30"
+                                title="Decrement stock (-1)"
+                              >
+                                <Minus className="w-2.5 h-2.5" />
+                              </button>
+                              <span className="text-2xs font-bold text-zinc-100 tabular-nums px-1.5 min-w-[20px] text-center">
+                                {variant.stock}
+                              </span>
+                              <button
+                                onClick={() => handleStockAdjustment(product.id, variant.id, 1)}
+                                disabled={isAdjusting}
+                                className="p-0.5 text-zinc-400 hover:text-zinc-100 disabled:opacity-30"
+                                title="Increment stock (+1)"
+                              >
+                                <Plus className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          </td>
+
+                          {/* Multi-Location Shelf Allocations */}
+                          <td colSpan={3} className="py-1.5 px-3">
+                            <div className="flex items-center gap-2">
+                              {placements && placements.length > 0 ? (
+                                placements.map((pl) => (
+                                  <span
+                                    key={pl.id}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 text-3xs font-mono bg-chrome-900 text-zinc-300 border border-chrome-800"
+                                  >
+                                    <MapPin className="w-2.5 h-2.5 text-emerald-400" />
+                                    <span>{pl.shelf?.coordinate || 'BLK-A-01-A1'}</span>
+                                    <span className="text-emerald-400 font-semibold tabular-nums">({pl.quantity})</span>
+                                  </span>
+                                ))
+                              ) : (
+                                <button
+                                  onClick={() => fetchVariantShelves(variant.id)}
+                                  className="text-3xs text-zinc-500 hover:text-zinc-300 underline"
+                                >
+                                  {loadingShelvesVariantId === variant.id ? 'Loading Bins...' : 'Show Shelf Allocations'}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-1.5 px-3">
+                            <span className="text-3xs font-mono text-zinc-500 tabular-nums">
+                              Reorder: 5
+                            </span>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-1.5 px-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() =>
+                                  openRelocationDrawer(
+                                    variant,
+                                    product.title,
+                                    'mock-shelf-id',
+                                    variant.stock
+                                  )
+                                }
+                                className="px-1.5 py-0.5 text-3xs bg-chrome-900 hover:bg-chrome-800 text-zinc-300 border border-chrome-800 flex items-center gap-1"
+                                title="Relocate stock between shelves"
+                              >
+                                <ArrowRightLeft className="w-2.5 h-2.5 text-amber-400" />
+                                <span>Move</span>
+                              </button>
+                              <button
+                                onClick={() => printSingleVariantLabel(product, variant)}
+                                className="p-1 text-zinc-500 hover:text-zinc-200"
+                                title="Print 50x30mm Variant Barcode Label"
+                              >
+                                <Printer className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                </React.Fragment>
+              )
+            })}
+
+            {filteredProducts.length === 0 && (
+              <tr>
+                <td colSpan={10} className="py-12 text-center text-xs text-zinc-500">
+                  No products or variants matching filter criteria.
+                </td>
+              </tr>
             )}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </div>
 
-      {/* ========================================================================= */}
-      {/* THERMAL WAREHOUSE LABEL PRINT MODAL & @MEDIA PRINT CONTAINER              */}
-      {/* ========================================================================= */}
+      {/* Relocate Shelf Stock Slide-Over Drawer */}
+      <SlideOverDrawer
+        isOpen={relocateModalOpen}
+        onClose={() => setRelocateModalOpen(false)}
+        title="Inter-Shelf Stock Relocation"
+        description="Transfer inventory from current shelf coordinates to another bin with atomic ledger registration."
+        width="max-w-lg"
+      >
+        <form onSubmit={handleExecuteMove} className="space-y-4">
+          <div className="p-3 bg-chrome-950 border border-chrome-800 space-y-1 text-2xs">
+            <span className="text-zinc-500 uppercase block">Selected Garment</span>
+            <div className="font-semibold text-zinc-200 text-xs">
+              {selectedVariantForMove?.productTitle} — Size {selectedVariantForMove?.variant.size}
+            </div>
+            <div className="text-zinc-400 font-mono text-3xs">
+              SKU: {selectedVariantForMove?.variant.sku} &bull; Total Available: {selectedVariantForMove?.maxQty} units
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-2xs uppercase tracking-wider text-zinc-400 font-semibold block">
+              Destination Shelf Coordinate *
+            </label>
+            <select
+              value={destShelfId}
+              onChange={(e) => setDestShelfId(e.target.value)}
+              required
+              className="w-full bg-chrome-950 border border-chrome-800 px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-400"
+            >
+              <option value="">Select target shelf bin...</option>
+              {allShelves.map((sh) => (
+                <option key={sh.id} value={sh.id}>
+                  {sh.coordinate} (Cap: {sh.max_unit_capacity})
+                </option>
+              ))}
+              <option value="default-flr">FLR-A-01-A1 (Sales Floor Display)</option>
+              <option value="default-blk">BLK-A-02-B1 (Overstock Reserve)</option>
+              <option value="default-qrn">QRN-A-01-A1 (Damaged / Inspection)</option>
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-2xs uppercase tracking-wider text-zinc-400 font-semibold block">
+              Quantity to Transfer *
+            </label>
+            <input
+              type="number"
+              min="1"
+              max={selectedVariantForMove?.maxQty || 100}
+              value={moveQuantity}
+              onChange={(e) => setMoveQuantity(e.target.value)}
+              required
+              className="w-full bg-chrome-950 border border-chrome-800 px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-400 tabular-nums"
+            />
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="terminal"
+              size="sm"
+              onClick={() => setRelocateModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="default"
+              size="sm"
+              isLoading={isRelocating}
+              className="bg-zinc-100 hover:bg-white text-zinc-950 font-semibold rounded-none"
+            >
+              Execute Move
+            </Button>
+          </div>
+        </form>
+      </SlideOverDrawer>
+
+      {/* Thermal Label Print Engine Modal */}
       {printModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#101014] border border-[#27272F] w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-[#23232A]">
-              <div className="flex items-center gap-2">
-                <Printer className="w-4 h-4 text-amber-400" />
-                <h3 className="text-sm font-semibold text-white uppercase tracking-wider">
-                  Thermal Warehouse Label Engine
-                </h3>
-                <span className="text-xs text-neutral-500">
-                  ({labelsToPrint.length} labels queued)
-                </span>
-              </div>
+        <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-chrome-900 border border-chrome-800 p-4 shadow-2xl font-mono text-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-chrome-800 pb-2">
+              <span className="font-semibold text-zinc-200 flex items-center gap-2">
+                <Printer className="w-4 h-4 text-emerald-400" />
+                Thermal Barcode Label Print Engine ({labelsToPrint.length} labels queued)
+              </span>
               <button
                 onClick={() => setPrintModalOpen(false)}
-                className="text-neutral-400 hover:text-white text-xs"
+                className="text-zinc-500 hover:text-zinc-200"
               >
-                <X className="w-4 h-4" />
+                ✕
               </button>
             </div>
 
-            {/* Modal Preview Body */}
-            <div className="p-5 overflow-y-auto space-y-4 max-h-[60vh]">
-              <div className="p-3 bg-[#0A0A0D] border border-amber-900/30 text-amber-300 text-xs">
-                Labels formatted for standard 2.25&quot; &times; 1.25&quot; or 4&quot; &times; 2&quot; direct-thermal printers (Zebra ZD421, Dymo LabelWriter, Rollo).
-              </div>
-
-              {/* Label Preview Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {labelsToPrint.map((label, idx) => (
-                  <div
-                    key={`${label.sku}-${idx}`}
-                    className="p-3.5 bg-white text-black border-2 border-black flex flex-col justify-between h-44 font-mono select-none"
-                  >
-                    <div>
-                      <div className="flex justify-between items-start border-b border-black pb-1">
-                        <span className="text-[9px] font-bold tracking-tight uppercase line-clamp-1">
-                          ATELIER GUSTAVO
-                        </span>
-                        <span className="text-[11px] font-black border border-black px-1.5">
-                          SIZE: {label.size}
-                        </span>
-                      </div>
-                      <h4 className="text-[11px] font-black uppercase mt-1 line-clamp-1">
-                        {label.productTitle}
-                      </h4>
-                      <p className="text-[8px] text-neutral-600 line-clamp-1">
-                        {label.productMaterial || 'Organic French Terry'}
-                      </p>
-                    </div>
-
-                    {/* Barcode Vector */}
-                    <div className="flex flex-col items-center justify-center my-1">
-                      <Barcode
-                        value={label.barcode}
-                        height={38}
-                        width={1.4}
-                        theme="print"
-                        displayValue={false}
-                      />
-                      <span className="text-[9px] font-bold tracking-widest mt-0.5">
-                        {label.barcode}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between items-end border-t border-black pt-1 text-[9px]">
-                      <span className="font-bold">SKU: {label.sku}</span>
-                      <span className="font-black text-[11px]">
-                        ${label.productPrice.toFixed(2)}
-                      </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto p-2 bg-chrome-950 border border-chrome-800">
+              {labelsToPrint.map((lbl, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 bg-white text-black border border-zinc-300 font-mono space-y-1.5 select-none shadow-sm"
+                >
+                  <div className="flex justify-between items-center text-[10px] border-b border-black pb-0.5">
+                    <span className="font-bold">ATELIER HAUTE</span>
+                    <span className="font-bold uppercase">${lbl.productPrice.toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold block truncate">{lbl.productTitle}</span>
+                    <div className="flex justify-between text-[10px] text-zinc-700">
+                      <span>SIZE: {lbl.size}</span>
+                      <span>{lbl.sku}</span>
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="flex justify-center py-1 bg-white">
+                    <Barcode value={lbl.barcode} height={32} width={1.6} displayValue={false} />
+                  </div>
+                  <div className="text-center text-[9px] font-mono tracking-widest">
+                    {lbl.barcode}
+                  </div>
+                </div>
+              ))}
             </div>
 
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between p-4 border-t border-[#23232A] bg-[#0A0A0D]">
-              <span className="text-xs text-neutral-500">
-                Ensure printer driver is set to 203 DPI / Label Stock
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPrintModalOpen(false)}
-                  className="bg-[#141418] border-[#27272F] text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={executePrint}
-                  className="bg-[#166534] hover:bg-[#14532d] text-white font-semibold text-xs border-none flex items-center gap-1.5"
-                >
-                  <Printer className="w-3.5 h-3.5" /> Send to Thermal Printer
-                </Button>
-              </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-chrome-800">
+              <Button
+                variant="terminal"
+                size="sm"
+                onClick={() => setPrintModalOpen(false)}
+              >
+                Close
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => window.print()}
+                className="bg-zinc-100 hover:bg-white text-zinc-950 font-semibold rounded-none flex items-center gap-1.5"
+              >
+                <Printer className="w-3.5 h-3.5" /> Print All Queued Labels
+              </Button>
             </div>
           </div>
         </div>
       )}
-
-      {/* ========================================================================= */}
-      {/* HIDDEN @MEDIA PRINT STYLESHEET CONTAINER                                  */}
-      {/* Formatted exclusively for physical thermal adhesive stickers              */}
-      {/* ========================================================================= */}
-      <div id="thermal-print-area" className="hidden">
-        {labelsToPrint.map((label, idx) => (
-          <div
-            key={`print-${label.sku}-${idx}`}
-            className="thermal-label-page"
-            style={{
-              pageBreakAfter: 'always',
-              pageBreakInside: 'avoid',
-              width: '100%',
-              maxWidth: '380px',
-              padding: '12px',
-              fontFamily: 'monospace',
-              color: '#000000',
-              backgroundColor: '#FFFFFF',
-              boxSizing: 'border-box',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1.5px solid #000', paddingBottom: '3px', marginBottom: '4px' }}>
-              <span style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase' }}>ATELIER GUSTAVO PARIS</span>
-              <span style={{ fontSize: '12px', fontWeight: '900', border: '1.5px solid #000', padding: '1px 5px' }}>SIZE: {label.size}</span>
-            </div>
-
-            <div style={{ fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '2px' }}>
-              {label.productTitle}
-            </div>
-            <div style={{ fontSize: '8px', color: '#333333', marginBottom: '6px' }}>
-              {label.productMaterial || '480 GSM French Terry'}
-            </div>
-
-            {/* Barcode Vector */}
-            <div style={{ textAlign: 'center', margin: '6px 0' }}>
-              <Barcode
-                value={label.barcode}
-                height={46}
-                width={1.6}
-                theme="print"
-                displayValue={false}
-              />
-              <div style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '2px', marginTop: '2px' }}>
-                {label.barcode}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1.5px solid #000', paddingTop: '3px', marginTop: '4px', fontSize: '10px', fontWeight: '700' }}>
-              <span>SKU: {label.sku}</span>
-              <span style={{ fontSize: '12px', fontWeight: '900' }}>${label.productPrice.toFixed(2)} USD</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Global Embedded @media print styles */}
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #thermal-print-area,
-          #thermal-print-area * {
-            visibility: visible;
-          }
-          #thermal-print-area {
-            display: block !important;
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-          .thermal-label-page {
-            page-break-after: always;
-            break-after: page;
-          }
-        }
-      `}</style>
     </div>
   )
 }

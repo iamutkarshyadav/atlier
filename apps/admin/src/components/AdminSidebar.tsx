@@ -5,33 +5,83 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
-  Boxes,
-  FolderTree,
+  Store,
   ShoppingBag,
+  Truck,
+  Boxes,
+  Warehouse,
+  ArrowLeftRight,
+  FileText,
+  ClipboardList,
+  Building2,
+  FolderTree,
+  Barcode as BarcodeIcon,
   Users,
+  Layers,
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Scissors,
-  Cpu,
-  Sparkles,
+  Scan,
 } from 'lucide-react'
 import { createBrowserClient } from '@repo/supabase/browser'
+import { useLocation } from '@/context/LocationContext'
+import { useBarcodeScanner } from '@/lib/useBarcodeScanner'
 
-const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Command Hub', icon: LayoutDashboard, code: '01' },
-  { href: '/cms', label: 'Storefront CMS', icon: Sparkles, code: '02' },
-  { href: '/inventory', label: 'Apparel Inventory', icon: Boxes, code: '03' },
-  { href: '/inventory/new', label: 'Design Garment', icon: Scissors, code: '04' },
-  { href: '/categories', label: 'Apparel Categories', icon: FolderTree, code: '05' },
-  { href: '/orders', label: 'Order Manifest', icon: ShoppingBag, code: '06' },
-  { href: '/customers', label: 'Patron Registry', icon: Users, code: '07' },
+interface NavGroup {
+  label: string
+  items: Array<{
+    href: string
+    label: string
+    icon: React.ComponentType<{ className?: string }>
+    exact?: boolean
+  }>
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: 'Operations',
+    items: [
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+      { href: '/pos', label: 'POS Terminal', icon: Store },
+      { href: '/orders', label: 'Orders', icon: ShoppingBag },
+      { href: '/dispatch', label: 'Outbound Dispatch', icon: Truck },
+    ],
+  },
+  {
+    label: 'Inventory & WMS',
+    items: [
+      { href: '/inventory', label: 'Inventory Matrix', icon: Boxes, exact: true },
+      { href: '/locations', label: 'Locations & Shelves', icon: Warehouse },
+      { href: '/inventory/transfers', label: 'Stock Transfers', icon: ArrowLeftRight },
+      { href: '/inventory/ledger', label: 'Audit Ledger', icon: FileText },
+    ],
+  },
+  {
+    label: 'Supply Chain',
+    items: [
+      { href: '/procurement', label: 'Purchase Orders & GRN', icon: ClipboardList },
+      { href: '/suppliers', label: 'Suppliers', icon: Building2 },
+    ],
+  },
+  {
+    label: 'Catalog & Tools',
+    items: [
+      { href: '/categories', label: 'Categories', icon: FolderTree },
+      { href: '/barcodes', label: 'Barcode Studio', icon: BarcodeIcon },
+      { href: '/customers', label: 'Customers & Staff', icon: Users },
+      { href: '/cms', label: 'Storefront CMS', icon: Layers },
+    ],
+  },
 ]
 
 export function AdminSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+  const { activeLocationCode } = useLocation()
+  const { isListening } = useBarcodeScanner({
+    onScan: () => {},
+  })
 
   const handleLogout = async () => {
     try {
@@ -46,85 +96,103 @@ export function AdminSidebar() {
 
   return (
     <aside
-      className={`bg-[#0A0A0C] border-r border-[#23232A] flex flex-col justify-between shrink-0 transition-all duration-300 ${
-        collapsed ? 'w-20' : 'w-64'
+      className={`bg-chrome-950 border-r border-chrome-800 flex flex-col justify-between shrink-0 transition-all duration-200 select-none ${
+        collapsed ? 'w-16' : 'w-60'
       }`}
     >
-      <div>
-        {/* Brand & Terminal Indicator */}
-        <div className="h-20 px-6 flex items-center justify-between border-b border-[#23232A]">
+      <div className="flex flex-col min-h-0 flex-1 overflow-y-auto">
+        {/* Brand & Header */}
+        <div className="h-12 px-3.5 flex items-center justify-between border-b border-chrome-800 shrink-0">
           {!collapsed ? (
-            <div>
-              <Link href="/dashboard" className="flex items-center gap-2">
-                <span className="text-lg tracking-[0.15em] font-black text-white">
-                  ATELIER
-                </span>
-                <span className="text-[9px] font-mono uppercase bg-[#18181C] text-[#166534] px-1.5 py-0.5 border border-[#27272A]">
-                  CREATOR
-                </span>
-              </Link>
-            </div>
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <span className="text-sm font-bold tracking-widest text-zinc-100 font-mono">
+                ATELIER
+              </span>
+              <span className="text-2xs font-mono uppercase bg-chrome-900 text-zinc-400 px-1 py-0.5 border border-chrome-800">
+                ERP
+              </span>
+            </Link>
           ) : (
-            <span className="font-serif text-lg text-[#166534] font-bold mx-auto">A</span>
+            <span className="font-mono text-sm text-zinc-100 font-bold mx-auto">A</span>
           )}
 
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 text-neutral-500 hover:text-white transition-colors"
+            className="p-1 text-zinc-500 hover:text-zinc-200 transition-colors"
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
           </button>
         </div>
 
-        {/* Navigation list */}
-        <nav className="p-3 space-y-1">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-3 rounded-none text-xs tracking-caps font-mono transition-all duration-200 relative group ${
-                  isActive
-                    ? 'bg-[#18181C] text-white border-l-2 border-amber-400'
-                    : 'text-neutral-400 hover:text-neutral-100 hover:bg-[#121215]'
-                }`}
-                title={collapsed ? item.label : undefined}
-              >
-                <Icon className="w-4 h-4 shrink-0 text-neutral-400 group-hover:text-white" />
-                {!collapsed && (
-                  <div className="flex items-center justify-between w-full">
-                    <span className="uppercase">{item.label}</span>
-                    <span className="text-[10px] text-neutral-600 font-mono">{item.code}</span>
-                  </div>
-                )}
-              </Link>
-            )
-          })}
+        {/* Grouped Navigation */}
+        <nav className="p-2 space-y-4">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label} className="space-y-0.5">
+              {!collapsed && (
+                <div className="px-2 pt-1 pb-1 text-3xs font-mono uppercase tracking-widest text-zinc-500 font-semibold">
+                  {group.label}
+                </div>
+              )}
+              {group.items.map((item) => {
+                const Icon = item.icon
+                const isActive = item.exact
+                  ? pathname === item.href
+                  : pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-mono transition-colors group relative ${
+                      isActive
+                        ? 'bg-chrome-850 text-white font-medium border-l-2 border-emerald-500'
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-chrome-900 border-l-2 border-transparent'
+                    }`}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-400' : 'text-zinc-400 group-hover:text-zinc-200'}`} />
+                    {!collapsed && (
+                      <span className="truncate">{item.label}</span>
+                    )}
+                  </Link>
+                )
+              })}
+            </div>
+          ))}
         </nav>
       </div>
 
-      {/* Footer System Status */}
-      <div className="p-4 border-t border-[#23232A] space-y-3">
-        {!collapsed && (
-          <div className="p-3 bg-[#121215] border border-[#23232A] text-[10px] font-mono space-y-1.5 text-neutral-400">
-            <div className="flex items-center justify-between text-neutral-300">
-              <span className="flex items-center gap-1.5">
-                <Cpu className="w-3 h-3 text-emerald-400" /> Supabase Realtime
-              </span>
-              <span className="text-emerald-400">Active</span>
+      {/* Operational Footer Status Bar */}
+      <div className="p-2 border-t border-chrome-800 space-y-2 shrink-0 bg-chrome-950">
+        {!collapsed ? (
+          <div className="p-2 bg-chrome-900 border border-chrome-800 text-2xs font-mono space-y-1 text-zinc-400">
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-500">Location</span>
+              <span className="text-zinc-200 font-semibold">{activeLocationCode}</span>
             </div>
-            <p className="text-neutral-500 text-[9px]">PostgreSQL RLS Protected</p>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1 text-zinc-500">
+                <Scan className="w-3 h-3 text-emerald-400" /> Scanner
+              </span>
+              <span className={isListening ? 'text-emerald-400 font-medium' : 'text-zinc-500'}>
+                {isListening ? 'Ready' : 'Offline'}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-center py-1" title={`Location: ${activeLocationCode} | Scanner Ready`}>
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
           </div>
         )}
 
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-mono text-neutral-400 hover:text-rose-400 hover:bg-rose-950/20 transition-colors"
+          className="flex items-center gap-2 w-full px-2.5 py-1.5 text-xs font-mono text-zinc-400 hover:text-rose-400 hover:bg-rose-950/20 transition-colors"
+          title={collapsed ? 'End Session' : undefined}
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut className="w-3.5 h-3.5 shrink-0" />
           {!collapsed && <span>End Session</span>}
         </button>
       </div>

@@ -30,6 +30,23 @@ import type {
   OrderWithItems,
   BoltTimeslot,
   BoltPincode,
+  StoreLocation,
+  LocationZone,
+  Shelf,
+  ShelfInventory,
+  InventoryLevel,
+  InventoryLedgerEntry,
+  Supplier,
+  PurchaseOrder,
+  PurchaseOrderItem,
+  GoodsReceipt,
+  GoodsReceiptItem,
+  StockTransfer,
+  StockTransferItem,
+  PosSession,
+  UserAddress,
+  PosPaymentMethod,
+  QcStatus,
 } from '../types/database.types'
 
 export * from '../types/database.types'
@@ -2044,4 +2061,404 @@ export async function adjustVariantStock(
     return { success: false, error: err?.message || 'Unexpected error adjusting variant stock' }
   }
 }
+
+// ==========================================
+// 12. OMNICHANNEL ERP, WMS & POS RPC WRAPPERS
+// ==========================================
+
+export async function receiveGrnAndPutaway(
+  supabase: SupabaseClient<Database>,
+  params: {
+    poId: string
+    locationId: string
+    targetShelfId: string
+    operatorId: string
+    receivedItems: Array<{
+      variant_id: string
+      qty_accepted: number
+      qty_rejected: number
+      unit_cost: number
+    }>
+  }
+): Promise<{ success: boolean; grnId?: string; grnNumber?: string; shelfBarcode?: string; error?: string }> {
+  try {
+    const { data, error } = await (supabase.rpc as any)('receive_grn_and_putaway', {
+      p_po_id: params.poId,
+      p_location_id: params.locationId,
+      p_target_shelf_id: params.targetShelfId,
+      p_operator_id: params.operatorId,
+      p_received_items: params.receivedItems,
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return {
+      success: true,
+      grnId: data?.grn_id,
+      grnNumber: data?.grn_number,
+      shelfBarcode: data?.shelf_barcode,
+    }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error processing GRN receipt' }
+  }
+}
+
+export async function processPosCheckout(
+  supabase: SupabaseClient<Database>,
+  params: {
+    locationId: string
+    posSessionId: string
+    cashierId: string
+    customerId: string | null
+    customerInfo: { name: string; phone: string; email?: string; gstin?: string }
+    cartItems: Array<{
+      variant_id: string
+      shelf_id: string
+      quantity: number
+      unit_price: number
+      discount: number
+      hsn_code: string
+    }>
+    paymentMethod: PosPaymentMethod
+    paymentDetails: Record<string, any>
+    subtotal: number
+    taxAmount: number
+    discountAmount: number
+    total: number
+    isEndlessAisle?: boolean
+    shippingAddress?: Record<string, any> | null
+  }
+): Promise<{
+  success: boolean
+  orderId?: string
+  orderNumber?: string
+  invoiceNumber?: string
+  total?: number
+  isEndlessAisle?: boolean
+  error?: string
+}> {
+  try {
+    const { data, error } = await (supabase.rpc as any)('process_pos_checkout', {
+      p_location_id: params.locationId,
+      p_pos_session_id: params.posSessionId,
+      p_cashier_id: params.cashierId,
+      p_customer_id: params.customerId,
+      p_customer_info: params.customerInfo,
+      p_cart_items: params.cartItems,
+      p_payment_method: params.paymentMethod,
+      p_payment_details: params.paymentDetails,
+      p_subtotal: params.subtotal,
+      p_tax_amount: params.taxAmount,
+      p_discount_amount: params.discountAmount,
+      p_total: params.total,
+      p_is_endless_aisle: params.isEndlessAisle ?? false,
+      p_shipping_address: params.shippingAddress ?? null,
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return {
+      success: true,
+      orderId: data?.order_id,
+      orderNumber: data?.order_number,
+      invoiceNumber: data?.invoice_number,
+      total: data?.total,
+      isEndlessAisle: data?.is_endless_aisle,
+    }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error executing POS checkout' }
+  }
+}
+
+export async function moveShelfStock(
+  supabase: SupabaseClient<Database>,
+  params: {
+    locationId: string
+    fromShelfId: string
+    toShelfId: string
+    variantId: string
+    quantity: number
+    operatorId: string
+    notes?: string | null
+  }
+): Promise<{ success: boolean; quantityMoved?: number; error?: string }> {
+  try {
+    const { data, error } = await (supabase.rpc as any)('move_shelf_stock', {
+      p_location_id: params.locationId,
+      p_from_shelf_id: params.fromShelfId,
+      p_to_shelf_id: params.toShelfId,
+      p_variant_id: params.variantId,
+      p_quantity: params.quantity,
+      p_operator_id: params.operatorId,
+      p_notes: params.notes ?? null,
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, quantityMoved: data?.quantity_moved }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error moving shelf stock' }
+  }
+}
+
+export async function executeStockTransfer(
+  supabase: SupabaseClient<Database>,
+  params: {
+    transferId: string
+    action: 'dispatch' | 'receive'
+    targetShelfId?: string | null
+    operatorId?: string | null
+    notes?: string | null
+  }
+): Promise<{ success: boolean; status?: string; error?: string }> {
+  try {
+    const { data, error } = await (supabase.rpc as any)('execute_stock_transfer', {
+      p_transfer_id: params.transferId,
+      p_action: params.action,
+      p_target_shelf_id: params.targetShelfId ?? null,
+      p_operator_id: params.operatorId ?? null,
+      p_notes: params.notes ?? null,
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, status: data?.status }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error executing stock transfer' }
+  }
+}
+
+export async function allocateAndPickOnlineOrder(
+  supabase: SupabaseClient<Database>,
+  params: {
+    orderId: string
+    action: 'allocate' | 'confirm_pick'
+    locationId?: string | null
+    picks?: Array<{ order_item_id: string; shelf_id: string }> | null
+    operatorId?: string | null
+  }
+): Promise<{ success: boolean; allocatedLocationId?: string; status?: string; error?: string }> {
+  try {
+    const { data, error } = await (supabase.rpc as any)('allocate_and_pick_online_order', {
+      p_order_id: params.orderId,
+      p_action: params.action,
+      p_location_id: params.locationId ?? null,
+      p_picks: params.picks ?? null,
+      p_operator_id: params.operatorId ?? null,
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return {
+      success: true,
+      allocatedLocationId: data?.allocated_location_id,
+      status: data?.status,
+    }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error processing online order picking' }
+  }
+}
+
+export async function processBorisReturn(
+  supabase: SupabaseClient<Database>,
+  params: {
+    orderId: string
+    orderItemId: string
+    locationId: string
+    targetShelfId: string
+    condition: QcStatus
+    refundMode: 'store_credit' | 'original_payment'
+    operatorId: string
+    notes?: string | null
+  }
+): Promise<{
+  success: boolean
+  refundMode?: string
+  restockedShelfId?: string
+  condition?: QcStatus
+  error?: string
+}> {
+  try {
+    const { data, error } = await (supabase.rpc as any)('process_boris_return', {
+      p_order_id: params.orderId,
+      p_order_item_id: params.orderItemId,
+      p_location_id: params.locationId,
+      p_target_shelf_id: params.targetShelfId,
+      p_condition: params.condition,
+      p_refund_mode: params.refundMode,
+      p_operator_id: params.operatorId,
+      p_notes: params.notes ?? null,
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return {
+      success: true,
+      refundMode: data?.refund_mode,
+      restockedShelfId: data?.restocked_shelf_id,
+      condition: data?.condition,
+    }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error processing in-store return' }
+  }
+}
+
+// ==========================================
+// 13. OMNICHANNEL ENTITY DATA ACCESS HELPERS
+// ==========================================
+
+export async function getLocations(supabase: SupabaseClient<Database>): Promise<StoreLocation[]> {
+  const { data, error } = await supabase.from('locations').select('*').order('online_fulfillment_priority', { ascending: true })
+  if (error || !data) return []
+  return data
+}
+
+export async function getLocationById(supabase: SupabaseClient<Database>, id: string): Promise<StoreLocation | null> {
+  const { data, error } = await supabase.from('locations').select('*').eq('id', id).single()
+  if (error || !data) return null
+  return data
+}
+
+export async function getLocationZones(supabase: SupabaseClient<Database>, locationId: string): Promise<LocationZone[]> {
+  const { data, error } = await supabase.from('location_zones').select('*').eq('location_id', locationId).order('code', { ascending: true })
+  if (error || !data) return []
+  return data
+}
+
+export async function getLocationShelves(supabase: SupabaseClient<Database>, locationId: string): Promise<Shelf[]> {
+  const { data, error } = await supabase.from('shelves').select('*').eq('location_id', locationId).order('coordinate', { ascending: true })
+  if (error || !data) return []
+  return data
+}
+
+export async function getShelfInventory(
+  supabase: SupabaseClient<Database>,
+  shelfId: string
+): Promise<Array<ShelfInventory & { variant?: ProductVariant }>> {
+  const { data, error } = await supabase
+    .from('shelf_inventory')
+    .select('*, variant:product_variants(*)')
+    .eq('shelf_id', shelfId)
+  if (error || !data) return []
+  return data as any
+}
+
+export async function getSuppliers(supabase: SupabaseClient<Database>): Promise<Supplier[]> {
+  const { data, error } = await supabase.from('suppliers').select('*').order('name', { ascending: true })
+  if (error || !data) return []
+  return data
+}
+
+export async function getPurchaseOrders(
+  supabase: SupabaseClient<Database>,
+  locationId?: string
+): Promise<Array<PurchaseOrder & { supplier?: Supplier; destination_location?: StoreLocation }>> {
+  let query = supabase
+    .from('purchase_orders')
+    .select('*, supplier:suppliers(*), destination_location:locations(*)')
+    .order('created_at', { ascending: false })
+
+  if (locationId) {
+    query = query.eq('destination_location_id', locationId)
+  }
+
+  const { data, error } = await query
+  if (error || !data) return []
+  return data as any
+}
+
+export async function getStockTransfers(
+  supabase: SupabaseClient<Database>
+): Promise<Array<StockTransfer & { source_location?: StoreLocation; destination_location?: StoreLocation }>> {
+  const { data, error } = await supabase
+    .from('stock_transfers')
+    .select('*, source_location:locations(*), destination_location:locations(*)')
+    .order('created_at', { ascending: false })
+  if (error || !data) return []
+  return data as any
+}
+
+export async function getPosSessions(supabase: SupabaseClient<Database>, locationId: string): Promise<PosSession[]> {
+  const { data, error } = await supabase
+    .from('pos_sessions')
+    .select('*')
+    .eq('location_id', locationId)
+    .order('opened_at', { ascending: false })
+  if (error || !data) return []
+  return data
+}
+
+export async function getStructuredUserAddresses(supabase: SupabaseClient<Database>, userId: string): Promise<UserAddress[]> {
+  const { data, error } = await supabase.from('user_addresses').select('*').eq('user_id', userId).order('created_at', { ascending: false })
+  if (error || !data) return []
+  return data
+}
+
+export async function getInventoryLedger(
+  supabase: SupabaseClient<Database>,
+  params?: { variantId?: string; locationId?: string; limit?: number }
+): Promise<InventoryLedgerEntry[]> {
+  let query = supabase.from('inventory_ledger').select('*').order('transaction_timestamp', { ascending: false })
+
+  if (params?.variantId) {
+    query = query.eq('variant_id', params.variantId)
+  }
+  if (params?.locationId) {
+    query = query.eq('location_id', params.locationId)
+  }
+  if (params?.limit) {
+    query = query.limit(params.limit)
+  } else {
+    query = query.limit(100)
+  }
+
+  const { data, error } = await query
+  if (error || !data) return []
+  return data
+}
+
+export async function getInventoryLevels(
+  supabase: SupabaseClient<Database>,
+  params?: { variantId?: string; locationId?: string }
+): Promise<Array<InventoryLevel & { location?: StoreLocation }>> {
+  let query = supabase.from('inventory_levels').select('*, location:locations(*)')
+
+  if (params?.variantId) {
+    query = query.eq('variant_id', params.variantId)
+  }
+  if (params?.locationId) {
+    query = query.eq('location_id', params.locationId)
+  }
+
+  const { data, error } = await query
+  if (error || !data) return []
+  return data as any
+}
+
+export async function getVariantShelfPlacements(
+  supabase: SupabaseClient<Database>,
+  variantId: string
+): Promise<Array<ShelfInventory & { shelf?: Shelf & { location?: StoreLocation } }>> {
+  const { data, error } = await supabase
+    .from('shelf_inventory')
+    .select('*, shelf:shelves(*, location:locations(*))')
+    .eq('variant_id', variantId)
+
+  if (error || !data) return []
+  return data as any
+}
+
+
 

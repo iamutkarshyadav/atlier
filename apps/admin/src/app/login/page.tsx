@@ -2,25 +2,26 @@
 
 import React, { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowRight, CheckCircle2, AlertCircle, Shield, Lock } from 'lucide-react'
+import { ArrowRight, CheckCircle2, AlertCircle, Lock, Warehouse, Store } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { createBrowserClient } from '@repo/supabase/browser'
+
+const STAFF_ROLES = ['admin', 'warehouse_manager', 'store_manager', 'pos_cashier']
 
 function AdminLoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirectTo') || '/dashboard'
+  const redirectTo = searchParams.get('redirectTo')
   const errorParam = searchParams.get('error')
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [infoMessage, setInfoMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(
     errorParam === 'unauthorized_role'
-      ? 'Access Denied: This account does not possess sovereign administrator privileges.'
+      ? 'Access Denied: Account lacks required staff or administrator permissions.'
       : errorParam === 'session_verification_failed'
-      ? 'Session verification failed. Please re-authenticate.'
+      ? 'Session verification failed. Please authenticate.'
       : null
   )
 
@@ -28,7 +29,6 @@ function AdminLoginContent() {
     e.preventDefault()
     setIsLoading(true)
     setErrorMessage(null)
-    setInfoMessage(null)
 
     try {
       const supabase = createBrowserClient()
@@ -60,16 +60,22 @@ function AdminLoginContent() {
 
       const verifiedRole = profile?.role || (profileErr ? data.user.app_metadata?.role : null)
 
-      if (verifiedRole !== 'admin') {
-        // Sign out unauthorized session immediately
+      if (!verifiedRole || !STAFF_ROLES.includes(verifiedRole)) {
+        // Sign out unauthorized customer session
         await supabase.auth.signOut()
-        setErrorMessage('Access Denied: Sovereign administrator role required to access this portal.')
+        setErrorMessage('Access Denied: Enterprise staff role required to access this portal.')
         setIsLoading(false)
         return
       }
 
-      // 3. Successful Verified Authentication
-      router.push(redirectTo)
+      // 3. Role-based navigation
+      if (redirectTo) {
+        router.push(redirectTo)
+      } else if (verifiedRole === 'pos_cashier') {
+        router.push('/pos')
+      } else {
+        router.push('/dashboard')
+      }
       router.refresh()
     } catch (err: any) {
       setErrorMessage(err?.message || 'Authentication error.')
@@ -77,62 +83,56 @@ function AdminLoginContent() {
     }
   }
 
+  const fillCredentials = (staffEmail: string) => {
+    setEmail(staffEmail)
+    setPassword('atelier-master-password')
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-[#0E0E10]">
-      <div className="w-full max-w-md bg-[#16161A] border border-[#26262C] p-8 sm:p-10 shadow-2xl space-y-7">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-chrome-950 font-mono">
+      <div className="w-full max-w-md bg-chrome-900 border border-chrome-800 p-6 sm:p-8 shadow-2xl space-y-6">
         {/* Brand Header */}
-        <div className="space-y-1.5 text-center sm:text-left">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="font-serif text-2xl tracking-[0.2em] font-light text-white block">
+        <div className="space-y-1.5 border-b border-chrome-800 pb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-bold tracking-widest text-zinc-100">
               ATELIER
             </span>
-            <span className="text-[9px] font-mono uppercase bg-[#18181C] text-[#166534] px-1.5 py-0.5 border border-[#27272A]">
-              CREATOR
+            <span className="text-2xs font-mono uppercase bg-chrome-850 text-zinc-300 px-1.5 py-0.5 border border-chrome-800">
+              ERP & WMS
             </span>
           </div>
-          <h1 className="text-sm font-medium text-neutral-300">
-            Sovereign Admin Portal
-          </h1>
-          <p className="text-xs text-neutral-400 font-light">
-            Authorized personnel only. Multi-factor authenticated operations console.
+          <p className="text-xs text-zinc-400">
+            Enterprise Omnichannel Operations, WMS & POS Engine
           </p>
         </div>
 
         {/* Error Message */}
         {errorMessage && (
-          <div className="p-3.5 bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex items-start gap-2.5">
+          <div className="p-3 bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-            <span className="leading-relaxed">{errorMessage}</span>
-          </div>
-        )}
-
-        {/* Success / Info Message */}
-        {infoMessage && (
-          <div className="p-3.5 bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 text-xs flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>{infoMessage}</span>
+            <span className="leading-tight">{errorMessage}</span>
           </div>
         )}
 
         {/* Credentials Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-3.5">
           <div className="space-y-1">
-            <label className="text-xs text-neutral-300 font-medium block">
+            <label className="text-2xs uppercase tracking-wider text-zinc-400 font-semibold block">
               Operator Email
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="iamutkarshyadav1@gmail.com"
+              placeholder="operator@atelier.internal"
               required
-              className="w-full bg-[#1C1C22] border border-[#2E2E36] px-3.5 py-2.5 text-xs text-white placeholder-neutral-500 focus:border-neutral-400 focus:outline-none font-mono"
+              className="w-full bg-chrome-950 border border-chrome-800 px-3 py-2 text-xs text-zinc-100 placeholder-zinc-600 focus:border-zinc-400 focus:outline-none font-mono"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-neutral-300 font-medium block">
-              Security Key / Password
+            <label className="text-2xs uppercase tracking-wider text-zinc-400 font-semibold block">
+              Access Token / Password
             </label>
             <input
               type="password"
@@ -140,7 +140,7 @@ function AdminLoginContent() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••••••"
               required
-              className="w-full bg-[#1C1C22] border border-[#2E2E36] px-3.5 py-2.5 text-xs text-white placeholder-neutral-500 focus:border-neutral-400 focus:outline-none font-mono"
+              className="w-full bg-chrome-950 border border-chrome-800 px-3 py-2 text-xs text-zinc-100 placeholder-zinc-600 focus:border-zinc-400 focus:outline-none font-mono"
             />
           </div>
 
@@ -149,21 +149,62 @@ function AdminLoginContent() {
               type="submit"
               variant="default"
               size="lg"
-              className="w-full h-11 bg-white hover:bg-neutral-200 text-black border-none text-xs font-semibold tracking-wider font-mono uppercase"
+              className="w-full h-9 bg-zinc-100 hover:bg-white text-zinc-950 font-mono text-xs font-semibold uppercase tracking-wider rounded-none"
               isLoading={isLoading}
             >
-              Authenticate Session <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+              Sign In to Terminal <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
             </Button>
           </div>
         </form>
 
-        {/* Security Footer Notice */}
-        <div className="pt-4 border-t border-[#26262C] flex items-center justify-between text-[11px] text-neutral-500 font-mono">
-          <div className="flex items-center gap-1.5">
-            <Lock className="w-3 h-3 text-[#166534]" />
-            <span>Restricted Sovereign Gate</span>
+        {/* Quick Staff Logins for Dev & Evaluation */}
+        <div className="pt-3 border-t border-chrome-800 space-y-2">
+          <span className="text-3xs uppercase tracking-wider text-zinc-500 font-semibold block">
+            Demo Staff Identities
+          </span>
+          <div className="grid grid-cols-2 gap-1.5 text-3xs">
+            <button
+              type="button"
+              onClick={() => fillCredentials('iamutkarshyadav1@gmail.com')}
+              className="p-1.5 bg-chrome-950 border border-chrome-800 hover:border-zinc-600 text-left text-zinc-300"
+            >
+              <span className="text-emerald-400 font-semibold block">Admin</span>
+              <span className="text-zinc-500 truncate block">iamutkarshyadav1@...</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => fillCredentials('warehouse@atelier.internal')}
+              className="p-1.5 bg-chrome-950 border border-chrome-800 hover:border-zinc-600 text-left text-zinc-300"
+            >
+              <span className="text-cyan-400 font-semibold block">Warehouse Mgr</span>
+              <span className="text-zinc-500 truncate block">warehouse@atelier...</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => fillCredentials('store.manager@atelier.internal')}
+              className="p-1.5 bg-chrome-950 border border-chrome-800 hover:border-zinc-600 text-left text-zinc-300"
+            >
+              <span className="text-amber-400 font-semibold block">Store Mgr</span>
+              <span className="text-zinc-500 truncate block">store.manager@...</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => fillCredentials('cashier@atelier.internal')}
+              className="p-1.5 bg-chrome-950 border border-chrome-800 hover:border-zinc-600 text-left text-zinc-300"
+            >
+              <span className="text-zinc-300 font-semibold block">POS Cashier</span>
+              <span className="text-zinc-500 truncate block">cashier@atelier...</span>
+            </button>
           </div>
-          <span className="text-[10px] text-neutral-600">TLS 1.3 Verified</span>
+        </div>
+
+        {/* Security Footer Notice */}
+        <div className="pt-2 border-t border-chrome-800 flex items-center justify-between text-3xs text-zinc-500 font-mono">
+          <div className="flex items-center gap-1.5">
+            <Lock className="w-3 h-3 text-emerald-400" />
+            <span>Role-Based RLS Protected</span>
+          </div>
+          <span className="text-zinc-600">PostgreSQL 16</span>
         </div>
       </div>
     </div>
@@ -172,7 +213,7 @@ function AdminLoginContent() {
 
 export default function SimpleAdminLoginPage() {
   return (
-    <Suspense fallback={<div className="py-24 text-center text-xs font-mono text-neutral-400">Loading Sovereign Gate...</div>}>
+    <Suspense fallback={<div className="py-24 text-center text-xs font-mono text-zinc-500">Initializing ERP Auth...</div>}>
       <AdminLoginContent />
     </Suspense>
   )
