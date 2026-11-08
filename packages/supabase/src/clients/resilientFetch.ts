@@ -77,7 +77,7 @@ export const SEEDED_ACCOUNTS: MockUserAccount[] = [
     email: 'iamutkarshyadav1@gmail.com',
     name: 'Utkarsh Yadav',
     role: 'admin',
-    password: 'admin-secret-2026',
+    password: 'asdfghjkl',
   },
   {
     id: 'c0000000-0000-0000-0000-000000000001',
@@ -261,7 +261,7 @@ async function handleOfflineSupabaseRequest(url: string, init?: RequestInit): Pr
 
     const isValidPassword =
       matched?.password === password ||
-      (matched?.email === 'iamutkarshyadav1@gmail.com' && password === 'asdfghjkl')
+      (matched?.email === 'iamutkarshyadav1@gmail.com' && (password === 'asdfghjkl' || password === 'admin-secret-2026'))
 
     if (matched && matched.password && !isValidPassword) {
       return new Response(

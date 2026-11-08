@@ -15,6 +15,19 @@ describe('Resilient Supabase Auth Client', () => {
     expect(data.user?.app_metadata?.role).toBe('admin')
   })
 
+  it('authenticates iamutkarshyadav1@gmail.com as admin with password asdfghjkl', async () => {
+    const supabase = createClient()
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: 'iamutkarshyadav1@gmail.com',
+      password: 'asdfghjkl',
+    })
+
+    expect(error).toBeNull()
+    expect(data.user).toBeDefined()
+    expect(data.user?.email).toBe('iamutkarshyadav1@gmail.com')
+    expect(data.user?.app_metadata?.role).toBe('admin')
+  })
+
   it('authenticates courier@atelier.internal without throwing', async () => {
     const supabase = createClient()
     const { data, error } = await supabase.auth.signInWithPassword({
