@@ -8,7 +8,6 @@ import {
   TableHead,
   TableRow,
   TableCell,
-  Badge,
   Button,
 } from '@repo/ui'
 import { Shield, Truck, User, RefreshCw, CheckCircle2, UserPlus, AlertCircle, X } from 'lucide-react'
@@ -21,12 +20,13 @@ export default function LuxuryCustomersPage() {
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null)
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
-  // Quick add courier modal/form
-  const [showAddCourier, setShowAddCourier] = useState(false)
-  const [courierName, setCourierName] = useState('')
-  const [courierEmail, setCourierEmail] = useState('')
-  const [courierPassword, setCourierPassword] = useState('courier-secret-2026')
-  const [isCreatingCourier, setIsCreatingCourier] = useState(false)
+  // Direct Provisioning Drawer State
+  const [showAddUser, setShowAddUser] = useState(false)
+  const [newUserName, setNewUserName] = useState('')
+  const [newUserEmail, setNewUserEmail] = useState('')
+  const [newUserPassword, setNewUserPassword] = useState('admin-secret-2026')
+  const [newUserRole, setNewUserRole] = useState<UserRole>('admin')
+  const [isCreatingUser, setIsCreatingUser] = useState(false)
 
   const loadUsers = async () => {
     setIsLoading(true)
@@ -67,42 +67,44 @@ export default function LuxuryCustomersPage() {
     setUpdatingUserId(null)
   }
 
-  const handleCreateNewCourier = async (e: React.FormEvent) => {
+  const handleCreateNewUser = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!courierEmail.trim() || !courierName.trim()) return
+    if (!newUserEmail.trim() || !newUserName.trim() || !newUserPassword) return
 
-    setIsCreatingCourier(true)
+    setIsCreatingUser(true)
     setNotification(null)
 
     try {
-      const res = await fetch('/api/admin/create-courier', {
+      const res = await fetch('/api/admin/create-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: courierName.trim(),
-          email: courierEmail.trim(),
-          password: courierPassword,
+          name: newUserName.trim(),
+          email: newUserEmail.trim(),
+          password: newUserPassword,
+          role: newUserRole,
         }),
       })
 
       const data = await res.json()
 
       if (!res.ok || !data.success) {
-        setNotification({ type: 'error', message: data.error || 'Failed to create courier' })
+        setNotification({ type: 'error', message: data.error || 'Failed to create user' })
       } else {
         setNotification({
           type: 'success',
-          message: data.message || `Delivery Courier "${courierName}" registered with credentials ${courierEmail}. Assigned role 'delivery'.`,
+          message: data.message || `User "${newUserName}" registered with role "${newUserRole.toUpperCase()}".`,
         })
-        setCourierName('')
-        setCourierEmail('')
-        setShowAddCourier(false)
-        loadUsers()
+        setNewUserName('')
+        setNewUserEmail('')
+        setNewUserPassword(newUserRole === 'admin' ? 'admin-secret-2026' : 'courier-secret-2026')
+        setShowAddUser(false)
+        await loadUsers()
       }
     } catch (err: any) {
-      setNotification({ type: 'error', message: err?.message || 'Error creating courier' })
+      setNotification({ type: 'error', message: err?.message || 'Error creating user' })
     } finally {
-      setIsCreatingCourier(false)
+      setIsCreatingUser(false)
     }
   }
 
@@ -138,10 +140,10 @@ export default function LuxuryCustomersPage() {
             Access Control & Logistics Fleet Governance
           </span>
           <h1 className="font-serif text-3xl sm:text-4xl font-light text-white mt-1">
-            Patron & Courier Directory
+            Patron & Staff Directory
           </h1>
           <p className="text-xs text-neutral-400 font-sans mt-1">
-            Reassign any user&apos;s role to &apos;delivery&apos; to authorize courier dispatch access, or promote to Studio Admin.
+            Reassign any user&apos;s role to &apos;delivery&apos; for courier dispatch access, or promote to Sovereign Studio Admin.
           </p>
         </div>
 
@@ -159,11 +161,11 @@ export default function LuxuryCustomersPage() {
           <Button
             variant="terminal"
             size="sm"
-            onClick={() => setShowAddCourier(!showAddCourier)}
+            onClick={() => setShowAddUser(!showAddUser)}
             className="bg-neutral-100 hover:bg-white text-neutral-950 border-none font-bold flex items-center gap-1.5"
           >
             <UserPlus className="w-3.5 h-3.5" />
-            <span>{showAddCourier ? 'Close Form' : 'Register Courier'}</span>
+            <span>{showAddUser ? 'Close Form' : '+ Provision User / Admin'}</span>
           </Button>
         </div>
       </div>
@@ -191,64 +193,83 @@ export default function LuxuryCustomersPage() {
         </div>
       )}
 
-      {/* Direct Courier Provisioning Drawer */}
-      {showAddCourier && (
+      {/* Direct User / Admin / Courier Provisioning Drawer */}
+      {showAddUser && (
         <div className="p-6 bg-[#121215] border border-[#23232A] space-y-4 animate-in fade-in duration-300">
           <div className="flex items-center justify-between border-b border-[#23232A] pb-2">
             <span className="text-xs uppercase tracking-caps text-amber-400 font-semibold flex items-center gap-2">
-              <Truck className="w-4 h-4" /> Provision Dedicated Delivery Partner
+              <Shield className="w-4 h-4" /> Provision Dedicated Account
             </span>
-            <span className="text-[10px] text-neutral-500">Grants Port 3002 Dispatch Access</span>
+            <span className="text-[10px] text-neutral-500">Instantly grants authenticated portal access</span>
           </div>
 
-          <form onSubmit={handleCreateNewCourier} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <form onSubmit={handleCreateNewUser} className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="space-y-1">
-              <label className="text-[10px] uppercase text-neutral-400">Courier Name *</label>
+              <label className="text-[10px] uppercase text-neutral-400">Full Name *</label>
               <input
                 type="text"
-                placeholder="e.g. Sam Brooks (Courier)"
-                value={courierName}
-                onChange={(e) => setCourierName(e.target.value)}
+                placeholder="e.g. Alex Vance"
+                value={newUserName}
+                onChange={(e) => setNewUserName(e.target.value)}
                 className="w-full h-10 bg-[#18181C] border border-[#2B2B33] px-3 text-xs text-white focus:border-amber-400 focus:outline-none"
                 required
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] uppercase text-neutral-400">Courier Email *</label>
+              <label className="text-[10px] uppercase text-neutral-400">Email Address *</label>
               <input
                 type="email"
-                placeholder="e.g. sam.courier@logistics.com"
-                value={courierEmail}
-                onChange={(e) => setCourierEmail(e.target.value)}
+                placeholder="e.g. alex.admin@atelier.internal"
+                value={newUserEmail}
+                onChange={(e) => setNewUserEmail(e.target.value)}
                 className="w-full h-10 bg-[#18181C] border border-[#2B2B33] px-3 text-xs text-white focus:border-amber-400 focus:outline-none"
                 required
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] uppercase text-neutral-400">Initial Passkey</label>
+              <label className="text-[10px] uppercase text-neutral-400">Passkey / Password *</label>
               <input
                 type="text"
-                value={courierPassword}
-                onChange={(e) => setCourierPassword(e.target.value)}
+                value={newUserPassword}
+                onChange={(e) => setNewUserPassword(e.target.value)}
                 className="w-full h-10 bg-[#18181C] border border-[#2B2B33] px-3 text-xs text-white focus:border-amber-400 focus:outline-none"
                 required
               />
             </div>
 
-            <div className="sm:col-span-3 flex justify-end gap-3 pt-2">
-              <Button type="button" variant="terminal" size="sm" onClick={() => setShowAddCourier(false)}>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase text-neutral-400">Assigned Role *</label>
+              <select
+                value={newUserRole}
+                onChange={(e) => {
+                  const role = e.target.value as UserRole
+                  setNewUserRole(role)
+                  if (role === 'admin' && newUserPassword === 'courier-secret-2026') {
+                    setNewUserPassword('admin-secret-2026')
+                  }
+                }}
+                className="w-full h-10 bg-[#18181C] border border-[#2B2B33] px-3 text-xs text-white focus:border-amber-400 focus:outline-none"
+              >
+                <option value="admin">Studio Admin (Port 3001)</option>
+                <option value="delivery">Logistics Courier (Port 3002)</option>
+                <option value="customer">Private Patron (Port 3000)</option>
+              </select>
+            </div>
+
+            <div className="sm:col-span-4 flex justify-end gap-3 pt-2">
+              <Button type="button" variant="terminal" size="sm" onClick={() => setShowAddUser(false)}>
                 Cancel
               </Button>
               <Button
                 type="submit"
                 variant="terminal"
                 size="sm"
-                isLoading={isCreatingCourier}
-                className="bg-emerald-400 hover:bg-emerald-300 text-black border-none font-bold"
+                isLoading={isCreatingUser}
+                className="bg-amber-400 hover:bg-amber-300 text-black border-none font-bold"
               >
-                Create Delivery Partner
+                Create Account
               </Button>
             </div>
           </form>
@@ -300,19 +321,11 @@ export default function LuxuryCustomersPage() {
                     )}
                   </div>
                 </TableCell>
-                <TableCell className="text-right font-mono text-[11px] text-neutral-500">
+                <TableCell className="text-right font-mono text-xs text-neutral-500">
                   {u.created_at ? new Date(u.created_at).toLocaleDateString() : 'Active'}
                 </TableCell>
               </TableRow>
             ))}
-
-            {users.length === 0 && !isLoading && (
-              <TableRow>
-                <TableCell colSpan={5} className="py-12 text-center text-xs text-neutral-500">
-                  No user accounts registered yet in Supabase. Sign in or use &quot;Register Courier&quot; above to create one.
-                </TableCell>
-              </TableRow>
-            )}
           </TableBody>
         </Table>
       </div>
