@@ -1,15 +1,22 @@
 'use client'
 
 import React, { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Zap, MapPin, CheckCircle2, AlertCircle, Loader2, ArrowRight, X } from 'lucide-react'
 import { useHydratedBolt } from '../store/useBoltStore'
 
 export function BoltServiceabilityBanner() {
+  const pathname = usePathname()
   const { pincode, city, isServiceable, setPincode, clearPincode, isHydrated } = useHydratedBolt()
   const [inputPin, setInputPin] = useState('')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [isChanging, setIsChanging] = useState(false)
+
+  // Don't render on homepage hero where full-bleed split screen is featured
+  if (pathname === '/') {
+    return null
+  }
 
   // Don't render with flash before hydration
   if (!isHydrated) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@repo/supabase/server'
+import { prisma } from '@repo/db'
 import {
   getAllOrders,
   createOrderWithItems,
@@ -57,7 +58,65 @@ export async function GET() {
       return auth.response
     }
 
-    const orders = await getAllOrders(supabase)
+    const orders = (await getAllOrders(supabase)) as any[]
+
+    // Merge any Prisma ledger orders from @repo/db
+    try {
+      const dbOrders = await prisma.order.findMany({
+        include: {
+          items: {
+            include: {
+              variant: {
+                include: { product: true },
+              },
+            },
+          },
+          tryOnSession: true,
+          fulfillmentLocation: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+
+      const existingNumbers = new Set(orders.map((o: any) => o.order_number))
+      for (const dbo of dbOrders) {
+        if (!existingNumbers.has(dbo.orderNumber)) {
+          orders.unshift({
+            id: dbo.id,
+            order_number: dbo.orderNumber,
+            invoice_number: `INV-${dbo.orderNumber}`,
+            tracking_barcode: `TRK-${dbo.orderNumber}`,
+            user_id: dbo.userId || 'a0000000-0000-0000-0000-000000000001',
+            status: dbo.status.toLowerCase() as any,
+            order_type: dbo.tryOnSession ? 'bolt_try_on' : 'standard',
+            delivery_mode: dbo.tryOnSession ? 'try_on' : 'direct',
+            total: Number(dbo.totalAmount),
+            original_total: Number(dbo.totalAmount),
+            tax_amount: 0,
+            shipping_fee: dbo.tryOnSession ? 99 : 150,
+            shipping_address: dbo.deliveryAddress || 'Bengaluru, India',
+            delivery_notes: dbo.deliveryNotes,
+            created_at: dbo.createdAt.toISOString(),
+            updated_at: dbo.updatedAt.toISOString(),
+            order_items: dbo.items.map((it: any) => ({
+              id: it.id,
+              order_id: dbo.id,
+              product_id: it.variant.productId,
+              quantity: it.qty,
+              unit_price: Number(it.unitPrice),
+              size: it.variant.size,
+              product: {
+                id: it.variant.productId,
+                title: it.variant.product.title,
+                price: Number(it.variant.product.price),
+                image_url: it.variant.product.imageUrl || '',
+                material: it.variant.product.material,
+              },
+            })),
+          })
+        }
+      }
+    } catch {}
+
     return NextResponse.json({ success: true, orders })
   } catch (err: any) {
     return NextResponse.json(

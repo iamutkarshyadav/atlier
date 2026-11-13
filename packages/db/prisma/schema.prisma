@@ -1,0 +1,214 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum LocationType {
+  ECOM_WAREHOUSE
+  RETAIL_STORE
+  TRANSIT_VEHICLE
+  SUPPLIER
+  CUSTOMER
+}
+
+enum TransactionType {
+  INBOUND
+  STORE_TRANSFER
+  POS_SALE
+  ECOM_SALE
+  TRY_AT_HOME_DISPATCH
+  RETURN
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+  STORE_MANAGER
+  POS_CASHIER
+  COURIER
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  DISPATCHED
+  DELIVERED
+  RECONCILED
+  CANCELLED
+}
+
+enum TryOnStatus {
+  PENDING
+  DISPATCHED
+  AT_DOORSTEP
+  RECONCILED
+  RETURNED_TO_BASE
+  CANCELLED
+}
+
+model Location {
+  id           String        @id @default(uuid()) @db.Uuid
+  code         String        @unique @db.VarChar(50)
+  name         String
+  type         LocationType
+  gstin        String?       @db.VarChar(15)
+  address      String?
+  city         String?
+  state        String?
+  pincode      String?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  ledgerOutbound InventoryLedger[] @relation("FromLocation")
+  ledgerInbound  InventoryLedger[] @relation("ToLocation")
+  users          User[]            @relation("AssignedLocation")
+  orders         Order[]           @relation("FulfillmentLocation")
+  tryOnVehicles  TryOnSession[]    @relation("VehicleLocation")
+
+  @@index([type])
+  @@index([code])
+}
+
+model Product {
+  id          String           @id @default(uuid()) @db.Uuid
+  title       String
+  description String?
+  price       Decimal          @db.Decimal(10, 2)
+  material    String?
+  category    String?
+  edition     String?
+  imageUrl    String?
+  isArchived  Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  variants    ProductVariant[]
+
+  @@index([category])
+}
+
+model ProductVariant {
+  id         String   @id @default(uuid()) @db.Uuid
+  productId  String   @db.Uuid
+  sku        String   @unique @db.VarChar(50)
+  size       String   @db.VarChar(20)
+  color      String?  @db.VarChar(50)
+  hsnCode    String   @default("610910") @db.VarChar(10)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  product       Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ledgerEntries InventoryLedger[]
+  orderItems    OrderItem[]
+
+  @@unique([productId, size])
+  @@index([sku])
+}
+
+model InventoryLedger {
+  id              String          @id @default(uuid()) @db.Uuid
+  variantId       String          @db.Uuid
+  qty             Int
+  fromLocationId  String          @db.Uuid
+  toLocationId    String          @db.Uuid
+  transactionType TransactionType
+  referenceId     String          @db.VarChar(100)
+  notes           String?
+  createdAt       DateTime        @default(now())
+
+  variant         ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  fromLocation    Location        @relation("FromLocation", fields: [fromLocationId], references: [id], onDelete: Restrict)
+  toLocation      Location        @relation("ToLocation", fields: [toLocationId], references: [id], onDelete: Restrict)
+
+  @@index([variantId, fromLocationId, toLocationId])
+  @@index([referenceId])
+  @@index([transactionType])
+  @@index([createdAt])
+}
+
+model User {
+  id                 String         @id @default(uuid()) @db.Uuid
+  email              String         @unique
+  name               String
+  role               UserRole       @default(CUSTOMER)
+  assignedLocationId String?        @db.Uuid
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  assignedLocation   Location?      @relation("AssignedLocation", fields: [assignedLocationId], references: [id], onDelete: SetNull)
+  orders             Order[]
+  tryOnCourier       TryOnSession[] @relation("CourierSessions")
+}
+
+model Order {
+  id                    String        @id @default(uuid()) @db.Uuid
+  orderNumber           String        @unique @db.VarChar(50)
+  userId                String?       @db.Uuid
+  fulfillmentLocationId String        @db.Uuid
+  status                OrderStatus   @default(PENDING)
+  totalAmount           Decimal       @db.Decimal(10, 2)
+  isPosOrder            Boolean       @default(false)
+  posSessionId          String?       @db.VarChar(100)
+  paymentMethod         String?       @db.VarChar(50)
+  paymentDetails        Json?
+  deliveryAddress       String?
+  deliveryNotes         String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  user                  User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fulfillmentLocation   Location      @relation("FulfillmentLocation", fields: [fulfillmentLocationId], references: [id])
+  items                 OrderItem[]
+  tryOnSession          TryOnSession?
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id              String   @id @default(uuid()) @db.Uuid
+  orderId         String   @db.Uuid
+  variantId       String   @db.Uuid
+  quantity        Int
+  unitPrice       Decimal  @db.Decimal(10, 2)
+  isKept          Boolean?
+  rejectionReason String?
+
+  order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant         ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([variantId])
+}
+
+model TryOnSession {
+  id                 String       @id @default(uuid()) @db.Uuid
+  orderId            String       @unique @db.Uuid
+  courierId          String?      @db.Uuid
+  transitVehicleId   String       @db.Uuid
+  status             TryOnStatus  @default(PENDING)
+  scheduledSlot      String
+  depositPaid        Decimal      @default(99.00) @db.Decimal(10, 2)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  order              Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  courier            User?        @relation("CourierSessions", fields: [courierId], references: [id])
+  transitVehicle     Location     @relation("VehicleLocation", fields: [transitVehicleId], references: [id])
+
+  @@index([status])
+  @@index([transitVehicleId])
+}
+
+model IdempotencyKey {
+  key          String    @id @db.VarChar(128)
+  lockedAt     DateTime  @default(now())
+  completedAt  DateTime?
+  responseBody Json?
+}
+

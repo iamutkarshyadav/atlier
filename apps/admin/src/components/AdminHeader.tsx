@@ -14,6 +14,7 @@ import {
   ClipboardList,
   Store,
   X,
+  Type,
 } from 'lucide-react'
 import { createBrowserClient } from '@repo/supabase/browser'
 import { useLocation } from '@/context/LocationContext'
@@ -35,6 +36,15 @@ function formatRoleLabel(role: string): string {
   }
 }
 
+const AVAILABLE_FONTS = [
+  { id: 'plus-jakarta', name: 'Plus Jakarta Sans', family: "'Plus Jakarta Sans', sans-serif" },
+  { id: 'geist', name: 'Geist', family: "'Geist', sans-serif" },
+  { id: 'outfit', name: 'Outfit', family: "'Outfit', sans-serif" },
+  { id: 'dm-sans', name: 'DM Sans', family: "'DM Sans', sans-serif" },
+  { id: 'space-grotesk', name: 'Space Grotesk', family: "'Space Grotesk', sans-serif" },
+  { id: 'jetbrains-mono', name: 'JetBrains Mono', family: "'JetBrains Mono', monospace" },
+]
+
 export function AdminHeader() {
   const router = useRouter()
   const { locations, activeLocation, setActiveLocation, activeLocationCode } = useLocation()
@@ -43,10 +53,41 @@ export function AdminHeader() {
   const [staffEmail, setStaffEmail] = useState('operator@atelier.internal')
   const [staffRole, setStaffRole] = useState<'admin' | 'warehouse_manager' | 'store_manager' | 'pos_cashier'>('admin')
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false)
+  const [fontDropdownOpen, setFontDropdownOpen] = useState(false)
+  const [selectedFont, setSelectedFont] = useState('plus-jakarta')
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const fontDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Initialize and persist custom font family
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('admin_font_family')
+      if (saved) {
+        const found = AVAILABLE_FONTS.find((f) => f.id === saved)
+        if (found) {
+          setSelectedFont(found.id)
+          document.documentElement.style.setProperty('--font-sans', found.family)
+          return
+        }
+      }
+      document.documentElement.style.setProperty('--font-sans', "'Plus Jakarta Sans', sans-serif")
+    } catch {}
+  }, [])
+
+  const handleSelectFont = (fontId: string) => {
+    const found = AVAILABLE_FONTS.find((f) => f.id === fontId)
+    if (found) {
+      setSelectedFont(found.id)
+      try {
+        localStorage.setItem('admin_font_family', found.id)
+      } catch {}
+      document.documentElement.style.setProperty('--font-sans', found.family)
+      setFontDropdownOpen(false)
+    }
+  }
 
   // Global barcode scan resolution
   useBarcodeScanner({
@@ -70,11 +111,14 @@ export function AdminHeader() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setLocationDropdownOpen(false)
+      }
+      if (fontDropdownRef.current && !fontDropdownRef.current.contains(e.target as Node)) {
+        setFontDropdownOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -285,9 +329,47 @@ export function AdminHeader() {
             </StatusBadge>
           </div>
 
+          {/* Font Typography Selector */}
+          <div className="relative" ref={fontDropdownRef}>
+            <button
+              onClick={() => setFontDropdownOpen(!fontDropdownOpen)}
+              className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-chrome-900 transition-colors border border-transparent hover:border-chrome-800 rounded flex items-center gap-1"
+              title="Change Admin Font"
+              aria-label="Change Admin Font"
+            >
+              <Type className="w-3.5 h-3.5" />
+            </button>
+
+            {fontDropdownOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-48 bg-chrome-900 border border-chrome-750 shadow-2xl py-1 z-50 text-xs font-sans">
+                <div className="px-3 py-1.5 border-b border-chrome-800 text-3xs font-mono font-semibold uppercase tracking-wider text-zinc-400">
+                  Select Typography
+                </div>
+                {AVAILABLE_FONTS.map((font) => {
+                  const isSelected = selectedFont === font.id
+                  return (
+                    <button
+                      key={font.id}
+                      onClick={() => handleSelectFont(font.id)}
+                      className={`w-full text-left px-3 py-1.5 flex items-center justify-between transition-colors ${
+                        isSelected
+                          ? 'bg-chrome-850 text-emerald-400 font-semibold'
+                          : 'text-zinc-300 hover:bg-chrome-850 hover:text-zinc-100'
+                      }`}
+                      style={{ fontFamily: font.family }}
+                    >
+                      <span className="text-xs">{font.name}</span>
+                      {isSelected && <span className="text-3xs font-mono text-emerald-400">✓</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
           <button
             onClick={handleSignOut}
-            className="p-1.5 text-zinc-400 hover:text-rose-400 hover:bg-chrome-900 transition-colors border border-transparent hover:border-chrome-800"
+            className="p-1.5 text-zinc-400 hover:text-rose-400 hover:bg-chrome-900 transition-colors border border-transparent hover:border-chrome-800 rounded"
             title="Sign Out"
             aria-label="Sign Out"
           >

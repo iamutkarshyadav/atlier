@@ -42,6 +42,97 @@ if (typeof globalThis.WebSocket === 'undefined') {
   ;(globalThis as any).WebSocket = DummyWebSocket
 }
 
+if (!(globalThis as any).__LIVE_ORDERS__) {
+  ;(globalThis as any).__LIVE_ORDERS__ = JSON.parse(JSON.stringify(DEFAULT_ORDERS))
+}
+
+function getLocalDbFilePath(): string | null {
+  try {
+    const fs = require('fs')
+    const path = require('path')
+    const candidates = [
+      path.resolve(process.cwd(), 'packages/supabase/.local-db/inventory.json'),
+      path.resolve(process.cwd(), '../../packages/supabase/.local-db/inventory.json'),
+      path.resolve(process.cwd(), '../packages/supabase/.local-db/inventory.json'),
+    ]
+    for (const p of candidates) {
+      if (fs.existsSync(p)) return p
+    }
+  } catch {}
+  return null
+}
+
+function loadLocalDbOrders(): any[] {
+  try {
+    const filePath = getLocalDbFilePath()
+    if (filePath) {
+      const fs = require('fs')
+      const raw = fs.readFileSync(filePath, 'utf8')
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed.orders)) {
+        return parsed.orders
+      }
+    }
+  } catch {}
+  return (globalThis as any).__LIVE_ORDERS__ || DEFAULT_ORDERS
+}
+
+function saveLocalDbOrder(order: any) {
+  try {
+    const filePath = getLocalDbFilePath()
+    if (filePath) {
+      const fs = require('fs')
+      const raw = fs.readFileSync(filePath, 'utf8')
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed.orders)) parsed.orders = []
+      // Check if order already exists
+      const existingIdx = parsed.orders.findIndex((o: any) => o.id === order.id || o.order_number === order.order_number)
+      if (existingIdx !== -1) {
+        parsed.orders[existingIdx] = { ...parsed.orders[existingIdx], ...order }
+      } else {
+        parsed.orders.unshift(order)
+      }
+      fs.writeFileSync(filePath, JSON.stringify(parsed, null, 2), 'utf8')
+    }
+  } catch {}
+}
+
+function saveLocalDbOrderItem(item: any) {
+  try {
+    const filePath = getLocalDbFilePath()
+    if (filePath) {
+      const fs = require('fs')
+      const raw = fs.readFileSync(filePath, 'utf8')
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed.orders)) {
+        const order = parsed.orders.find((o: any) => o.id === item.order_id)
+        if (order) {
+          if (!order.order_items) order.order_items = []
+          const prod = DEFAULT_PRODUCTS.find((p: any) => p.id === item.product_id) || {
+            id: item.product_id,
+            title: 'Atelier Creator Silhouette',
+            price: item.unit_price || 2490,
+            image_url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=800&q=80',
+            material: 'Custom-Milled French Terry',
+          }
+          order.order_items.push({
+            id: item.id || `item-${Date.now()}-${Math.random()}`,
+            order_id: item.order_id,
+            product_id: item.product_id,
+            quantity: item.quantity || 1,
+            unit_price: item.unit_price || 2490,
+            size: item.size || 'M',
+            is_kept: null,
+            try_on_decision: 'pending',
+            product: prod,
+          })
+          fs.writeFileSync(filePath, JSON.stringify(parsed, null, 2), 'utf8')
+        }
+      }
+    }
+  } catch {}
+}
+
 export interface MockUserAccount {
   id: string
   email: string
@@ -76,6 +167,13 @@ export const SEEDED_ACCOUNTS: MockUserAccount[] = [
     id: 'b0000000-0000-0000-0000-000000000002',
     email: 'iamutkarshyadav1@gmail.com',
     name: 'Utkarsh Yadav',
+    role: 'admin',
+    password: 'asdfghjkl',
+  },
+  {
+    id: 'b0000000-0000-0000-0000-000000000003',
+    email: 'horizonlord1@gmail.com',
+    name: 'Horizon Lord',
     role: 'admin',
     password: 'asdfghjkl',
   },
@@ -361,7 +459,7 @@ async function handleOfflineSupabaseRequest(url: string, init?: RequestInit): Pr
 
     const isValidPassword =
       matched?.password === password ||
-      (matched?.email === 'iamutkarshyadav1@gmail.com' && (password === 'asdfghjkl' || password === 'admin-secret-2026'))
+      ((matched?.email === 'iamutkarshyadav1@gmail.com' || matched?.email === 'horizonlord1@gmail.com') && (password === 'asdfghjkl' || password === 'admin-secret-2026'))
 
     if (matched && matched.password && !isValidPassword) {
       return new Response(
@@ -609,31 +707,130 @@ async function handleOfflineSupabaseRequest(url: string, init?: RequestInit): Pr
 
   // K. PostgREST: orders (/rest/v1/orders)
   if (url.includes('/rest/v1/orders')) {
+    const diskOrders = loadLocalDbOrders()
+    const memoryOrders: any[] = (globalThis as any).__LIVE_ORDERS__ || []
+    const combinedMap = new Map<string, any>()
+    for (const ord of DEFAULT_ORDERS) combinedMap.set(ord.order_number || ord.id, ord)
+    for (const ord of diskOrders) combinedMap.set(ord.order_number || ord.id, ord)
+    for (const ord of memoryOrders) combinedMap.set(ord.order_number || ord.id, ord)
+    const liveOrdersList = Array.from(combinedMap.values()).sort(
+      (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+
     if (method === 'POST') {
+      const orderId = bodyJson?.id || `ord-${Date.now()}`
       const newOrder = {
-        id: `ord-${Date.now()}`,
-        order_number: `ATL-ORD-${Math.floor(1000 + Math.random() * 9000)}`,
-        status: 'processing',
+        id: orderId,
+        order_number: bodyJson?.order_number || `ATL-ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+        invoice_number: bodyJson?.invoice_number || `INV-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+        tracking_barcode: bodyJson?.tracking_barcode || `ATL-TRK-${Math.floor(1000 + Math.random() * 9000)}`,
+        user_id: bodyJson?.user_id || 'a0000000-0000-0000-0000-000000000001',
+        status: bodyJson?.status || 'processing',
         order_type: bodyJson?.order_type || 'standard',
+        delivery_mode: bodyJson?.delivery_mode || 'direct',
         bolt_pincode: bodyJson?.bolt_pincode || null,
         bolt_timeslot_id: bodyJson?.bolt_timeslot_id || null,
         bolt_session_status: bodyJson?.bolt_session_status || null,
+        try_on_status: bodyJson?.try_on_status || null,
+        tax_amount: bodyJson?.tax_amount || 0,
+        shipping_fee: bodyJson?.shipping_fee || 0,
+        original_total: bodyJson?.original_total || bodyJson?.total || 165.0,
         total: bodyJson?.total || 165.0,
+        shipping_address: bodyJson?.shipping_address || 'Bengaluru, Karnataka, India',
+        delivery_notes: bodyJson?.delivery_notes || null,
+        order_items: [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
+
+      saveLocalDbOrder(newOrder)
+
+      if ((globalThis as any).__LIVE_ORDERS__) {
+        ;(globalThis as any).__LIVE_ORDERS__.unshift(newOrder)
+      }
+
       return new Response(JSON.stringify(newOrder), {
         status: 201,
         headers: { 'Content-Type': 'application/json' },
       })
     }
 
-    return new Response(JSON.stringify(DEFAULT_ORDERS), {
+    if (method === 'PATCH' || method === 'PUT') {
+      const idMatch = url.match(/id=eq\.([^&]+)/)
+      if (idMatch) {
+        const targetId = decodeURIComponent(idMatch[1])
+        const targetOrder = liveOrdersList.find((o: any) => o.id === targetId || o.order_number === targetId)
+        if (targetOrder) {
+          Object.assign(targetOrder, bodyJson, { updated_at: new Date().toISOString() })
+          saveLocalDbOrder(targetOrder)
+          return new Response(JSON.stringify(targetOrder), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
+      }
+    }
+
+    // Single order query
+    const idMatch = url.match(/id=eq\.([^&]+)/)
+    if (idMatch) {
+      const targetId = decodeURIComponent(idMatch[1])
+      const found = liveOrdersList.filter((o: any) => o.id === targetId || o.order_number === targetId)
+      const accept = getHeader(init?.headers, 'Accept')
+      const isSingle = accept.includes('vnd.pgrst.object+json')
+      return new Response(JSON.stringify(isSingle ? found[0] || null : found), {
+        status: isSingle && !found[0] ? 404 : 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    return new Response(JSON.stringify(liveOrdersList), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Content-Range': `0-${DEFAULT_ORDERS.length - 1}/${DEFAULT_ORDERS.length}`,
+        'Content-Range': `0-${liveOrdersList.length ? liveOrdersList.length - 1 : 0}/${liveOrdersList.length}`,
       },
+    })
+  }
+
+  // K2. PostgREST: order_items (/rest/v1/order_items)
+  if (url.includes('/rest/v1/order_items')) {
+    if (method === 'POST') {
+      const liveOrdersList: any[] = (globalThis as any).__LIVE_ORDERS__ || []
+      const items = Array.isArray(bodyJson) ? bodyJson : [bodyJson]
+      for (const item of items) {
+        saveLocalDbOrderItem(item)
+        const order = liveOrdersList.find((o: any) => o.id === item.order_id)
+        if (order) {
+          if (!order.order_items) order.order_items = []
+          const prod = DEFAULT_PRODUCTS.find((p: any) => p.id === item.product_id) || {
+            id: item.product_id,
+            title: 'Atelier Creator Silhouette',
+            price: item.unit_price || 2490,
+            image_url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=800&q=80',
+            material: 'Custom-Milled French Terry',
+          }
+          order.order_items.push({
+            id: `item-${Date.now()}-${Math.random()}`,
+            order_id: item.order_id,
+            product_id: item.product_id,
+            quantity: item.quantity || 1,
+            unit_price: item.unit_price || 2490,
+            size: item.size || 'M',
+            is_kept: null,
+            try_on_decision: 'pending',
+            product: prod,
+          })
+        }
+      }
+      return new Response(JSON.stringify(items), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    return new Response(JSON.stringify([]), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
     })
   }
 
@@ -922,6 +1119,186 @@ async function handleOfflineSupabaseRequest(url: string, init?: RequestInit): Pr
       },
     ]
     return new Response(JSON.stringify(mockLedger), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // U. PostgREST: page_layouts (/rest/v1/page_layouts)
+  if (url.includes('/rest/v1/page_layouts')) {
+    if (method === 'POST') {
+      const savedLayout = {
+        id: bodyJson?.id || `layout-${Date.now()}`,
+        page_slug: bodyJson?.page_slug || 'home',
+        page_title: bodyJson?.page_title || 'Storefront Page',
+        layout_json: bodyJson?.layout_json || [],
+        is_published: bodyJson?.is_published ?? true,
+        version: (bodyJson?.version || 1) + 1,
+        meta_description: bodyJson?.meta_description || null,
+        updated_at: new Date().toISOString(),
+        updated_by: null,
+      }
+      return new Response(JSON.stringify(savedLayout), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    const mockLayouts = [
+      {
+        id: 'layout-home-01',
+        page_slug: 'home',
+        page_title: 'Atelier Haute Couture & Creator Apparel Drop 01',
+        layout_json: [
+          {
+            id: 'hero-section-01',
+            type: 'HeroBanner',
+            name: 'Cinematic Hero & Bolt Salon Pill',
+            isVisible: true,
+            className: 'relative min-h-[92vh] flex items-center justify-center bg-[#080808] text-white px-6 sm:px-12 py-20 overflow-hidden',
+            styles: {},
+            props: {
+              pillText: 'Introducing Bolt ⚡ Doorstep Try-On Salon',
+              pillLink: '#bolt-experience',
+              kicker: 'AUTONOMOUS ATELIER // SPECIFICATION DROP 01',
+              titleLine1: 'ARCHITECTURAL',
+              titleLine2: 'SILHOUETTES',
+              description: 'Custom-milled 480 GSM French Terry, 14oz Japanese raw selvedge denim, and sculptural outerwear. Order up to 5 curated works to try on at your doorstep before final settlement.',
+              primaryCtaLabel: 'Order Doorstep Salon Try-On',
+              primaryCtaLink: '/shop',
+              secondaryCtaLabel: 'Explore Lookbook',
+              secondaryCtaLink: '/about',
+              bgImageUrl: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=2000&q=85',
+              overlayOpacity: 0.4,
+            },
+          },
+          {
+            id: 'marquee-ticker-01',
+            type: 'MarqueeTicker',
+            name: 'Fabric Specification Marquee',
+            isVisible: true,
+            className: 'bg-[#121212] text-white border-y border-[#262626] py-3 overflow-hidden select-none font-mono text-2xs uppercase tracking-widest',
+            styles: {},
+            props: {
+              items: [
+                '480 GSM French Terry Loopback',
+                '14oz Japanese Shuttle-Loomed Selvedge Denim',
+                '380 GSM Organic Belgian Flax Linen',
+                'Bolt ⚡ 45-Minute Doorstep Fitting Session',
+                'Zero Synthetic Polyester Blending',
+                'Complimentary White-Glove Courier Delivery',
+              ],
+              speedSeconds: 25,
+            },
+          },
+          {
+            id: 'editorial-split-01',
+            type: 'EditorialSplit',
+            name: 'Bolt 45-Minute Doorstep Salon Ethos',
+            isVisible: true,
+            className: 'max-w-7xl mx-auto px-6 sm:px-12 py-24',
+            styles: {},
+            props: {
+              kicker: 'DOORSTEP TRY-ON REVOLUTION',
+              headline: 'The Salon Comes to Your Mirror.',
+              bodyParagraph1: 'Never guess your size again. Select any garments and sizes from our collection. A uniformed private logistics officer arrives at your residence during your reserved timeslot with your curated garment tote.',
+              bodyParagraph2: 'You have 45 private minutes in front of your own mirror. Keep what fits impeccably, hand back what doesn’t, and settle instantly with contactless card or UPI.',
+              imageUrl: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
+              imagePosition: 'right',
+              ctaLabel: 'How Bolt Works',
+              ctaLink: '/about',
+            },
+          },
+          {
+            id: 'product-grid-01',
+            type: 'ProductGrid',
+            name: 'Featured Works Catalog Grid',
+            isVisible: true,
+            className: 'max-w-7xl mx-auto px-6 sm:px-12 py-16',
+            styles: {},
+            props: {
+              kicker: 'CURATED ATELIER ARCHIVE',
+              title: 'Selected Works Available for Try-On',
+              subtitle: 'Select your pieces and choose Bolt ⚡ Try-On at checkout.',
+              categoryFilter: 'all',
+              limit: 6,
+              columns: 3,
+            },
+          },
+          {
+            id: 'custom-div-specs-01',
+            type: 'CustomDivBlock',
+            name: 'Creator Fabric Lab Technical Banner',
+            isVisible: true,
+            className: 'bg-neutral-900 text-white p-8 sm:p-12 my-12 max-w-7xl mx-auto border border-neutral-800',
+            styles: {},
+            props: {
+              htmlContent: '<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6"><div class="space-y-2"><span class="text-xs font-mono text-emerald-400 uppercase tracking-widest">PHYSICAL MATERIAL LAB</span><h3 class="text-2xl font-serif font-light">Strictly Unblended Organic Fibers</h3><p class="text-xs text-neutral-400 font-sans max-w-xl">Every yard of fabric is commissioned directly from artisanal mills in Wakayama, Okayama, and Courtrai. No microplastics, no synthetic elastane.</p></div><a href="/shop" class="px-6 py-3 bg-white text-black font-mono text-xs uppercase font-bold tracking-wider hover:bg-neutral-200 transition-colors shrink-0">Shop Collection</a></div>',
+            },
+          },
+          {
+            id: 'reviews-showcase-01',
+            type: 'ReviewsShowcase',
+            name: 'Doorstep Salon Verified Patron Reviews',
+            isVisible: true,
+            className: 'bg-[#FAF9F6] border-t border-neutral-200 py-20 px-6 sm:px-12',
+            styles: {},
+            props: {
+              title: 'Verified Doorstep Fitting Testimonials',
+              subtitle: 'What patrons say about experiencing couture in front of their own mirror.',
+            },
+          },
+        ],
+        is_published: true,
+        version: 1,
+        meta_description: 'Atelier Haute Couture Creator Apparel & Bolt 45-Minute Doorstep Salon',
+        updated_at: new Date().toISOString(),
+        updated_by: null,
+      },
+    ]
+    return new Response(JSON.stringify(mockLayouts), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // V. PostgREST: storefront_tokens (/rest/v1/storefront_tokens)
+  if (url.includes('/rest/v1/storefront_tokens')) {
+    if (method === 'POST') {
+      const savedTokens = {
+        id: bodyJson?.id || `tok-${Date.now()}`,
+        theme_name: bodyJson?.theme_name || 'default',
+        tokens_json: bodyJson?.tokens_json || {},
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      }
+      return new Response(JSON.stringify(savedTokens), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    const mockTokens = [
+      {
+        id: 'tok-default-01',
+        theme_name: 'default',
+        tokens_json: {
+          '--background': '#FAFAFA',
+          '--foreground': '#0A0A0C',
+          '--primary': '#0A0A0C',
+          '--primary-foreground': '#FFFFFF',
+          '--secondary': '#F4F4F5',
+          '--secondary-foreground': '#18181B',
+          '--accent-green': '#166534',
+          '--accent-gold': '#F59E0B',
+          '--border': '#E4E4E7',
+          '--radius': '0px',
+          '--font-serif': 'Cormorant Garamond, Georgia, serif',
+          '--font-sans': 'Inter, -apple-system, sans-serif',
+        },
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      },
+    ]
+    return new Response(JSON.stringify(mockTokens), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })

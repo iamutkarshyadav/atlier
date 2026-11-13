@@ -9,10 +9,14 @@ export interface BoltState {
   city: string | null
   isServiceable: boolean
   selectedTimeslotId: string | null
+  isDiscoveryDismissed: boolean
+  hasAttemptedDetection: boolean
 
   // Actions
   setPincode: (pin: string, valid: boolean, city?: string | null) => void
   setSelectedTimeslotId: (id: string | null) => void
+  setDiscoveryDismissed: (dismissed: boolean) => void
+  setHasAttemptedDetection: (attempted: boolean) => void
   clearPincode: () => void
 }
 
@@ -23,6 +27,8 @@ export const useBoltStore = create<BoltState>()(
       city: null,
       isServiceable: false,
       selectedTimeslotId: null,
+      isDiscoveryDismissed: false,
+      hasAttemptedDetection: false,
 
       setPincode: (pin: string, valid: boolean, city: string | null = null) => {
         set({
@@ -34,6 +40,14 @@ export const useBoltStore = create<BoltState>()(
 
       setSelectedTimeslotId: (id: string | null) => {
         set({ selectedTimeslotId: id })
+      },
+
+      setDiscoveryDismissed: (dismissed: boolean) => {
+        set({ isDiscoveryDismissed: dismissed })
+      },
+
+      setHasAttemptedDetection: (attempted: boolean) => {
+        set({ hasAttemptedDetection: attempted })
       },
 
       clearPincode: () => {
@@ -70,6 +84,7 @@ export function useHydratedBolt() {
     city: isHydrated ? bolt.city : null,
     isServiceable: isHydrated ? bolt.isServiceable : false,
     selectedTimeslotId: isHydrated ? bolt.selectedTimeslotId : null,
+    isDiscoveryDismissed: isHydrated ? bolt.isDiscoveryDismissed : false,
+    hasAttemptedDetection: isHydrated ? bolt.hasAttemptedDetection : false,
   }
 }
-

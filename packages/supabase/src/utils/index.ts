@@ -47,6 +47,14 @@ import type {
   UserAddress,
   PosPaymentMethod,
   QcStatus,
+  PageLayout,
+  PageLayoutInsert,
+  PageLayoutUpdate,
+  StorefrontTokens,
+  StorefrontTokensInsert,
+  StorefrontTokensUpdate,
+  LayoutNode,
+  ComponentType,
 } from '../types/database.types'
 
 export * from '../types/database.types'
@@ -2459,6 +2467,293 @@ export async function getVariantShelfPlacements(
   if (error || !data) return []
   return data as any
 }
+
+// ==========================================
+// 13. SDUI (SERVER-DRIVEN UI) & CMS ENGINE
+// ==========================================
+
+export const DEFAULT_STOREFRONT_TOKENS: StorefrontTokens = {
+  id: 'tok-default-01',
+  theme_name: 'default',
+  tokens_json: {
+    '--background': '#212121',
+    '--foreground': '#FFFFFF',
+    '--primary': '#FFFFFF',
+    '--primary-foreground': '#212121',
+    '--secondary': '#262629',
+    '--secondary-foreground': '#F4F4F5',
+    '--accent-red': '#B91C1C',
+    '--accent-gold': '#F59E0B',
+    '--border': '#323336',
+    '--radius': '9999px',
+    '--font-serif': 'Cormorant Garamond, Georgia, serif',
+    '--font-sans': 'Inter, -apple-system, sans-serif',
+    '--font-script': 'Alex Brush, Pinyon Script, cursive',
+  },
+  is_active: true,
+  updated_at: new Date().toISOString(),
+}
+
+export const DEFAULT_HOME_LAYOUT: PageLayout = {
+  id: 'layout-home-01',
+  page_slug: 'home',
+  page_title: 'Atelier Haute Couture & Creator Apparel Drop 01',
+  layout_json: [
+    {
+      id: 'hero-section-01',
+      type: 'HeroBanner',
+      name: 'Cinematic Hero & Bolt Salon Pill',
+      isVisible: true,
+      className: 'relative min-h-[92vh] flex items-center justify-center bg-[#080808] text-white px-6 sm:px-12 py-20 overflow-hidden',
+      styles: {},
+      props: {
+        pillText: 'Introducing Bolt ⚡ Doorstep Try-On Salon',
+        pillLink: '#bolt-experience',
+        kicker: 'AUTONOMOUS ATELIER // SPECIFICATION DROP 01',
+        titleLine1: 'ARCHITECTURAL',
+        titleLine2: 'SILHOUETTES',
+        description: 'Custom-milled 480 GSM French Terry, 14oz Japanese raw selvedge denim, and sculptural outerwear. Order up to 5 curated works to try on at your doorstep before final settlement.',
+        primaryCtaLabel: 'Order Doorstep Salon Try-On',
+        primaryCtaLink: '/shop',
+        secondaryCtaLabel: 'Explore Lookbook',
+        secondaryCtaLink: '/about',
+        bgImageUrl: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=2000&q=85',
+        overlayOpacity: 0.4,
+      },
+    },
+    {
+      id: 'marquee-ticker-01',
+      type: 'MarqueeTicker',
+      name: 'Fabric Specification Marquee',
+      isVisible: true,
+      className: 'bg-[#121212] text-white border-y border-[#262626] py-3 overflow-hidden select-none font-mono text-2xs uppercase tracking-widest',
+      styles: {},
+      props: {
+        items: [
+          '480 GSM French Terry Loopback',
+          '14oz Japanese Shuttle-Loomed Selvedge Denim',
+          '380 GSM Organic Belgian Flax Linen',
+          'Bolt ⚡ 45-Minute Doorstep Fitting Session',
+          'Zero Synthetic Polyester Blending',
+          'Complimentary White-Glove Courier Delivery',
+        ],
+        speedSeconds: 25,
+      },
+    },
+    {
+      id: 'editorial-split-01',
+      type: 'EditorialSplit',
+      name: 'Bolt 45-Minute Doorstep Salon Ethos',
+      isVisible: true,
+      className: 'max-w-7xl mx-auto px-6 sm:px-12 py-24',
+      styles: {},
+      props: {
+        kicker: 'DOORSTEP TRY-ON REVOLUTION',
+        headline: 'The Salon Comes to Your Mirror.',
+        bodyParagraph1: 'Never guess your size again. Select any garments and sizes from our collection. A uniformed private logistics officer arrives at your residence during your reserved timeslot with your curated garment tote.',
+        bodyParagraph2: 'You have 45 private minutes in front of your own mirror. Keep what fits impeccably, hand back what doesn’t, and settle instantly with contactless card or UPI.',
+        imageUrl: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
+        imagePosition: 'right',
+        ctaLabel: 'How Bolt Works',
+        ctaLink: '/about',
+      },
+    },
+    {
+      id: 'product-grid-01',
+      type: 'ProductGrid',
+      name: 'Featured Works Catalog Grid',
+      isVisible: true,
+      className: 'max-w-7xl mx-auto px-6 sm:px-12 py-16',
+      styles: {},
+      props: {
+        kicker: 'CURATED ATELIER ARCHIVE',
+        title: 'Selected Works Available for Try-On',
+        subtitle: 'Select your pieces and choose Bolt ⚡ Try-On at checkout.',
+        categoryFilter: 'all',
+        limit: 6,
+        columns: 3,
+      },
+    },
+    {
+      id: 'custom-div-specs-01',
+      type: 'CustomDivBlock',
+      name: 'Creator Fabric Lab Technical Banner',
+      isVisible: true,
+      className: 'bg-neutral-900 text-white p-8 sm:p-12 my-12 max-w-7xl mx-auto border border-neutral-800',
+      styles: {},
+      props: {
+        htmlContent: '<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6"><div class="space-y-2"><span class="text-xs font-mono text-emerald-400 uppercase tracking-widest">PHYSICAL MATERIAL LAB</span><h3 class="text-2xl font-serif font-light">Strictly Unblended Organic Fibers</h3><p class="text-xs text-neutral-400 font-sans max-w-xl">Every yard of fabric is commissioned directly from artisanal mills in Wakayama, Okayama, and Courtrai. No microplastics, no synthetic elastane.</p></div><a href="/shop" class="px-6 py-3 bg-white text-black font-mono text-xs uppercase font-bold tracking-wider hover:bg-neutral-200 transition-colors shrink-0">Shop Collection</a></div>',
+      },
+    },
+    {
+      id: 'reviews-showcase-01',
+      type: 'ReviewsShowcase',
+      name: 'Doorstep Salon Verified Patron Reviews',
+      isVisible: true,
+      className: 'bg-[#FAF9F6] border-t border-neutral-200 py-20 px-6 sm:px-12',
+      styles: {},
+      props: {
+        title: 'Verified Doorstep Fitting Testimonials',
+        subtitle: 'What patrons say about experiencing couture in front of their own mirror.',
+      },
+    },
+  ],
+  is_published: true,
+  version: 1,
+  meta_description: 'Atelier Haute Couture Creator Apparel & Bolt 45-Minute Doorstep Salon',
+  updated_at: new Date().toISOString(),
+  updated_by: null,
+}
+
+/**
+ * Fetch a published page layout by slug with fallback to default
+ */
+export async function getPageLayout(
+  supabase: SupabaseClient<Database>,
+  pageSlug: string
+): Promise<PageLayout> {
+  try {
+    const { data, error } = await supabase
+      .from('page_layouts')
+      .select('*')
+      .eq('page_slug', pageSlug)
+      .eq('is_published', true)
+      .maybeSingle()
+
+    if (error || !data) {
+      if (pageSlug === 'home') return DEFAULT_HOME_LAYOUT
+      return {
+        id: `layout-${pageSlug}-fallback`,
+        page_slug: pageSlug,
+        page_title: `${pageSlug.toUpperCase()} Page`,
+        layout_json: [],
+        is_published: true,
+        version: 1,
+        meta_description: null,
+        updated_at: new Date().toISOString(),
+        updated_by: null,
+      }
+    }
+
+    return data
+  } catch {
+    return pageSlug === 'home' ? DEFAULT_HOME_LAYOUT : {
+      id: `layout-${pageSlug}-fallback`,
+      page_slug: pageSlug,
+      page_title: `${pageSlug.toUpperCase()} Page`,
+      layout_json: [],
+      is_published: true,
+      version: 1,
+      meta_description: null,
+      updated_at: new Date().toISOString(),
+      updated_by: null,
+    }
+  }
+}
+
+/**
+ * Fetch all page layouts for Admin CMS
+ */
+export async function getAllPageLayouts(
+  supabase: SupabaseClient<Database>
+): Promise<PageLayout[]> {
+  try {
+    const { data, error } = await supabase
+      .from('page_layouts')
+      .select('*')
+      .order('page_slug', { ascending: true })
+
+    if (error || !data || data.length === 0) {
+      return [DEFAULT_HOME_LAYOUT]
+    }
+    return data
+  } catch {
+    return [DEFAULT_HOME_LAYOUT]
+  }
+}
+
+/**
+ * Upsert page layout from Admin CMS
+ */
+export async function upsertPageLayout(
+  supabase: SupabaseClient<Database>,
+  layout: Partial<PageLayout> & { page_slug: string }
+): Promise<{ success: boolean; data?: PageLayout; error?: string }> {
+  try {
+    const payload = {
+      ...layout,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data, error } = await supabase
+      .from('page_layouts')
+      .upsert(payload as any, { onConflict: 'page_slug' })
+      .select('*')
+      .single()
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+    return { success: true, data }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error saving page layout' }
+  }
+}
+
+/**
+ * Fetch active storefront design tokens with fallback
+ */
+export async function getStorefrontTokens(
+  supabase: SupabaseClient<Database>,
+  themeName: string = 'default'
+): Promise<StorefrontTokens> {
+  try {
+    const { data, error } = await supabase
+      .from('storefront_tokens')
+      .select('*')
+      .eq('theme_name', themeName)
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (error || !data) {
+      return DEFAULT_STOREFRONT_TOKENS
+    }
+    return data
+  } catch {
+    return DEFAULT_STOREFRONT_TOKENS
+  }
+}
+
+/**
+ * Upsert storefront design tokens from Admin CMS
+ */
+export async function upsertStorefrontTokens(
+  supabase: SupabaseClient<Database>,
+  tokens: Partial<StorefrontTokens> & { theme_name?: string }
+): Promise<{ success: boolean; data?: StorefrontTokens; error?: string }> {
+  try {
+    const payload = {
+      theme_name: tokens.theme_name || 'default',
+      tokens_json: tokens.tokens_json || DEFAULT_STOREFRONT_TOKENS.tokens_json,
+      is_active: tokens.is_active ?? true,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data, error } = await supabase
+      .from('storefront_tokens')
+      .upsert(payload as any, { onConflict: 'theme_name' })
+      .select('*')
+      .single()
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+    return { success: true, data }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error saving storefront tokens' }
+  }
+}
+
 
 
 

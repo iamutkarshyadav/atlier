@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@repo/ui", "@repo/supabase"],
+  transpilePackages: ["@repo/ui", "@repo/supabase", "@repo/db", "@repo/queue"],
   images: {
     remotePatterns: [
       {

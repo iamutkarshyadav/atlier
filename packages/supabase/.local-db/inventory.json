@@ -1,0 +1,451 @@
+{
+  "products": [
+    {
+      "id": "b1000000-0000-0000-0000-000000000001",
+      "title": "Heavyweight Boxy Hoodie",
+      "description": "Custom-milled 480 GSM loopback organic French Terry. Engineered with an exaggerated dropped shoulder, double-layered architectural hood, and concealed side-seam pockets. Mineral washed for a vintage drape.",
+      "price": 165,
+      "stock": 115,
+      "image_url": "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85",
+      "category_id": "c1000000-0000-0000-0000-000000000001",
+      "category": "Hoodies & Fleece",
+      "material": "480 GSM 100% Organic Cotton French Terry",
+      "edition": "Drop 01 // Limited 150 Pieces",
+      "is_archived": false,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000002",
+      "title": "Vintage Washed Boxy Tee",
+      "description": "280 GSM heavyweight combed cotton jersey with distressed neck ribbing and raw edge blind hem. Sun-faded wash treatment creates individual character on every piece.",
+      "price": 75,
+      "stock": 140,
+      "image_url": "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85",
+      "category_id": "c1000000-0000-0000-0000-000000000002",
+      "category": "Tees & Tops",
+      "material": "280 GSM Combed Cotton with Vintage Enzymatic Wash",
+      "edition": "Drop 01 // Core Essential",
+      "is_archived": false,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000003",
+      "title": "Cropped Weatherproof Flight Bomber",
+      "description": "High-density technical nylon shell with quilted synthetic insulation. Cropped torso silhouette with elongated sleeves and custom matte nickel two-way zipper hardware.",
+      "price": 285,
+      "stock": 55,
+      "image_url": "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1200&q=85",
+      "category_id": "c1000000-0000-0000-0000-000000000003",
+      "category": "Outerwear & Jackets",
+      "material": "Matte Technical Nylon Shell & Primaloft Insulation",
+      "edition": "Drop 01 // Limited 80 Pieces",
+      "is_archived": false,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000004",
+      "title": "14.5oz Okayama Raw Selvedge Denim",
+      "description": "Woven on vintage Toyoda shuttle looms in Kojima, Japan. Stiff raw indigo denim with redline selvedge ID, custom copper hardware, and hidden back pocket rivets. Relaxed straight silhouette.",
+      "price": 220,
+      "stock": 75,
+      "image_url": "https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=1200&q=85",
+      "category_id": "c1000000-0000-0000-0000-000000000004",
+      "category": "Pants & Raw Denim",
+      "material": "14.5oz 100% Cotton Okayama Selvedge Denim",
+      "edition": "Drop 01 // Limited 100 Pieces",
+      "is_archived": false,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    }
+  ],
+  "product_variants": [
+    {
+      "id": "v1000000-0000-0000-0000-000000000001",
+      "product_id": "b1000000-0000-0000-0000-000000000001",
+      "size": "S",
+      "sku": "ATL-HD01-BLK-S",
+      "barcode": "8901234000014",
+      "barcode_url": null,
+      "stock": 25,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "v1000000-0000-0000-0000-000000000002",
+      "product_id": "b1000000-0000-0000-0000-000000000001",
+      "size": "M",
+      "sku": "ATL-HD01-BLK-M",
+      "barcode": "8901234000021",
+      "barcode_url": null,
+      "stock": 45,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "v1000000-0000-0000-0000-000000000003",
+      "product_id": "b1000000-0000-0000-0000-000000000001",
+      "size": "L",
+      "sku": "ATL-HD01-BLK-L",
+      "barcode": "8901234000038",
+      "barcode_url": null,
+      "stock": 35,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "v1000000-0000-0000-0000-000000000004",
+      "product_id": "b1000000-0000-0000-0000-000000000001",
+      "size": "XL",
+      "sku": "ATL-HD01-BLK-XL",
+      "barcode": "8901234000045",
+      "barcode_url": null,
+      "stock": 10,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "v1000000-0000-0000-0000-000000000005",
+      "product_id": "b1000000-0000-0000-0000-000000000002",
+      "size": "S",
+      "sku": "ATL-TEE01-WSH-S",
+      "barcode": "8901234000052",
+      "barcode_url": null,
+      "stock": 30,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "v1000000-0000-0000-0000-000000000006",
+      "product_id": "b1000000-0000-0000-0000-000000000002",
+      "size": "M",
+      "sku": "ATL-TEE01-WSH-M",
+      "barcode": "8901234000069",
+      "barcode_url": null,
+      "stock": 50,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "v1000000-0000-0000-0000-000000000007",
+      "product_id": "b1000000-0000-0000-0000-000000000002",
+      "size": "L",
+      "sku": "ATL-TEE01-WSH-L",
+      "barcode": "8901234000076",
+      "barcode_url": null,
+      "stock": 40,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "v1000000-0000-0000-0000-000000000008",
+      "product_id": "b1000000-0000-0000-0000-000000000002",
+      "size": "XL",
+      "sku": "ATL-TEE01-WSH-XL",
+      "barcode": "8901234000083",
+      "barcode_url": null,
+      "stock": 20,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "v1000000-0000-0000-0000-000000000009",
+      "product_id": "b1000000-0000-0000-0000-000000000003",
+      "size": "S",
+      "sku": "ATL-BMB01-OLV-S",
+      "barcode": "8901234000090",
+      "barcode_url": null,
+      "stock": 10,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "v1000000-0000-0000-0000-000000000010",
+      "product_id": "b1000000-0000-0000-0000-000000000003",
+      "size": "M",
+      "sku": "ATL-BMB01-OLV-M",
+      "barcode": "8901234000106",
+      "barcode_url": null,
+      "stock": 25,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "v1000000-0000-0000-0000-000000000011",
+      "product_id": "b1000000-0000-0000-0000-000000000003",
+      "size": "L",
+      "sku": "ATL-BMB01-OLV-L",
+      "barcode": "8901234000113",
+      "barcode_url": null,
+      "stock": 15,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "v1000000-0000-0000-0000-000000000012",
+      "product_id": "b1000000-0000-0000-0000-000000000003",
+      "size": "XL",
+      "sku": "ATL-BMB01-OLV-XL",
+      "barcode": "8901234000120",
+      "barcode_url": null,
+      "stock": 5,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "v1000000-0000-0000-0000-000000000013",
+      "product_id": "b1000000-0000-0000-0000-000000000004",
+      "size": "30",
+      "sku": "ATL-DNM01-RAW-30",
+      "barcode": "8901234000137",
+      "barcode_url": null,
+      "stock": 20,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "v1000000-0000-0000-0000-000000000014",
+      "product_id": "b1000000-0000-0000-0000-000000000004",
+      "size": "32",
+      "sku": "ATL-DNM01-RAW-32",
+      "barcode": "8901234000144",
+      "barcode_url": null,
+      "stock": 30,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "v1000000-0000-0000-0000-000000000015",
+      "product_id": "b1000000-0000-0000-0000-000000000004",
+      "size": "34",
+      "sku": "ATL-DNM01-RAW-34",
+      "barcode": "8901234000151",
+      "barcode_url": null,
+      "stock": 25,
+      "price_override": null,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    }
+  ],
+  "product_media": [
+    {
+      "id": "m1",
+      "product_id": "b1000000-0000-0000-0000-000000000001",
+      "url": "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85",
+      "is_primary": true,
+      "display_order": 0
+    },
+    {
+      "id": "m2",
+      "product_id": "b1000000-0000-0000-0000-000000000001",
+      "url": "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1200&q=85",
+      "is_primary": false,
+      "display_order": 1
+    },
+    {
+      "id": "m3",
+      "product_id": "b1000000-0000-0000-0000-000000000002",
+      "url": "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85",
+      "is_primary": true,
+      "display_order": 0
+    },
+    {
+      "id": "m4",
+      "product_id": "b1000000-0000-0000-0000-000000000003",
+      "url": "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1200&q=85",
+      "is_primary": true,
+      "display_order": 0
+    },
+    {
+      "id": "m5",
+      "product_id": "b1000000-0000-0000-0000-000000000004",
+      "url": "https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=1200&q=85",
+      "is_primary": true,
+      "display_order": 0
+    }
+  ],
+  "categories": [
+    {
+      "id": "c1000000-0000-0000-0000-000000000001",
+      "name": "Hoodies & Fleece",
+      "slug": "hoodies",
+      "description": "Heavyweight 480 GSM French Terry and loopback brushed cotton fleece hoodies.",
+      "image_url": "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85",
+      "display_order": 1,
+      "created_at": "2026-11-12T19:29:35.356Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "c1000000-0000-0000-0000-000000000002",
+      "name": "Tees & Tops",
+      "slug": "tees",
+      "description": "Overdyed 280 GSM combed cotton vintage drop-shoulder tees and thermal waffle tops.",
+      "image_url": "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85",
+      "display_order": 2,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "c1000000-0000-0000-0000-000000000003",
+      "name": "Outerwear & Jackets",
+      "slug": "outerwear",
+      "description": "Weatherproof cropped flight bombers, heavy canvas chore coats, and sculptural overcoats.",
+      "image_url": "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1200&q=85",
+      "display_order": 3,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    },
+    {
+      "id": "c1000000-0000-0000-0000-000000000004",
+      "name": "Pants & Raw Denim",
+      "slug": "denim",
+      "description": "14.5oz shuttle-loomed Okayama selvedge denim, double-knee work trousers, and pleated wide-leg pants.",
+      "image_url": "https://images.unsplash.com/photo-1542272604-780c96856592?auto=format&fit=crop&w=1200&q=85",
+      "display_order": 4,
+      "created_at": "2026-11-12T19:29:35.358Z",
+      "updated_at": "2026-11-12T19:29:35.358Z"
+    }
+  ],
+  "orders": [
+    {
+      "id": "ord-1794524806082",
+      "order_number": "ATL-7ADX2",
+      "invoice_number": "INV-2026-7ADX2",
+      "tracking_barcode": "ATL-TRK-7ADX2",
+      "user_id": "b0000000-0000-0000-0000-000000000003",
+      "status": "pending",
+      "order_type": "bolt_try_on",
+      "delivery_mode": "try_on",
+      "bolt_pincode": "560038",
+      "bolt_timeslot_id": "t1000000-0000-0000-0000-000000000001",
+      "bolt_session_status": "scheduled",
+      "try_on_status": "pending",
+      "tax_amount": 0,
+      "shipping_fee": 99,
+      "original_total": 165,
+      "total": 99,
+      "shipping_address": "100 Feet Road, HAL 2nd Stage, Indiranagar, Penthouse 4B, Bengaluru, Karnataka 560038, India",
+      "delivery_notes": "White-glove 45-minute doorstep try-on session. Call on arrival.",
+      "order_items": [
+        {
+          "id": "item-1794524806089-0.05428699345962196",
+          "order_id": "ord-1794524806082",
+          "product_id": "b1000000-0000-0000-0000-000000000001",
+          "quantity": 1,
+          "unit_price": 165,
+          "size": "M (Washed Ink)",
+          "is_kept": null,
+          "try_on_decision": "pending",
+          "product": {
+            "id": "b1000000-0000-0000-0000-000000000001",
+            "title": "Heavyweight Boxy Hoodie",
+            "description": "Custom-milled 480 GSM loopback organic French Terry. Engineered with an exaggerated dropped shoulder, double-layered architectural hood, and concealed side-seam pockets. Mineral washed for a vintage drape.",
+            "price": 165,
+            "stock": 115,
+            "image_url": "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85",
+            "category_id": "c1000000-0000-0000-0000-000000000001",
+            "category": "Hoodies & Fleece",
+            "material": "480 GSM 100% Organic Cotton French Terry",
+            "edition": "Drop 01 // Limited 150 Pieces",
+            "is_archived": false,
+            "created_at": "2026-11-12T23:06:42.200Z",
+            "updated_at": "2026-11-12T23:06:42.200Z"
+          }
+        }
+      ],
+      "created_at": "2026-11-12T23:06:46.082Z",
+      "updated_at": "2026-11-12T23:06:46.082Z"
+    },
+    {
+      "id": "ord-1794524543961",
+      "order_number": "ATL-TEST-5932",
+      "invoice_number": "INV-ATL-TEST-5932",
+      "tracking_barcode": "TRK-ATL-TEST-5932",
+      "user_id": "a0000000-0000-0000-0000-000000000001",
+      "status": "processing",
+      "order_type": "bolt_try_on",
+      "delivery_mode": "try_on",
+      "bolt_pincode": "560038",
+      "bolt_timeslot_id": null,
+      "bolt_session_status": "scheduled",
+      "try_on_status": "pending",
+      "tax_amount": 0,
+      "shipping_fee": 99,
+      "original_total": 165,
+      "total": 99,
+      "shipping_address": "Indiranagar 100ft Rd, Bengaluru",
+      "delivery_notes": "Ring bell on arrival",
+      "order_items": [
+        {
+          "id": "item-1794524543968-0.37431281836818053",
+          "order_id": "ord-1794524543961",
+          "product_id": "b1000000-0000-0000-0000-000000000001",
+          "quantity": 1,
+          "unit_price": 165,
+          "size": "M",
+          "is_kept": null,
+          "try_on_decision": "pending",
+          "product": {
+            "id": "b1000000-0000-0000-0000-000000000001",
+            "title": "Heavyweight Boxy Hoodie",
+            "description": "Custom-milled 480 GSM loopback organic French Terry. Engineered with an exaggerated dropped shoulder, double-layered architectural hood, and concealed side-seam pockets. Mineral washed for a vintage drape.",
+            "price": 165,
+            "stock": 115,
+            "image_url": "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85",
+            "category_id": "c1000000-0000-0000-0000-000000000001",
+            "category": "Hoodies & Fleece",
+            "material": "480 GSM 100% Organic Cotton French Terry",
+            "edition": "Drop 01 // Limited 150 Pieces",
+            "is_archived": false,
+            "created_at": "2026-11-12T23:02:23.903Z",
+            "updated_at": "2026-11-12T23:02:23.903Z"
+          }
+        }
+      ],
+      "created_at": "2026-11-12T23:02:23.961Z",
+      "updated_at": "2026-11-12T23:02:23.961Z"
+    }
+  ],
+  "order_items": [],
+  "page_layouts": [],
+  "storefront_tokens": [],
+  "accounts": [
+    {
+      "id": "b0000000-0000-0000-0000-000000000001",
+      "email": "admin@atelier.internal",
+      "name": "Sovereign Administrator",
+      "role": "admin",
+      "password": "admin-secret-2026"
+    },
+    {
+      "id": "b0000000-0000-0000-0000-794156472275",
+      "email": "test.admin@atelier.internal",
+      "name": "Test Admin",
+      "role": "admin",
+      "password": "admin-secret-2026"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000001",
+      "email": "iamutkarshyadav1@gmail.com",
+      "name": "Utkarsh Yadav",
+      "role": "admin",
+      "password": "asdfghjkl"
+    }
+  ]
+}

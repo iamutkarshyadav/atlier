@@ -12,6 +12,8 @@
   "dependencies": {
     "@hookform/resolvers": "^6.0.0",
     "@react-pdf/renderer": "^4.9.0",
+    "@repo/db": "workspace:*",
+    "@repo/queue": "workspace:*",
     "@repo/supabase": "workspace:*",
     "@repo/ui": "workspace:*",
     "framer-motion": "^14.6.0",

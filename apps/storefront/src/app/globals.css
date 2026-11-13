@@ -1,39 +1,119 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@200;300;400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+.font-script {
+  font-family: var(--font-script), 'Pinyon Script', cursive;
+}
+
+.font-display {
+  font-family: var(--font-sans), 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.font-serif {
+  font-family: var(--font-sans), 'Plus Jakarta Sans', sans-serif;
+}
+
 :root {
+  /* Crisp Editorial White / Light Theme (Couture Alabaster) */
   --background: 0 0% 100%;
-  --foreground: 0 0% 5%;
-  --border: 0 0% 88%;
-  --input: 0 0% 88%;
-  --ring: 142 100% 45%;
-  --primary: 0 0% 5%;
+  --foreground: 240 10% 4%;
+  --border: 240 6% 90%;
+  --input: 240 6% 90%;
+  --ring: 0 72% 40%;
+  --primary: 240 10% 4%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 96%;
-  --secondary-foreground: 0 0% 8%;
-  --muted: 0 0% 94%;
-  --muted-foreground: 0 0% 40%;
+  --secondary: 240 5% 96%;
+  --secondary-foreground: 240 10% 4%;
+  --muted: 240 5% 96%;
+  --muted-foreground: 240 4% 32%;
+  --accent-red: #b91c1c;
+  --accent-red-glow: rgba(185, 28, 28, 0.15);
+  --accent-green: #047857;
+  --accent-green-glow: rgba(4, 120, 87, 0.15);
+  --royal-canvas: #F8F9FA;
+  --royal-surface: #FFFFFF;
+  --royal-card: #FFFFFF;
+  --royal-pill: #F4F4F5;
+  --royal-pill-hover: #E4E4E7;
+  --royal-border: #E4E4E7;
+  --royal-foreground: #09090B;
+  --royal-subtle: #71717A;
+  --font-serif: var(--font-sans), 'Plus Jakarta Sans', sans-serif;
+  --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-script: 'Pinyon Script', cursive;
+  --font-display: var(--font-sans), 'Plus Jakarta Sans', sans-serif;
+}
+
+.dark {
+  /* Dark Theme (Royal Obsidian) */
+  --background: 0 0% 13%;
+  --foreground: 0 0% 98%;
+  --border: 0 0% 20%;
+  --input: 0 0% 18%;
+  --ring: 0 72% 51%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 0 0% 13%;
+  --secondary: 0 0% 16%;
+  --secondary-foreground: 0 0% 95%;
+  --muted: 0 0% 16%;
+  --muted-foreground: 0 0% 60%;
+  --accent-red: #b91c1c;
+  --accent-red-glow: rgba(185, 28, 28, 0.25);
   --accent-green: #166534;
   --accent-green-glow: rgba(22, 101, 52, 0.25);
-  --font-serif: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --royal-canvas: #212121;
+  --royal-surface: #1A1B1D;
+  --royal-card: #262629;
+  --royal-pill: #38393D;
+  --royal-pill-hover: #4A4B50;
+  --royal-border: rgba(255, 255, 255, 0.08);
+  --royal-foreground: #FFFFFF;
+  --royal-subtle: #323336;
 }
 
 body {
-  background-color: #FAFAFA;
-  color: #0A0A0C;
+  background-color: var(--royal-canvas, #212121);
+  color: var(--royal-foreground, #FFFFFF);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 ::selection {
-  background-color: #166534;
+  background-color: #b91c1c;
   color: #FFFFFF;
+}
+
+.bg-royal-canvas {
+  background-color: var(--royal-canvas);
+}
+
+.bg-royal-surface {
+  background-color: var(--royal-surface);
+}
+
+.bg-royal-card {
+  background-color: var(--royal-card);
+}
+
+.bg-royal-pill {
+  background-color: var(--royal-pill);
+}
+
+.bg-royal-pill:hover {
+  background-color: var(--royal-pill-hover);
+}
+
+.border-royal-subtle {
+  border-color: var(--royal-border);
+}
+
+.text-royal-red {
+  color: #b91c1c;
 }
 
 .text-creator-green {
@@ -46,6 +126,466 @@ body {
 
 .border-creator-green {
   border-color: #166534;
+}
+
+/* ======================================================== */
+/* WHITE (LIGHT) THEME OVERRIDES ENGINE                     */
+/* High-contrast, pitch-black typography, crisp cards       */
+/* ======================================================== */
+html.light,
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
+html.light body,
+html[data-theme='light'] body {
+  background-color: var(--royal-canvas, #F8F9FA) !important;
+  color: var(--royal-foreground, #09090B) !important;
+}
+
+/* 1. Canvas & Section Backgrounds in Light Mode */
+html.light .bg-\[\#212121\],
+html[data-theme='light'] .bg-\[\#212121\],
+html.light .bg-\[\#080808\],
+html[data-theme='light'] .bg-\[\#080808\],
+html.light .bg-\[\#121212\],
+html[data-theme='light'] .bg-\[\#121212\],
+html.light .bg-\[\#141517\],
+html[data-theme='light'] .bg-\[\#141517\] {
+  background-color: var(--royal-canvas, #F8F9FA) !important;
+}
+
+/* 2. Primary Surfaces & Panels in Light Mode */
+html.light .bg-\[\#1e1e21\],
+html[data-theme='light'] .bg-\[\#1e1e21\],
+html.light .bg-\[\#1e1e21\]\/90,
+html[data-theme='light'] .bg-\[\#1e1e21\]\/90,
+html.light .bg-\[\#1A1B1D\],
+html[data-theme='light'] .bg-\[\#1A1B1D\],
+html.light .bg-\[\#1A1B1D\]\/95,
+html[data-theme='light'] .bg-\[\#1A1B1D\]\/95,
+html.light .bg-\[\#18181a\]\/95,
+html[data-theme='light'] .bg-\[\#18181a\]\/95 {
+  background-color: var(--royal-surface, #FFFFFF) !important;
+}
+
+/* 3. Cards in Light Mode: Crisp White Surface with Structural Border & Depth */
+html.light .bg-\[\#18181A\],
+html[data-theme='light'] .bg-\[\#18181A\],
+html.light .bg-\[\#262629\],
+html[data-theme='light'] .bg-\[\#262629\] {
+  background-color: #FFFFFF !important;
+  border-color: #E4E4E7 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* 4. Active Filter Pills, Selection Badges & Secondary CTAs */
+html.light .bg-\[\#2E2F33\],
+html[data-theme='light'] .bg-\[\#2E2F33\] {
+  background-color: #09090B !important;
+  color: #FFFFFF !important;
+  border-color: #09090B !important;
+}
+
+/* 5. High-Contrast Typography in Light Mode (Headings & Body Text) */
+html.light h1.text-white,
+html[data-theme='light'] h1.text-white,
+html.light h2.text-white,
+html[data-theme='light'] h2.text-white,
+html.light h3.text-white,
+html[data-theme='light'] h3.text-white,
+html.light h4.text-white,
+html[data-theme='light'] h4.text-white,
+html.light p.text-white,
+html[data-theme='light'] p.text-white {
+  color: var(--royal-foreground, #09090B) !important;
+}
+
+html.light h1,
+html[data-theme='light'] h1,
+html.light h2,
+html[data-theme='light'] h2,
+html.light h3,
+html[data-theme='light'] h3 {
+  color: var(--royal-foreground, #09090B);
+}
+
+html.light .text-neutral-200,
+html[data-theme='light'] .text-neutral-200,
+html.light .text-neutral-300,
+html[data-theme='light'] .text-neutral-300 {
+  color: #18181B !important;
+}
+
+html.light .text-neutral-400,
+html[data-theme='light'] .text-neutral-400 {
+  color: #27272A !important;
+}
+
+html.light .text-neutral-500,
+html[data-theme='light'] .text-neutral-500 {
+  color: #52525B !important;
+}
+
+html.light .text-neutral-600,
+html[data-theme='light'] .text-neutral-600 {
+  color: #71717A !important;
+}
+
+html.light .text-\[\#8e8e93\],
+html[data-theme='light'] .text-\[\#8e8e93\],
+html.light .text-\[\#8E8E93\],
+html[data-theme='light'] .text-\[\#8E8E93\] {
+  color: #27272A !important;
+}
+
+/* Hero Section Headline Typography & Rotated Watermarks */
+html.light .text-\[\#45464a\],
+html[data-theme='light'] .text-\[\#45464a\],
+html.light .text-\[\#3a3b3e\],
+html[data-theme='light'] .text-\[\#3a3b3e\] {
+  color: #18181B !important;
+  font-weight: 900 !important;
+}
+
+html.light .text-\[\#323336\],
+html[data-theme='light'] .text-\[\#323336\] {
+  color: #71717A !important;
+  font-weight: 900 !important;
+}
+
+html.light .text-\[\#d1d1d6\],
+html[data-theme='light'] .text-\[\#d1d1d6\] {
+  color: #09090B !important;
+  font-weight: 700 !important;
+}
+
+/* Punchy Vibrant Accents in Light Mode */
+html.light .text-red-400,
+html[data-theme='light'] .text-red-400 {
+  color: #B91C1C !important;
+  font-weight: 600 !important;
+}
+
+html.light .text-emerald-400,
+html[data-theme='light'] .text-emerald-400,
+html.light .text-emerald-300,
+html[data-theme='light'] .text-emerald-300 {
+  color: #047857 !important;
+  font-weight: 600 !important;
+}
+
+html.light .text-amber-400,
+html[data-theme='light'] .text-amber-400,
+html.light .text-amber-300,
+html[data-theme='light'] .text-amber-300 {
+  color: #B45309 !important;
+  font-weight: 600 !important;
+}
+
+/* ======================================================== */
+/* 6. CRITICAL: PURE WHITE TEXT FOR ALL DARK CTAS & BADGES  */
+/* Guarantees Order Now, Bolt CTAs, Newsletter button etc.   */
+/* ======================================================== */
+.btn-dark,
+.btn-dark *,
+button.btn-dark,
+button.btn-dark *,
+a.btn-dark,
+a.btn-dark *,
+html.light .btn-dark,
+html.light .btn-dark *,
+html.light button.btn-dark,
+html.light button.btn-dark *,
+html.light a.btn-dark,
+html.light a.btn-dark *,
+html[data-theme='light'] .btn-dark,
+html[data-theme='light'] .btn-dark *,
+html[data-theme='light'] button.btn-dark,
+html[data-theme='light'] button.btn-dark *,
+html[data-theme='light'] a.btn-dark,
+html[data-theme='light'] a.btn-dark *,
+html.light button.bg-\[\#38393D\],
+html.light button.bg-\[\#38393d\],
+html.light a.bg-\[\#38393D\],
+html.light a.bg-\[\#38393d\],
+html.light button.bg-\[\#2E2F33\],
+html.light a.bg-\[\#2E2F33\],
+html.light button.bg-\[\#09090B\],
+html.light a.bg-\[\#09090B\],
+html.light .bg-\[\#B91C1C\],
+html.light .bg-black,
+html.light [class*="bg-[#38393"],
+html.light [class*="bg-[#2E2F3"],
+html[data-theme='light'] button.bg-\[\#38393D\],
+html[data-theme='light'] button.bg-\[\#38393d\],
+html[data-theme='light'] a.bg-\[\#38393D\],
+html[data-theme='light'] a.bg-\[\#38393d\],
+html[data-theme='light'] button.bg-\[\#2E2F33\],
+html[data-theme='light'] a.bg-\[\#2E2F33\],
+html[data-theme='light'] button.bg-\[\#09090B\],
+html[data-theme='light'] a.bg-\[\#09090B\],
+html[data-theme='light'] .bg-\[\#B91C1C\],
+html[data-theme='light'] .bg-black,
+html[data-theme='light'] [class*="bg-[#38393"],
+html[data-theme='light'] [class*="bg-[#2E2F3"] {
+  background-color: #09090B !important;
+  color: #FFFFFF !important;
+  fill: #FFFFFF !important;
+}
+
+/* Also enforce white text on all descendant text, spans, icons within dark buttons/CTAs */
+html.light button.bg-\[\#38393D\] *,
+html.light button.bg-\[\#38393d\] *,
+html.light a.bg-\[\#38393D\] *,
+html.light a.bg-\[\#38393d\] *,
+html.light button.bg-\[\#2E2F33\] *,
+html.light a.bg-\[\#2E2F33\] *,
+html.light button.bg-\[\#09090B\] *,
+html.light a.bg-\[\#09090B\] *,
+html.light .bg-\[\#B91C1C\] *,
+html.light .bg-black *,
+html.light [class*="bg-[#38393"] *,
+html.light [class*="bg-[#2E2F3"] *,
+html[data-theme='light'] button.bg-\[\#38393D\] *,
+html[data-theme='light'] button.bg-\[\#38393d\] *,
+html[data-theme='light'] a.bg-\[\#38393D\] *,
+html[data-theme='light'] a.bg-\[\#38393d\] *,
+html[data-theme='light'] button.bg-\[\#2E2F33\] *,
+html[data-theme='light'] a.bg-\[\#2E2F33\] *,
+html[data-theme='light'] button.bg-\[\#09090B\] *,
+html[data-theme='light'] a.bg-\[\#09090B\] *,
+html[data-theme='light'] .bg-\[\#B91C1C\] *,
+html[data-theme='light'] .bg-black *,
+html[data-theme='light'] [class*="bg-[#38393"] *,
+html[data-theme='light'] [class*="bg-[#2E2F3"] * {
+  color: #FFFFFF !important;
+  fill: #FFFFFF !important;
+}
+
+/* Hovers on Dark CTAs */
+html.light .hover\:bg-\[\#4A4B50\]:hover,
+html[data-theme='light'] .hover\:bg-\[\#4A4B50\]:hover,
+html.light .hover\:bg-\[\#4a4b50\]:hover,
+html[data-theme='light'] .hover\:bg-\[\#4a4b50\]:hover {
+  background-color: #27272A !important;
+  color: #FFFFFF !important;
+}
+
+html.light .hover\:bg-\[\#4A4B50\]:hover *,
+html[data-theme='light'] .hover\:bg-\[\#4A4B50\]:hover *,
+html.light .hover\:bg-\[\#4a4b50\]:hover *,
+html[data-theme='light'] .hover\:bg-\[\#4a4b50\]:hover * {
+  color: #FFFFFF !important;
+}
+
+/* Refined Light Rose Bolt Badge in Light Mode */
+html.light .bg-red-950\/40,
+html[data-theme='light'] .bg-red-950\/40,
+html.light .bg-red-950\/60,
+html[data-theme='light'] .bg-red-950\/60 {
+  background-color: #FEF2F2 !important;
+  border-color: #FECACA !important;
+  color: #B91C1C !important;
+}
+
+html.light .bg-red-950\/40 *,
+html[data-theme='light'] .bg-red-950\/40 *,
+html.light .bg-red-950\/60 *,
+html[data-theme='light'] .bg-red-950\/60 * {
+  color: #B91C1C !important;
+}
+
+/* 7. Crisp Structural Borders in Light Mode */
+html.light .border-white\/5,
+html[data-theme='light'] .border-white\/5,
+html.light .border-white\/10,
+html[data-theme='light'] .border-white\/10,
+html.light .border-white\/15,
+html[data-theme='light'] .border-white\/15,
+html.light .border-white\/20,
+html[data-theme='light'] .border-white\/20,
+html.light .border-white\/25,
+html[data-theme='light'] .border-white\/25,
+html.light .border-white\/30,
+html[data-theme='light'] .border-white\/30,
+html.light .border-\[\#262626\],
+html[data-theme='light'] .border-\[\#262626\] {
+  border-color: #E4E4E7 !important;
+}
+
+html.light .divide-white\/5 > :not([hidden]) ~ :not([hidden]),
+html[data-theme='light'] .divide-white\/5 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-white\/10 > :not([hidden]) ~ :not([hidden]),
+html[data-theme='light'] .divide-white\/10 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #E4E4E7 !important;
+}
+
+/* 8. Fix Invisible Hover States in Light Mode */
+html.light .hover\:text-white:hover,
+html[data-theme='light'] .hover\:text-white:hover {
+  color: #09090B !important;
+}
+
+html.light .group:hover .group-hover\:text-white,
+html[data-theme='light'] .group:hover .group-hover\:text-white {
+  color: #09090B !important;
+}
+
+html.light .hover\:bg-white\/5:hover,
+html[data-theme='light'] .hover\:bg-white\/5:hover,
+html.light .hover\:bg-white\/10:hover,
+html[data-theme='light'] .hover\:bg-white\/10:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light .hover\:border-white\/20:hover,
+html[data-theme='light'] .hover\:border-white\/20:hover,
+html.light .hover\:border-white\/30:hover,
+html[data-theme='light'] .hover\:border-white\/30:hover,
+html.light .group:hover .group-hover\:border-white\/30,
+html[data-theme='light'] .group:hover .group-hover\:border-white\/30 {
+  border-color: #A1A1AA !important;
+}
+
+/* 9. Form Inputs, Select Dropdowns, and Search in Light Mode */
+html.light select.bg-\[\#18181A\],
+html[data-theme='light'] select.bg-\[\#18181A\] {
+  background-color: #FFFFFF !important;
+  color: #09090B !important;
+  border-color: #D4D4D8 !important;
+}
+
+html.light select.bg-\[\#18181A\] option,
+html[data-theme='light'] select.bg-\[\#18181A\] option {
+  background-color: #FFFFFF !important;
+  color: #09090B !important;
+}
+
+html.light .bg-black\/60,
+html[data-theme='light'] .bg-black\/60 {
+  background-color: #FFFFFF !important;
+  border-color: #D4D4D8 !important;
+}
+
+html.light input::placeholder,
+html[data-theme='light'] input::placeholder {
+  color: #71717A !important;
+}
+
+/* 10. Badges, Tickers & Size Matrices in Light Mode */
+html.light .animate-marquee .text-neutral-300,
+html[data-theme='light'] .animate-marquee .text-neutral-300 {
+  color: #18181B !important;
+  font-weight: 600 !important;
+}
+
+html.light span.bg-\[\#1A1B1D\].text-neutral-300,
+html[data-theme='light'] span.bg-\[\#1A1B1D\].text-neutral-300 {
+  background-color: #F4F4F5 !important;
+  border-color: #E4E4E7 !important;
+  color: #18181B !important;
+  font-weight: 600 !important;
+}
+
+/* Selected Size Button in Product Detail */
+html.light button.bg-white.text-black.shadow-lg,
+html[data-theme='light'] button.bg-white.text-black.shadow-lg {
+  background-color: #09090B !important;
+  color: #FFFFFF !important;
+  border-color: #09090B !important;
+}
+
+/* 11. Bolt Serviceability Banner in Light Mode */
+html.light .bg-\[\#0f291e\],
+html[data-theme='light'] .bg-\[\#0f291e\] {
+  background-color: #ECFDF5 !important;
+  border-color: #A7F3D0 !important;
+  color: #065F46 !important;
+}
+
+html.light .bg-\[\#0f291e\] strong,
+html[data-theme='light'] .bg-\[\#0f291e\] strong {
+  color: #064E3B !important;
+}
+
+html.light .bg-neutral-900,
+html[data-theme='light'] .bg-neutral-900,
+html.light .bg-neutral-950,
+html[data-theme='light'] .bg-neutral-950 {
+  background-color: #F4F4F5 !important;
+  border-color: #E4E4E7 !important;
+  color: #18181B !important;
+}
+
+html.light .bg-neutral-900 input,
+html[data-theme='light'] .bg-neutral-900 input {
+  background-color: #FFFFFF !important;
+  color: #09090B !important;
+  border-color: #D4D4D8 !important;
+}
+
+/* 12. Navbar Header in Light Mode */
+html.light header.bg-\[\#1e1e21\],
+html[data-theme='light'] header.bg-\[\#1e1e21\],
+html.light header.bg-\[\#1e1e21\]\/90,
+html[data-theme='light'] header.bg-\[\#1e1e21\]\/90 {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-bottom: 1px solid #E4E4E7 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light header .text-white,
+html[data-theme='light'] header .text-white,
+html.light header .text-neutral-300,
+html[data-theme='light'] header .text-neutral-300 {
+  color: #09090B !important;
+}
+
+html.light header a.hover\:text-white:hover,
+html[data-theme='light'] header a.hover\:text-white:hover,
+html.light header button.hover\:text-white:hover,
+html[data-theme='light'] header button.hover\:text-white:hover {
+  color: #B91C1C !important;
+}
+
+html.light header span.bg-white,
+html[data-theme='light'] header span.bg-white {
+  background-color: #09090B !important;
+}
+
+/* 13. Mobile / Desktop Slide-over Drawer in Light Mode */
+html.light .bg-\[\#1A1B1D\]\/95,
+html[data-theme='light'] .bg-\[\#1A1B1D\]\/95 {
+  background-color: #FFFFFF !important;
+  color: #09090B !important;
+  border-left: 1px solid #E4E4E7 !important;
+}
+
+html.light .bg-\[\#1A1B1D\]\/95 blockquote,
+html[data-theme='light'] .bg-\[\#1A1B1D\]\/95 blockquote {
+  color: #18181B !important;
+}
+
+/* 14. Footer in Light Mode */
+html.light footer.bg-\[\#1A1B1D\],
+html[data-theme='light'] footer.bg-\[\#1A1B1D\] {
+  background-color: #FFFFFF !important;
+  color: #09090B !important;
+  border-top: 1px solid #E4E4E7 !important;
+}
+
+html.light footer .bg-\[\#262629\],
+html[data-theme='light'] footer .bg-\[\#262629\] {
+  background-color: #F8F9FA !important;
+  border-color: #E4E4E7 !important;
+}
+
+html.light footer a.hover\:text-white:hover,
+html[data-theme='light'] footer a.hover\:text-white:hover,
+html.light footer span.hover\:text-white:hover,
+html[data-theme='light'] footer span.hover\:text-white:hover {
+  color: #B91C1C !important;
 }
 
 /* Smooth editorial image fades */

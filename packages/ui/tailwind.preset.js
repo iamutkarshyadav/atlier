@@ -25,6 +25,19 @@ module.exports = {
           DEFAULT: "hsl(var(--accent, 0 0% 96%))",
           foreground: "hsl(var(--accent-foreground, 0 0% 10%))",
         },
+        royal: {
+          canvas: "#212121",
+          surface: "#1A1B1D",
+          card: "#262629",
+          cardHover: "#2E2F33",
+          pill: "#38393D",
+          pillHover: "#4A4B50",
+          red: "#B91C1C",
+          redGlow: "rgba(185, 28, 28, 0.25)",
+          muted: "#8E8E93",
+          subtle: "#323336",
+          border: "rgba(255, 255, 255, 0.08)",
+        },
         couture: {
           alabaster: "#FBFBFA",
           bone: "#F4F3EF",
@@ -52,8 +65,10 @@ module.exports = {
         'tight-editorial': '-0.03em',
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
-        serif: ["var(--font-serif)", "Playfair Display", "Didot", "Bodoni MT", "Georgia", "serif"],
+        sans: ["var(--font-sans)", "Plus Jakarta Sans", "Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+        display: ["var(--font-display, var(--font-sans))", "Plus Jakarta Sans", "Inter", "sans-serif"],
+        serif: ["var(--font-serif, var(--font-sans))", "Plus Jakarta Sans", "Inter", "sans-serif"],
+        script: ["var(--font-script)", "Pinyon Script", "Alex Brush", "cursive"],
         mono: ["var(--font-mono)", "JetBrains Mono", "SFMono-Regular", "Menlo", "monospace"],
       },
       transitionTimingFunction: {

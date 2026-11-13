@@ -47,12 +47,14 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
     DEFAULT_PRODUCTS[0]!
 
   return (
-    <div className="max-w-7xl mx-auto px-6 sm:px-12 py-12">
-      <ProductInteractiveIsland
-        product={resolvedProduct}
-        variants={variants}
-        media={media}
-      />
+    <div className="min-h-screen bg-[#212121] text-white selection:bg-[#B91C1C] selection:text-white pb-20">
+      <div className="max-w-7xl mx-auto px-6 sm:px-12 py-12">
+        <ProductInteractiveIsland
+          product={resolvedProduct}
+          variants={variants}
+          media={media}
+        />
+      </div>
     </div>
   )
 }

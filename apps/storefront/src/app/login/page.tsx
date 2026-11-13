@@ -72,8 +72,8 @@ function LoginForm() {
     <div className="max-w-sm w-full mx-auto my-auto py-8 space-y-6">
       {/* Checkout Session Preserved Banner */}
       {isFromCheckout && (
-        <div className="p-3 bg-neutral-900 text-white text-xs font-mono space-y-1 border border-neutral-700">
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-[#166534] font-bold">
+        <div className="p-3 bg-[#262629] text-white text-xs font-mono space-y-1 border border-white/10 rounded-xl">
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-[#B91C1C] font-bold">
             <Lock className="w-3.5 h-3.5" /> CHECKOUT SESSION PRESERVED
           </div>
           <p className="text-neutral-300 font-light text-[11px] leading-relaxed">
@@ -86,16 +86,16 @@ function LoginForm() {
         <span className="text-xs uppercase tracking-[0.25em] text-neutral-400 font-mono font-semibold block">
           CREATOR ACCOUNT
         </span>
-        <h1 className="text-3xl sm:text-4xl font-black uppercase text-black tracking-tight leading-tight">
-          SIGN IN TO <span className="text-[#166534] font-serif italic font-normal lowercase">atelier</span>
+        <h1 className="text-3xl sm:text-4xl font-black uppercase text-white tracking-tight leading-tight">
+          SIGN IN TO <span className="text-[#B91C1C] font-script font-normal lowercase text-5xl">atelier</span>
         </h1>
-        <p className="text-xs text-neutral-500 font-light leading-relaxed">
+        <p className="text-xs text-neutral-400 font-light leading-relaxed">
           Access your saved addresses, track drop orders, and view past editions.
         </p>
       </div>
 
       {authError && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-mono">
+        <div className="p-3 bg-red-950/40 border border-[#B91C1C]/40 text-red-200 text-xs font-mono rounded-xl">
           {authError}
         </div>
       )}
@@ -126,20 +126,20 @@ function LoginForm() {
         <Button
           type="submit"
           size="xl"
-          className="w-full h-14 bg-black hover:bg-neutral-800 text-white font-mono font-bold text-xs uppercase tracking-[0.2em] rounded-none border border-black shadow-md flex items-center justify-center gap-2 transition-all"
+          className="w-full h-14 bg-[#38393D] hover:bg-[#4A4B50] text-white font-mono font-bold text-xs uppercase tracking-[0.2em] rounded-full border border-white/15 shadow-xl flex items-center justify-center gap-2 transition-all cursor-pointer"
           isLoading={isLoading}
         >
           <span>SIGN IN</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-[#166534]" />
+          <span className="w-1.5 h-1.5 rounded-full bg-[#B91C1C]" />
         </Button>
       </form>
 
-      <div className="pt-4 border-t border-neutral-200 text-center font-mono">
-        <p className="text-xs text-neutral-500">
+      <div className="pt-4 border-t border-white/10 text-center font-mono">
+        <p className="text-xs text-neutral-400">
           New to Atelier?{' '}
           <Link
             href={`/register${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`}
-            className="text-black font-bold underline underline-offset-4 uppercase text-xs ml-1 hover:text-[#166534] transition-colors"
+            className="text-white font-bold underline underline-offset-4 uppercase text-xs ml-1 hover:text-[#B91C1C] transition-colors"
           >
             Create Account
           </Link>
@@ -151,7 +151,7 @@ function LoginForm() {
 
 export default function StorefrontLoginPage() {
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-12 bg-white">
+    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-12 bg-[#212121] text-white">
       {/* Editorial Visual Half */}
       <div className="relative hidden lg:block lg:col-span-7 h-full min-h-screen bg-black overflow-hidden group">
         <Image
@@ -163,22 +163,22 @@ export default function StorefrontLoginPage() {
           className="object-cover object-center brightness-90 contrast-[1.05] transition-transform duration-[2000ms] ease-out group-hover:scale-105"
         />
         {/* Subtle Gradient & Editorial Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/40 flex flex-col justify-between p-12 lg:p-16 text-white z-10">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#212121] via-black/30 to-black/50 flex flex-col justify-between p-12 lg:p-16 text-white z-10">
           <div className="flex items-center justify-between">
             <Link
               href="/"
               className="inline-flex items-center gap-2 text-xs uppercase font-mono tracking-wider text-neutral-300 hover:text-white transition-colors"
             >
-              <ArrowLeft className="w-3.5 h-3.5 text-[#166534]" /> Back to Store
+              <ArrowLeft className="w-3.5 h-3.5 text-[#B91C1C]" /> Back to Store
             </Link>
-            <span className="text-[10px] tracking-wider uppercase font-mono text-neutral-300 border border-neutral-700 px-3 py-1 bg-black/40 backdrop-blur-md">
+            <span className="text-[10px] tracking-wider uppercase font-mono text-neutral-300 border border-white/20 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full">
               DROP 01 // ARCHIVE
             </span>
           </div>
 
           <div className="space-y-4 max-w-lg">
-            <div className="flex items-center gap-2 text-xs font-mono text-[#166534] uppercase tracking-wider font-bold">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#166534]" />
+            <div className="flex items-center gap-2 text-xs font-mono text-[#B91C1C] uppercase tracking-wider font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#B91C1C]" />
               <span>COLLECTION 01 • AUTONOMOUS GARMENTS</span>
             </div>
             <blockquote className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-white leading-tight">
@@ -196,10 +196,10 @@ export default function StorefrontLoginPage() {
       </div>
 
       {/* Form Half */}
-      <div className="lg:col-span-5 flex flex-col justify-between p-8 sm:p-12 lg:p-16 h-full min-h-screen">
+      <div className="lg:col-span-5 flex flex-col justify-between p-8 sm:p-12 lg:p-16 h-full min-h-screen bg-[#1A1B1D] border-l border-white/10">
         <div className="flex items-center">
-          <Link href="/" className="text-xl font-black tracking-[0.2em] text-black select-none">
-            ATELIER
+          <Link href="/" className="text-2xl font-script tracking-wide text-white select-none">
+            Tg
           </Link>
         </div>
 
@@ -208,7 +208,7 @@ export default function StorefrontLoginPage() {
         </Suspense>
 
         <div className="text-xs uppercase font-mono text-neutral-400 text-center flex items-center justify-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-[#166534]" />
+          <ShieldCheck className="w-4 h-4 text-[#B91C1C]" />
           <span>Encrypted Session • Privacy Protected</span>
         </div>
       </div>

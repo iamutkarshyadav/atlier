@@ -15,11 +15,14 @@ const VALID_STAFF_ROLES = ['admin', 'warehouse_manager', 'store_manager', 'pos_c
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // 1. Allow static assets, Next.js internals, and public icons
+  // 1. Allow static assets, Next.js internals, public icons, and internal inventory/try-on APIs
   if (
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/public/') ||
     pathname === '/favicon.ico' ||
+    pathname.startsWith('/api/inventory/') ||
+    pathname.startsWith('/api/try-on/') ||
+    pathname.startsWith('/api/users/') ||
     STATIC_FILE_REGEX.test(pathname)
   ) {
     return NextResponse.next()

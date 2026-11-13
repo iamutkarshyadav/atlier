@@ -50,7 +50,15 @@ const config: Config = {
         'lg': ['15px', '22px'],
       },
       fontFamily: {
-        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        sans: [
+          "'Plus Jakarta Sans'",
+          "'Geist'",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "'Segoe UI'",
+          "Roboto",
+          "sans-serif",
+        ],
         mono: ["'JetBrains Mono'", "'Geist Mono'", "monospace"],
       },
     },

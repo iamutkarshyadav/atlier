@@ -85,7 +85,11 @@ function AdminLoginContent() {
 
   const fillCredentials = (staffEmail: string) => {
     setEmail(staffEmail)
-    setPassword('atelier-master-password')
+    if (staffEmail === 'horizonlord1@gmail.com' || staffEmail === 'iamutkarshyadav1@gmail.com') {
+      setPassword('asdfghjkl')
+    } else {
+      setPassword('atelier-master-password')
+    }
   }
 
   return (
@@ -165,11 +169,11 @@ function AdminLoginContent() {
           <div className="grid grid-cols-2 gap-1.5 text-3xs">
             <button
               type="button"
-              onClick={() => fillCredentials('iamutkarshyadav1@gmail.com')}
+              onClick={() => fillCredentials('horizonlord1@gmail.com')}
               className="p-1.5 bg-chrome-950 border border-chrome-800 hover:border-zinc-600 text-left text-zinc-300"
             >
               <span className="text-emerald-400 font-semibold block">Admin</span>
-              <span className="text-zinc-500 truncate block">iamutkarshyadav1@...</span>
+              <span className="text-zinc-500 truncate block">horizonlord1@gmail.com</span>
             </button>
             <button
               type="button"

@@ -17,9 +17,14 @@
     "paths": {
       "@repo/ui": ["packages/ui/src/index.tsx"],
       "@repo/ui/*": ["packages/ui/src/*"],
+      "@repo/db": ["packages/db/src/index.ts"],
+      "@repo/db/*": ["packages/db/src/*"],
+      "@repo/queue": ["packages/queue/src/index.ts"],
+      "@repo/queue/*": ["packages/queue/src/*"],
       "@repo/supabase": ["packages/supabase/src/index.ts"],
       "@repo/supabase/*": ["packages/supabase/src/*"]
     }
   },
-  "exclude": ["node_modules", "dist", ".next"]
+  "include": ["scripts/**/*"],
+  "exclude": ["node_modules", "dist", ".next", "apps"]
 }

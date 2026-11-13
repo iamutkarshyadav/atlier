@@ -1532,6 +1532,66 @@ export interface Database {
         }
         Relationships: []
       }
+      page_layouts: {
+        Row: {
+          id: string
+          page_slug: string
+          page_title: string
+          layout_json: Json
+          is_published: boolean
+          version: number
+          meta_description: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          page_slug: string
+          page_title?: string
+          layout_json?: Json
+          is_published?: boolean
+          version?: number
+          meta_description?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          page_slug?: string
+          page_title?: string
+          layout_json?: Json
+          is_published?: boolean
+          version?: number
+          meta_description?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      storefront_tokens: {
+        Row: {
+          id: string
+          theme_name: string
+          tokens_json: Json
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          theme_name?: string
+          tokens_json?: Json
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          theme_name?: string
+          tokens_json?: Json
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1772,3 +1832,38 @@ export interface OrderWithItems extends Order {
   source_location?: Location | null
   fulfillment_location?: Location | null
 }
+
+// ==========================================
+// SDUI (Server-Driven UI) & CMS Types
+// ==========================================
+
+export type ComponentType =
+  | 'HeroBanner'
+  | 'ProductGrid'
+  | 'EditorialSplit'
+  | 'MarqueeTicker'
+  | 'CategoryCarousel'
+  | 'ReviewsShowcase'
+  | 'CustomDivBlock'
+  | 'Spacer'
+  | 'TextBanner'
+  | 'Container'
+
+export interface LayoutNode {
+  id: string
+  type: ComponentType
+  name?: string
+  isVisible: boolean
+  className?: string
+  styles?: Record<string, string | number>
+  props: Record<string, any>
+  children?: LayoutNode[]
+}
+
+export type PageLayout = Database['public']['Tables']['page_layouts']['Row']
+export type PageLayoutInsert = Database['public']['Tables']['page_layouts']['Insert']
+export type PageLayoutUpdate = Database['public']['Tables']['page_layouts']['Update']
+
+export type StorefrontTokens = Database['public']['Tables']['storefront_tokens']['Row']
+export type StorefrontTokensInsert = Database['public']['Tables']['storefront_tokens']['Insert']
+export type StorefrontTokensUpdate = Database['public']['Tables']['storefront_tokens']['Update']

@@ -25,7 +25,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             placeholder={props.placeholder || ' '}
             className={cn(
-              'peer w-full bg-transparent border-b border-neutral-300 py-2.5 text-sm text-neutral-900 focus:border-neutral-950 focus:outline-none transition-colors duration-300 font-sans',
+              'peer w-full bg-transparent border-b border-neutral-300 dark:border-white/20 py-2.5 text-sm text-neutral-900 dark:text-white focus:border-neutral-950 dark:focus:border-white focus:outline-none transition-colors duration-300 font-sans',
               hasCustomPlaceholder
                 ? 'placeholder:text-neutral-400 placeholder:text-xs'
                 : 'placeholder-transparent',
@@ -40,8 +40,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               className={cn(
                 'absolute left-0 text-[10px] tracking-luxury uppercase transition-all duration-300 pointer-events-none',
                 hasCustomPlaceholder
-                  ? 'top-0 text-neutral-400 peer-focus:text-neutral-900'
-                  : 'top-0 text-neutral-400 peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-xs peer-placeholder-shown:text-neutral-500 peer-placeholder-shown:tracking-caps peer-focus:top-0 peer-focus:text-[10px] peer-focus:text-neutral-900 peer-focus:tracking-luxury'
+                  ? 'top-0 text-neutral-400 peer-focus:text-neutral-900 dark:peer-focus:text-white'
+                  : 'top-0 text-neutral-400 peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-xs peer-placeholder-shown:text-neutral-500 peer-placeholder-shown:tracking-caps peer-focus:top-0 peer-focus:text-[10px] peer-focus:text-neutral-900 dark:peer-focus:text-white peer-focus:tracking-luxury'
               )}
             >
               {label}
@@ -81,7 +81,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-[11px] font-medium tracking-luxury uppercase text-neutral-500"
+            className="block text-[11px] font-medium tracking-luxury uppercase text-neutral-500 dark:text-neutral-400"
           >
             {label}
           </label>
@@ -91,7 +91,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           type={type}
           ref={ref}
           className={cn(
-            'flex h-11 w-full border border-neutral-200 bg-transparent px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-950 focus:outline-none transition-colors',
+            'flex h-11 w-full border border-neutral-200 dark:border-white/10 bg-transparent px-3 py-2 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:border-neutral-950 dark:focus:border-white focus:outline-none transition-colors',
             error && 'border-red-500',
             className
           )}
