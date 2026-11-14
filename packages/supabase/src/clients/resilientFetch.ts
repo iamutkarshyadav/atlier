@@ -48,12 +48,15 @@ if (!(globalThis as any).__LIVE_ORDERS__) {
 
 function getLocalDbFilePath(): string | null {
   try {
+    if (typeof process === 'undefined' || typeof process.cwd !== 'function') return null
+    if (process.env?.NEXT_RUNTIME === 'edge') return null
     const fs = require('fs')
     const path = require('path')
+    const cwd = process.cwd()
     const candidates = [
-      path.resolve(process.cwd(), 'packages/supabase/.local-db/inventory.json'),
-      path.resolve(process.cwd(), '../../packages/supabase/.local-db/inventory.json'),
-      path.resolve(process.cwd(), '../packages/supabase/.local-db/inventory.json'),
+      path.resolve(cwd, 'packages/supabase/.local-db/inventory.json'),
+      path.resolve(cwd, '../../packages/supabase/.local-db/inventory.json'),
+      path.resolve(cwd, '../packages/supabase/.local-db/inventory.json'),
     ]
     for (const p of candidates) {
       if (fs.existsSync(p)) return p
