@@ -15,9 +15,9 @@ import { LayoutRenderer } from '../components/cms/LayoutRenderer'
 export const revalidate = 60
 
 export const metadata: Metadata = {
-  title: 'Tg • The Royal Look for the Real Gentleman',
+  title: 'Maison Tg • The Grace Atelier | Haute Couture',
   description:
-    'Choose from our most luxurious collections and experience THE ROYAL LOOK & FEEL. 480 GSM French Terry, Japanese raw selvedge denim, and tailored suits.',
+    'Elegance, Luxury, Grace & Perfection. Discover limited-edition hand-draped silk, bespoke tailoring, and Bangalore premier 45-minute white-glove doorstep salon.',
 }
 
 export default async function HomePage() {
@@ -40,16 +40,16 @@ export default async function HomePage() {
     layoutNodes = DEFAULT_HOME_LAYOUT.layout_json as unknown as LayoutNode[]
   }
 
-  // Filter out any legacy HeroBanner block so the new Split-Screen Hero is the sole primary hero
+  // Filter out any legacy HeroBanner block so the Split-Screen Hero is the sole primary hero
   const secondaryLayoutNodes = layoutNodes.filter((node) => node.type !== 'HeroBanner')
 
   return (
-    <div className="bg-[#212121] text-white overflow-hidden selection:bg-red-600 selection:text-white">
+    <div className="bg-white dark:bg-[#121214] text-neutral-900 dark:text-white overflow-hidden selection:bg-red-600 selection:text-white transition-colors duration-200">
       {/* 50/50 Split-Screen Reconstructed Hero Landing Section */}
       <HeroSplitScreen />
 
       {/* Marquee & Curated Collections */}
-      <div id="collection" className="bg-[#212121] text-white">
+      <div id="collection" className="bg-white dark:bg-[#121214] text-neutral-900 dark:text-white transition-colors duration-200">
         <LayoutRenderer
           initialLayout={secondaryLayoutNodes}
           pageSlug="home"

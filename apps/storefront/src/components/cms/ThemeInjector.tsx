@@ -58,7 +58,7 @@ export function ThemeInjector({ initialTokens = {} }: ThemeInjectorProps) {
     <style
       id="dynamic-storefront-tokens"
       dangerouslySetInnerHTML={{
-        __html: `.dark, :root[data-theme='dark'] {\n${cssDeclarations}\n}`,
+        __html: `:root, html {\n${cssDeclarations}\n}`,
       }}
     />
   )

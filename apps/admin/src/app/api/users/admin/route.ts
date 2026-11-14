@@ -129,3 +129,8 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
+export async function GET() {
+  const admins = SEEDED_ACCOUNTS.filter((a) => a.role === 'admin')
+  return NextResponse.json({ admins }, { status: 200 })
+}

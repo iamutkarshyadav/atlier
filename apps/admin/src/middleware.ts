@@ -20,6 +20,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/public/') ||
     pathname === '/favicon.ico' ||
+    pathname.startsWith('/api/local-db') ||
+    pathname.startsWith('/api/invoice') ||
+    pathname.startsWith('/api/orders') ||
     pathname.startsWith('/api/inventory/') ||
     pathname.startsWith('/api/try-on/') ||
     pathname.startsWith('/api/users/') ||

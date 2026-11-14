@@ -32,7 +32,7 @@
   --accent-red-glow: rgba(185, 28, 28, 0.15);
   --accent-green: #047857;
   --accent-green-glow: rgba(4, 120, 87, 0.15);
-  --royal-canvas: #F8F9FA;
+  --royal-canvas: #F8F8F6;
   --royal-surface: #FFFFFF;
   --royal-card: #FFFFFF;
   --royal-pill: #F4F4F5;
@@ -47,40 +47,59 @@
 }
 
 .dark {
-  /* Dark Theme (Royal Obsidian) */
-  --background: 0 0% 13%;
-  --foreground: 0 0% 98%;
-  --border: 0 0% 20%;
-  --input: 0 0% 18%;
-  --ring: 0 72% 51%;
-  --primary: 0 0% 98%;
-  --primary-foreground: 0 0% 13%;
-  --secondary: 0 0% 16%;
-  --secondary-foreground: 0 0% 95%;
-  --muted: 0 0% 16%;
-  --muted-foreground: 0 0% 60%;
+  /* Dark Theme Fallback */
+  --background: 0 0% 100%;
+  --foreground: 240 10% 4%;
+  --border: 240 6% 90%;
+  --input: 240 6% 90%;
+  --ring: 0 72% 40%;
+  --primary: 240 10% 4%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 5% 96%;
+  --secondary-foreground: 240 10% 4%;
+  --muted: 240 5% 96%;
+  --muted-foreground: 240 4% 32%;
   --accent-red: #b91c1c;
-  --accent-red-glow: rgba(185, 28, 28, 0.25);
-  --accent-green: #166534;
-  --accent-green-glow: rgba(22, 101, 52, 0.25);
-  --royal-canvas: #212121;
-  --royal-surface: #1A1B1D;
-  --royal-card: #262629;
-  --royal-pill: #38393D;
-  --royal-pill-hover: #4A4B50;
-  --royal-border: rgba(255, 255, 255, 0.08);
-  --royal-foreground: #FFFFFF;
-  --royal-subtle: #323336;
+  --accent-red-glow: rgba(185, 28, 28, 0.15);
+  --accent-green: #047857;
+  --accent-green-glow: rgba(4, 120, 87, 0.15);
+  --royal-canvas: #F8F8F6;
+  --royal-surface: #FFFFFF;
+  --royal-card: #FFFFFF;
+  --royal-pill: #F4F4F5;
+  --royal-pill-hover: #E4E4E7;
+  --royal-border: #E4E4E7;
+  --royal-foreground: #09090B;
+  --royal-subtle: #71717A;
 }
 
 body {
-  background-color: var(--royal-canvas, #212121);
-  color: var(--royal-foreground, #FFFFFF);
+  background-color: var(--royal-canvas, #F8F8F6);
+  color: var(--royal-foreground, #09090B);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  overflow-x: clip;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Custom luxury scrollbar for sticky filter card */
+.filter-card-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(160, 160, 160, 0.25) transparent;
+}
+.filter-card-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.filter-card-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.filter-card-scroll::-webkit-scrollbar-thumb {
+  background: rgba(160, 160, 160, 0.25);
+  border-radius: 9999px;
+}
+.filter-card-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(160, 160, 160, 0.5);
 }
 
 ::selection {
@@ -258,6 +277,33 @@ html.light .text-\[\#d1d1d6\],
 html[data-theme='light'] .text-\[\#d1d1d6\] {
   color: #09090B !important;
   font-weight: 700 !important;
+}
+
+/* Explicit Hero Subtext Protection Across Themes */
+.hero-editorial-subtext {
+  color: #8E8E93;
+}
+html.light .hero-editorial-subtext,
+html[data-theme='light'] .hero-editorial-subtext {
+  color: #3F3F46 !important;
+}
+html.dark .hero-editorial-subtext,
+html[data-theme='dark'] .hero-editorial-subtext {
+  color: #A1A1AA !important;
+}
+
+.hero-editorial-highlight {
+  color: #D1D1D6;
+}
+html.light .hero-editorial-highlight,
+html[data-theme='light'] .hero-editorial-highlight {
+  color: #09090B !important;
+  font-weight: 700 !important;
+}
+html.dark .hero-editorial-highlight,
+html[data-theme='dark'] .hero-editorial-highlight {
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
 }
 
 /* Punchy Vibrant Accents in Light Mode */
@@ -525,33 +571,110 @@ html[data-theme='light'] .bg-neutral-900 input {
   border-color: #D4D4D8 !important;
 }
 
-/* 12. Navbar Header in Light Mode */
+/* ======================================================== */
+/* 12. SOVEREIGN COUTURE GLASS NAVBAR ARCHITECTURE          */
+/* Persistent frosted glass surface across both themes      */
+/* ======================================================== */
+.sovereign-navbar {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: background-color 300ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 300ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Dark Mode: Smoky Obsidian Glass */
+.sovereign-navbar,
+html.dark .sovereign-navbar,
+html[data-theme='dark'] .sovereign-navbar {
+  background-color: rgba(14, 14, 16, 0.88) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.5) !important;
+  color: #FFFFFF !important;
+}
+
+.sovereign-navbar .navbar-brand-text,
+html.dark .sovereign-navbar .navbar-brand-text,
+html[data-theme='dark'] .sovereign-navbar .navbar-brand-text {
+  color: #FFFFFF !important;
+}
+
+.sovereign-navbar .navbar-link,
+html.dark .sovereign-navbar .navbar-link,
+html[data-theme='dark'] .sovereign-navbar .navbar-link {
+  color: #A1A1AA !important;
+}
+
+.sovereign-navbar .navbar-link:hover,
+html.dark .sovereign-navbar .navbar-link:hover,
+html[data-theme='dark'] .sovereign-navbar .navbar-link:hover {
+  color: #FFFFFF !important;
+}
+
+.sovereign-navbar .navbar-icon-btn,
+html.dark .sovereign-navbar .navbar-icon-btn,
+html[data-theme='dark'] .sovereign-navbar .navbar-icon-btn {
+  color: #D4D4D8 !important;
+}
+
+.sovereign-navbar .navbar-icon-btn:hover,
+html.dark .sovereign-navbar .navbar-icon-btn:hover,
+html[data-theme='dark'] .sovereign-navbar .navbar-icon-btn:hover {
+  color: #FFFFFF !important;
+}
+
+.sovereign-navbar .navbar-hamburger-line,
+html.dark .sovereign-navbar .navbar-hamburger-line,
+html[data-theme='dark'] .sovereign-navbar .navbar-hamburger-line {
+  background-color: #FFFFFF !important;
+}
+
+/* Light / White Mode: Crystalline Alabaster Glass */
+html.light .sovereign-navbar,
+html[data-theme='light'] .sovereign-navbar {
+  background-color: rgba(253, 252, 247, 0.94) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07) !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04) !important;
+  color: #0A0A0B !important;
+}
+
+html.light .sovereign-navbar .navbar-brand-text,
+html[data-theme='light'] .sovereign-navbar .navbar-brand-text {
+  color: #0A0A0B !important;
+}
+
+html.light .sovereign-navbar .navbar-link,
+html[data-theme='light'] .sovereign-navbar .navbar-link {
+  color: #52525B !important;
+}
+
+html.light .sovereign-navbar .navbar-link:hover,
+html[data-theme='light'] .sovereign-navbar .navbar-link:hover {
+  color: #0A0A0B !important;
+}
+
+html.light .sovereign-navbar .navbar-icon-btn,
+html[data-theme='light'] .sovereign-navbar .navbar-icon-btn {
+  color: #27272A !important;
+}
+
+html.light .sovereign-navbar .navbar-icon-btn:hover,
+html[data-theme='light'] .sovereign-navbar .navbar-icon-btn:hover {
+  color: #B91C1C !important;
+}
+
+html.light .sovereign-navbar .navbar-hamburger-line,
+html[data-theme='light'] .sovereign-navbar .navbar-hamburger-line {
+  background-color: #0A0A0B !important;
+}
+
+/* Fallback legacy header rules for non-sovereign headers */
 html.light header.bg-\[\#1e1e21\],
 html[data-theme='light'] header.bg-\[\#1e1e21\],
 html.light header.bg-\[\#1e1e21\]\/90,
 html[data-theme='light'] header.bg-\[\#1e1e21\]\/90 {
-  background-color: rgba(255, 255, 255, 0.96) !important;
+  background-color: rgba(253, 252, 247, 0.94) !important;
   border-bottom: 1px solid #E4E4E7 !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
-}
-
-html.light header .text-white,
-html[data-theme='light'] header .text-white,
-html.light header .text-neutral-300,
-html[data-theme='light'] header .text-neutral-300 {
-  color: #09090B !important;
-}
-
-html.light header a.hover\:text-white:hover,
-html[data-theme='light'] header a.hover\:text-white:hover,
-html.light header button.hover\:text-white:hover,
-html[data-theme='light'] header button.hover\:text-white:hover {
-  color: #B91C1C !important;
-}
-
-html.light header span.bg-white,
-html[data-theme='light'] header span.bg-white {
-  background-color: #09090B !important;
 }
 
 /* 13. Mobile / Desktop Slide-over Drawer in Light Mode */
@@ -601,5 +724,144 @@ html[data-theme='light'] footer span.hover\:text-white:hover {
 .editorial-img-container:hover img {
   transform: scale(1.04);
 }
+
+/* ======================================================== */
+/* 15. BOLT TRY-ON DISCOVERY POPUP (FLOATING TOAST IMMUNITY) */
+/* Retains luxury obsidian dark surface with pure white     */
+/* high-contrast typography across all light/dark themes    */
+/* ======================================================== */
+.bolt-discovery-popup,
+html.light .bolt-discovery-popup,
+html[data-theme='light'] .bolt-discovery-popup {
+  background-color: rgba(24, 24, 26, 0.98) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+}
+
+html.light .bolt-discovery-popup h3,
+html[data-theme='light'] .bolt-discovery-popup h3,
+html.light .bolt-discovery-popup .bolt-title,
+html[data-theme='light'] .bolt-discovery-popup .bolt-title {
+  color: #FFFFFF !important;
+}
+
+html.light .bolt-discovery-popup .bolt-crimson-text,
+html[data-theme='light'] .bolt-discovery-popup .bolt-crimson-text {
+  color: #EF4444 !important;
+}
+
+html.light .bolt-discovery-popup p,
+html[data-theme='light'] .bolt-discovery-popup p,
+html.light .bolt-discovery-popup .bolt-desc,
+html[data-theme='light'] .bolt-discovery-popup .bolt-desc {
+  color: #D4D4D8 !important;
+}
+
+html.light .bolt-discovery-popup strong,
+html[data-theme='light'] .bolt-discovery-popup strong {
+  color: #FFFFFF !important;
+}
+
+html.light .bolt-discovery-popup .bolt-pillar-subtext,
+html[data-theme='light'] .bolt-discovery-popup .bolt-pillar-subtext {
+  color: #A1A1AA !important;
+}
+
+html.light .bolt-discovery-popup .bolt-pincode,
+html[data-theme='light'] .bolt-discovery-popup .bolt-pincode {
+  color: #FFFFFF !important;
+}
+
+html.light .bolt-discovery-popup .bolt-icon-box,
+html[data-theme='light'] .bolt-discovery-popup .bolt-icon-box,
+html.light .bolt-discovery-popup div.bg-\[\#262629\],
+html[data-theme='light'] .bolt-discovery-popup div.bg-\[\#262629\] {
+  background-color: #262629 !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+html.light .bolt-discovery-popup .bolt-close-btn,
+html[data-theme='light'] .bolt-discovery-popup .bolt-close-btn {
+  color: #A1A1AA !important;
+}
+
+html.light .bolt-discovery-popup .bolt-close-btn:hover,
+html[data-theme='light'] .bolt-discovery-popup .bolt-close-btn:hover {
+  color: #FFFFFF !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+html.light .bolt-discovery-popup .bolt-explore-btn,
+html[data-theme='light'] .bolt-discovery-popup .bolt-explore-btn {
+  background-color: #27272A !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+html.light .bolt-discovery-popup .bolt-explore-btn:hover,
+html[data-theme='light'] .bolt-discovery-popup .bolt-explore-btn:hover {
+  background-color: #3F3F46 !important;
+}
+
+html.light .bolt-discovery-popup .bolt-snooze-btn,
+html[data-theme='light'] .bolt-discovery-popup .bolt-snooze-btn {
+  color: #A1A1AA !important;
+}
+
+html.light .bolt-discovery-popup .bolt-snooze-btn:hover,
+html[data-theme='light'] .bolt-discovery-popup .bolt-snooze-btn:hover {
+  color: #FFFFFF !important;
+}
+
+/* ======================================================== */
+/* 16. PDP LUXURY SIZING & PRICE HIGH-CONTRAST TOKENS       */
+/* Guarantees dark size matrix buttons and prices           */
+/* maintain high-contrast dark tones on off-white canvas    */
+/* ======================================================== */
+.pdp-size-btn,
+html.light .pdp-size-btn,
+html[data-theme='light'] .pdp-size-btn {
+  background-color: #18181B !important;
+  color: #FFFFFF !important;
+  border: 1px solid #27272A !important;
+}
+
+.pdp-size-btn:hover,
+html.light .pdp-size-btn:hover,
+html[data-theme='light'] .pdp-size-btn:hover {
+  background-color: #27272A !important;
+  border-color: #3F3F46 !important;
+}
+
+.pdp-size-btn-selected,
+html.light .pdp-size-btn-selected,
+html[data-theme='light'] .pdp-size-btn-selected {
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+  border: 2px solid #000000 !important;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3), 0 0 0 1px #000000 !important;
+}
+
+.pdp-size-btn *,
+.pdp-size-btn-selected * {
+  color: #FFFFFF !important;
+}
+
+.pdp-price-text,
+html.light .pdp-price-text,
+html[data-theme='light'] .pdp-price-text {
+  color: #09090B !important;
+}
+
+/* ======================================================== */
+/* 17. CTA HOVER SHADOW: ATELIER CRIMSON LUXURY GLOW        */
+/* ======================================================== */
+.hero-cta-btn:hover,
+html.light .hero-cta-btn:hover,
+html[data-theme='light'] .hero-cta-btn:hover {
+  box-shadow: 0 12px 32px -4px rgba(220, 38, 38, 0.5), 0 4px 14px -2px rgba(185, 28, 28, 0.35) !important;
+}
+
 
 

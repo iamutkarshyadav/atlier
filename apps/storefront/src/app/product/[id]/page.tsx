@@ -47,8 +47,8 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
     DEFAULT_PRODUCTS[0]!
 
   return (
-    <div className="min-h-screen bg-[#212121] text-white selection:bg-[#B91C1C] selection:text-white pb-20">
-      <div className="max-w-7xl mx-auto px-6 sm:px-12 py-12">
+    <div className="min-h-screen bg-[#F8F8F6] text-[#09090B] selection:bg-[#B91C1C] selection:text-white pb-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 pt-8 pb-16 sm:pt-10 sm:pb-20">
         <ProductInteractiveIsland
           product={resolvedProduct}
           variants={variants}

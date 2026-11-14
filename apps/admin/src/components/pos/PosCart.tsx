@@ -236,6 +236,7 @@ export function PosCart({
                           src={item.imageUrl}
                           alt={item.title}
                           fill
+                          unoptimized
                           sizes="40px"
                           className="object-cover"
                         />

@@ -311,11 +311,11 @@ function ShopContent() {
 
       {/* Main Catalog Layout: Sidebar + High-Density Grid */}
       <div className="max-w-7xl mx-auto px-6 sm:px-12 py-10">
-        <div className="flex gap-10">
+        <div className="flex items-start gap-10">
           {/* ========================================================= */}
-          {/* DESKTOP SIDEBAR FILTERS */}
+          {/* DESKTOP SIDEBAR FILTERS (STICKY FREEZE ON SCROLL)        */}
           {/* ========================================================= */}
-          <aside className="hidden lg:block w-64 shrink-0 space-y-8 font-mono text-xs bg-[#1A1B1D] border border-white/10 p-5 rounded-none shadow-2xl h-fit">
+          <aside className="hidden lg:block w-64 shrink-0 space-y-8 font-mono text-xs bg-[#1A1B1D] border border-white/10 p-5 rounded-none shadow-2xl sticky top-24 self-start z-30 max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain filter-card-scroll">
             {/* Active Filters Clear Bar */}
             <div className="flex items-center justify-between pb-4 border-b border-white/10">
               <span className="text-xs uppercase tracking-wider font-bold text-white">

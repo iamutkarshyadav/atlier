@@ -23,8 +23,8 @@ const fontScript = Pinyon_Script({
 })
 
 export const metadata: Metadata = {
-  title: 'ATELIER • Creator Apparel Drop',
-  description: 'Engineered heavyweight garments, custom milled French Terry, and selvedge denim for creators.',
+  title: 'Maison Tg • The Grace Atelier',
+  description: 'Elegance, Luxury, Grace & Perfection. Architectural silhouettes, pure Mulberry silk, and Bangalore premier 45-minute white-glove doorstep salon.',
 }
 
 export default async function RootLayout({
@@ -44,16 +44,16 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className={`${fontSans.variable} ${fontScript.variable}`} suppressHydrationWarning>
+    <html lang="en" data-theme="light" className={`${fontSans.variable} ${fontScript.variable}`} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=localStorage.getItem('atelier-theme')||'dark';var p=window.matchMedia('(prefers-color-scheme: dark)').matches;var r=document.documentElement;r.classList.remove('dark','light');if(s==='dark'){r.classList.add('dark');r.setAttribute('data-theme','dark');}else if(s==='light'){r.classList.add('light');r.setAttribute('data-theme','light');}else{r.setAttribute('data-theme','system');if(p){r.classList.add('dark');}else{r.classList.add('light');}}}catch(e){}})();`,
+            __html: `(function(){try{localStorage.removeItem('atelier-theme');var r=document.documentElement;r.classList.remove('dark');r.classList.add('light');r.setAttribute('data-theme','light');}catch(e){}})();`,
           }}
         />
         <ThemeInjector initialTokens={initialTokens} />
       </head>
-      <body className="min-h-screen flex flex-col bg-[var(--royal-canvas,#212121)] text-[var(--royal-foreground,#FFFFFF)] antialiased selection:bg-[#B91C1C] selection:text-white transition-colors duration-200">
+      <body className="min-h-screen flex flex-col bg-[var(--royal-canvas,#F8F8F6)] text-[var(--royal-foreground,#09090B)] antialiased selection:bg-[#B91C1C] selection:text-white transition-colors duration-200">
         <BoltServiceabilityBanner />
         <Navbar />
         <main className="flex-1">{children}</main>

@@ -48,6 +48,7 @@ export default function LuxuryCheckoutPage() {
   // Checkout flow state
   const [activeStep, setActiveStep] = useState<1 | 2>(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [orderPlaced, setOrderPlaced] = useState(false)
   const [orderReference, setOrderReference] = useState('')
   const [invoiceNumber, setInvoiceNumber] = useState('')
@@ -253,23 +254,28 @@ export default function LuxuryCheckoutPage() {
       })
       const data = await res.json()
 
-      if (data.success && data.order) {
-        activeRef = data.orderNumber || generatedRef
-        activeInvoice = data.invoiceNumber || generatedInvoice
-        activeTracking = data.trackingBarcode || generatedTracking
+      if (data?.success && data?.order) {
+        activeRef = data.orderNumber || data.order.order_number || generatedRef
+        activeInvoice = data.invoiceNumber || data.order.invoice_number || generatedInvoice
+        activeTracking = data.trackingBarcode || data.order.tracking_barcode || generatedTracking
+
+        setOrderReference(activeRef)
+        setInvoiceNumber(activeInvoice)
+        setTrackingBarcode(activeTracking)
+        setConfirmedOrderType(isBoltSelected ? 'bolt_try_on' : 'standard')
+        setConfirmedSlotLabel(slotLabel)
+        setOrderPlaced(true)
+        clearCart()
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      } else {
+        const errorMsg = data?.error || 'Could not place order. Please verify your details and try again.'
+        setCheckoutError(errorMsg)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Checkout submission catch:', err)
+      setCheckoutError(err?.message || 'Network error occurred while submitting order.')
     } finally {
       setIsSubmitting(false)
-      setOrderReference(activeRef)
-      setInvoiceNumber(activeInvoice)
-      setTrackingBarcode(activeTracking)
-      setConfirmedOrderType(isBoltSelected ? 'bolt_try_on' : 'standard')
-      setConfirmedSlotLabel(slotLabel)
-      setOrderPlaced(true)
-      clearCart()
-      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
@@ -754,6 +760,13 @@ export default function LuxuryCheckoutPage() {
                 </div>
 
                 <form onSubmit={handleSubmitOrder} className="space-y-5">
+                  {checkoutError && (
+                    <div className="p-3 bg-red-950/70 border border-red-500/60 text-red-200 text-xs font-mono flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                      <span>{checkoutError}</span>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input
                       label="Full Name"

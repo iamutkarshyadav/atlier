@@ -110,13 +110,22 @@ export default function OutboundDispatchPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true)
     try {
+      let fetchedOrders: OrderWithItems[] = []
+      try {
+        const res = await fetch('/api/orders')
+        const data = await res.json()
+        if (data.success && Array.isArray(data.orders)) {
+          fetchedOrders = data.orders
+        }
+      } catch {}
+
       const supabase = createBrowserClient()
-      const [fetchedOrders, fetchedLocations] = await Promise.all([
-        getAllOrders(supabase),
+      const [allOrders, fetchedLocations] = await Promise.all([
+        fetchedOrders.length > 0 ? Promise.resolve(fetchedOrders) : getAllOrders(supabase),
         getLocations(supabase),
       ])
 
-      setOrders(fetchedOrders)
+      setOrders(allOrders)
 
       // Find current location UUID
       const matchedLoc =

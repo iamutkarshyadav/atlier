@@ -443,6 +443,7 @@ export default function CreatorApparelProductStudio() {
                     src={primaryImageUrl}
                     alt="Primary Preview"
                     fill
+                    unoptimized
                     className="object-cover"
                     sizes="220px"
                   />
@@ -471,6 +472,7 @@ export default function CreatorApparelProductStudio() {
                     src={secondaryImageUrl}
                     alt="Secondary Preview"
                     fill
+                    unoptimized
                     className="object-cover"
                     sizes="220px"
                   />

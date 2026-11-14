@@ -16,7 +16,6 @@ import {
 import { useHydratedCart } from '../store/useCartStore'
 import { useHydratedBolt } from '../store/useBoltStore'
 import { createBrowserClient } from '@repo/supabase/browser'
-import { ThemeSelector } from './ThemeSelector'
 
 function formatNameFromEmail(email: string): string {
   const localPart = email.split('@')[0] || 'Gentleman'
@@ -165,40 +164,71 @@ export function Navbar() {
   return (
     <>
       {/* ========================================================= */}
-      {/* FIXED / ABSOLUTE TOP NAVBAR OVERLAY */}
+      {/* SOVEREIGN TOP NAVBAR: FIXED ON HOME, STICKY ON INNER PAGES */}
       {/* ========================================================= */}
       <header
-        className={`w-full z-50 transition-all duration-300 ${
-          isHome
-            ? `fixed top-0 left-0 right-0 ${
-                scrolled
-                  ? 'bg-[#1e1e21]/90 backdrop-blur-md border-b border-white/10 py-4 shadow-lg'
-                  : 'bg-transparent py-6'
-              }`
-            : 'sticky top-0 bg-[#1e1e21] text-white border-b border-white/10 shadow-md py-4'
+        className={`sovereign-navbar ${
+          isHome ? 'fixed top-0 left-0 right-0' : 'sticky top-0'
+        } z-50 transition-all duration-300 ${
+          scrolled ? 'py-2.5 sm:py-3 shadow-md' : 'py-3 sm:py-3.5 shadow-sm'
         }`}
       >
-        <div className="w-full px-6 sm:px-10 lg:px-14 flex items-center justify-between">
-          {/* Left: Elegant Script "Tg" Logo linking to Home */}
+        <div className="w-full px-5 sm:px-8 lg:px-12 flex items-center justify-between">
+          {/* Left: Elegant Script "Tg" Marque & Title */}
           <Link
             href="/"
-            className="group flex items-center select-none"
-            aria-label="Tg Atelier Home"
+            className="group flex items-center gap-2.5 sm:gap-3 select-none cursor-pointer"
+            aria-label="Tg • The Grace Atelier Home"
           >
-            <span className="font-script text-3xl sm:text-4xl lg:text-5xl text-white font-normal hover:opacity-85 transition-opacity tracking-wider drop-shadow-sm">
+            <span className="font-script text-3xl sm:text-4xl lg:text-[40px] navbar-brand-text font-normal tracking-wide transition-opacity group-hover:opacity-85 leading-none">
               Tg
             </span>
+            <div className="flex flex-col border-l border-neutral-300 dark:border-white/15 pl-2.5 sm:pl-3">
+              <span className="font-sans font-extrabold text-[10px] sm:text-[11px] uppercase tracking-[0.28em] navbar-brand-text leading-tight">
+                THE GRACE ATELIER
+              </span>
+              <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-neutral-500 dark:text-neutral-400 leading-tight">
+                MAISON HAUTE COUTURE
+              </span>
+            </div>
           </Link>
 
-          {/* Right: Theme Selector, Cart, Search, and Bespoke Asymmetric Hamburger Menu */}
-          <div className="flex items-center gap-3 sm:gap-5 text-neutral-300">
-            {/* Theme Selector Toggle (Dark, White, System) */}
-            <ThemeSelector variant="compact" />
+          {/* Center: Haute Couture Desktop Navigation */}
+          <nav className="hidden lg:flex items-center gap-7 xl:gap-9 font-sans text-[11px] uppercase tracking-[0.22em] font-bold">
+            <Link
+              href="/shop"
+              className="navbar-link transition-colors cursor-pointer py-1 hover:text-[#B91C1C] dark:hover:text-red-400"
+            >
+              Collections
+            </Link>
+            <Link
+              href="/shop?category=Outerwear+%26+Jackets"
+              className="navbar-link transition-colors cursor-pointer py-1 hover:text-[#B91C1C] dark:hover:text-red-400"
+            >
+              Couture
+            </Link>
+            <Link
+              href="/shop?try_on=true"
+              className="navbar-link transition-colors cursor-pointer py-1 flex items-center gap-1.5 hover:text-amber-500"
+            >
+              <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+              <span>Bolt ⚡ Try-On</span>
+            </Link>
+            <Link
+              href="/about"
+              className="navbar-link transition-colors cursor-pointer py-1 hover:text-[#B91C1C] dark:hover:text-red-400"
+            >
+              Maison
+            </Link>
+          </nav>
+
+          {/* Right: Cart, Search, and Bespoke Asymmetric Hamburger Menu */}
+          <div className="flex items-center gap-2.5 sm:gap-4">
 
             {/* 1. Shopping Cart Icon with Live Badge */}
             <Link
               href="/cart"
-              className="relative p-1.5 text-neutral-300 hover:text-white transition-colors cursor-pointer"
+              className="navbar-icon-btn relative p-1.5 transition-colors cursor-pointer"
               aria-label="Shopping Cart"
             >
               <ShoppingBag className="w-5 h-5 sm:w-5.5 sm:h-5.5 stroke-[1.8]" />
@@ -212,7 +242,7 @@ export function Navbar() {
             {/* 2. Search Icon */}
             <button
               onClick={() => setSearchOpen(!searchOpen)}
-              className="p-1.5 text-neutral-300 hover:text-white transition-colors cursor-pointer"
+              className="navbar-icon-btn p-1.5 transition-colors cursor-pointer"
               aria-label="Search Collection"
             >
               <Search className="w-5 h-5 sm:w-5.5 sm:h-5.5 stroke-[1.8]" />
@@ -223,22 +253,22 @@ export function Navbar() {
               onClick={() => setMenuOpen(!menuOpen)}
               onMouseEnter={() => setIsMenuHovered(true)}
               onMouseLeave={() => setIsMenuHovered(false)}
-              className="p-2 text-neutral-300 hover:text-white transition-colors cursor-pointer relative w-9 h-9 flex flex-col justify-center items-end gap-1.5 group"
+              className="navbar-icon-btn p-2 transition-colors cursor-pointer relative w-9 h-9 flex flex-col justify-center items-end gap-1.5 group"
               aria-label={menuOpen ? 'Close Menu' : 'Open Bespoke Menu'}
             >
               <span
-                className={`h-[1.5px] bg-white transition-all duration-300 ease-out origin-center ${
+                className={`navbar-hamburger-line h-[1.5px] transition-all duration-300 ease-out origin-center ${
                   menuOpen
-                    ? 'w-6 rotate-45 translate-y-[4px]'
-                    : 'w-6 group-hover:bg-red-400'
+                    ? 'w-6 rotate-45 translate-y-[4px] !bg-red-500'
+                    : 'w-6 group-hover:!bg-red-500'
                 }`}
               />
               <span
-                className={`h-[1.5px] bg-white transition-all duration-300 ease-out origin-center ${
+                className={`navbar-hamburger-line h-[1.5px] transition-all duration-300 ease-out origin-center ${
                   menuOpen
-                    ? 'w-6 -rotate-45 -translate-y-[3.5px]'
+                    ? 'w-6 -rotate-45 -translate-y-[3.5px] !bg-red-500'
                     : isMenuHovered
-                    ? 'w-6 bg-red-400'
+                    ? 'w-6 !bg-red-500'
                     : 'w-4'
                 }`}
               />
@@ -317,7 +347,6 @@ export function Navbar() {
                 </Link>
 
                 <div className="flex items-center gap-3">
-                  <ThemeSelector variant="segmented" />
                   <button
                     onClick={() => setMenuOpen(false)}
                     className="p-1.5 text-neutral-400 hover:text-white transition-colors cursor-pointer rounded-none hover:bg-white/5"

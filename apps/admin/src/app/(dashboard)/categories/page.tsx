@@ -255,7 +255,7 @@ export default function AdminCategoriesPage() {
                   <div className="flex items-center gap-3">
                     {cat.image_url && (
                       <div className="relative w-8 h-8 rounded-none overflow-hidden bg-neutral-900 border border-neutral-800 shrink-0">
-                        <Image src={cat.image_url} alt={cat.name} fill className="object-cover" />
+                        <Image src={cat.image_url} alt={cat.name} fill unoptimized className="object-cover" />
                       </div>
                     )}
                     <div>

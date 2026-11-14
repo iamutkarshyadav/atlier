@@ -166,14 +166,18 @@ export function ThemeSelector({ variant = 'segmented', className = '' }: ThemeSe
       <button
         type="button"
         onClick={() => setMenuOpen(!menuOpen)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-neutral-300 dark:border-white/15 bg-white dark:bg-[#262629] hover:bg-neutral-100 dark:hover:bg-[#38393D] text-neutral-950 dark:text-white text-xs font-mono transition-all cursor-pointer shadow-sm hover:shadow"
+        className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full bg-black text-white dark:bg-white dark:text-black hover:opacity-85 text-[11px] font-sans font-bold uppercase tracking-wider transition-all cursor-pointer shadow-sm select-none"
         aria-label={`Theme: currently ${currentLabel}. Click to switch theme.`}
         aria-expanded={menuOpen}
       >
-        {currentIcon}
-        <span className="hidden md:inline text-[11px] uppercase tracking-wider font-bold">
-          {currentLabel}
-        </span>
+        {theme === 'light' ? (
+          <Sun className="w-3.5 h-3.5 text-amber-400" />
+        ) : theme === 'dark' ? (
+          <Moon className="w-3.5 h-3.5 text-neutral-900" />
+        ) : (
+          <Laptop className="w-3.5 h-3.5" />
+        )}
+        <span>{currentLabel}</span>
       </button>
 
       {menuOpen && (

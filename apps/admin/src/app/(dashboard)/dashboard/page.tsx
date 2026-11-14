@@ -32,9 +32,18 @@ export default function DashboardOverviewPage() {
   const loadData = async () => {
     setIsLoading(true)
     try {
+      let fetchedOrders: Order[] = []
+      try {
+        const res = await fetch('/api/orders')
+        const data = await res.json()
+        if (data.success && Array.isArray(data.orders)) {
+          fetchedOrders = data.orders
+        }
+      } catch {}
+
       const supabase = createBrowserClient()
       const [allOrders, allProds] = await Promise.all([
-        getAllOrders(supabase),
+        fetchedOrders.length > 0 ? Promise.resolve(fetchedOrders) : getAllOrders(supabase),
         getAllProductsAdmin(supabase),
       ])
       setOrders(allOrders)

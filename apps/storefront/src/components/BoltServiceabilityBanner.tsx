@@ -21,9 +21,9 @@ export function BoltServiceabilityBanner() {
   // Don't render with flash before hydration
   if (!isHydrated) {
     return (
-      <div className="bg-neutral-900 text-white text-xs py-2 px-4 text-center border-b border-neutral-800">
-        <div className="inline-flex items-center gap-1.5 opacity-70">
-          <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+      <div className="bg-[#F0F0EE] text-[#09090B] text-xs py-2 px-4 text-center border-b border-[#E4E4E0]">
+        <div className="inline-flex items-center gap-1.5 opacity-80">
+          <Zap className="w-3.5 h-3.5 text-[#B91C1C] fill-[#B91C1C]" />
           <span>Bolt ⚡ Doorstep Try-On: 45-Minute In-Home White-Glove Salon</span>
         </div>
       </div>
@@ -68,25 +68,25 @@ export function BoltServiceabilityBanner() {
   // State 1: Active Serviceable PIN
   if (isServiceable && pincode && !isChanging) {
     return (
-      <div className="bg-[#0f291e] border-b border-[#1b4332] text-[#d8f3dc] px-4 py-2 text-xs transition-colors duration-200">
+      <div className="bg-[#ECFDF5] border-b border-[#A7F3D0] text-[#065F46] px-4 py-2 text-xs transition-colors duration-200">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span className="font-semibold text-emerald-300 flex items-center gap-1">
-              <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+            <span className="font-semibold text-[#064E3B] flex items-center gap-1">
+              <Zap className="w-3.5 h-3.5 fill-[#B91C1C] text-[#B91C1C]" />
               Bolt ⚡ Doorstep Try-On Active:
             </span>
             <span>
-              Available in <strong className="text-white underline decoration-emerald-500">{city || 'your area'}</strong> (PIN: <span className="font-mono font-medium text-emerald-200">{pincode}</span>). Maximum 5 pieces per fitting salon.
+              Available in <strong className="text-[#064E3B] underline decoration-emerald-500">{city || 'your area'}</strong> (PIN: <span className="font-mono font-medium text-[#065F46]">{pincode}</span>). Maximum 5 pieces per fitting salon.
             </span>
           </div>
 
           <button
             onClick={handleReset}
-            className="text-[11px] uppercase tracking-wider text-emerald-300 hover:text-white underline underline-offset-2 transition-colors ml-auto flex items-center gap-1 cursor-pointer"
+            className="text-[11px] uppercase tracking-wider text-[#065F46] hover:text-[#064E3B] underline underline-offset-2 transition-colors ml-auto flex items-center gap-1 cursor-pointer font-bold"
           >
             Change PIN
           </button>
@@ -98,17 +98,17 @@ export function BoltServiceabilityBanner() {
   // State 2: Active Non-Serviceable PIN notification
   if (!isServiceable && pincode && !isChanging) {
     return (
-      <div className="bg-neutral-900 border-b border-neutral-800 text-neutral-300 px-4 py-2 text-xs">
+      <div className="bg-[#FFFBEB] border-b border-[#FDE68A] text-[#92400E] px-4 py-2 text-xs">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-neutral-400">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <div className="flex items-center gap-2 text-[#92400E]">
+            <AlertCircle className="w-3.5 h-3.5 text-[#B45309] shrink-0" />
             <span>
-              Bolt ⚡ Try-On is not yet live in PIN <strong className="text-neutral-200 font-mono">{pincode}</strong>. Standard white-glove direct shipping applies.
+              Bolt ⚡ Try-On is not yet live in PIN <strong className="text-[#78350F] font-mono">{pincode}</strong>. Standard white-glove direct shipping applies.
             </span>
           </div>
           <button
             onClick={handleReset}
-            className="text-[11px] uppercase tracking-wider text-amber-400 hover:text-amber-300 underline underline-offset-2 transition-colors cursor-pointer"
+            className="text-[11px] uppercase tracking-wider text-[#B45309] hover:text-[#78350F] underline underline-offset-2 transition-colors cursor-pointer font-bold"
           >
             Check Another PIN
           </button>
@@ -119,23 +119,23 @@ export function BoltServiceabilityBanner() {
 
   // State 3: Prompting input (No PIN set or Changing PIN)
   return (
-    <div className="bg-neutral-950 border-b border-neutral-800 text-neutral-100 px-4 py-2 text-xs">
+    <div className="bg-[#F0F0EE] border-b border-[#E4E4E0] text-[#09090B] px-4 py-2 text-xs">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-center sm:text-left">
-          <span className="bg-amber-400/20 text-amber-400 p-1 rounded-sm border border-amber-400/30">
-            <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+          <span className="bg-red-50 text-[#B91C1C] p-1 rounded-sm border border-red-200">
+            <Zap className="w-3.5 h-3.5 fill-[#B91C1C] text-[#B91C1C]" />
           </span>
-          <span className="font-medium text-neutral-200">
+          <span className="font-semibold text-[#09090B]">
             Experience Bolt ⚡ 45-Minute Doorstep Try-On Salon:
           </span>
-          <span className="hidden md:inline text-neutral-400">
+          <span className="hidden md:inline text-[#52525B]">
             Try up to 5 pieces at home before paying.
           </span>
         </div>
 
         <form onSubmit={handleCheck} className="flex items-center gap-1.5 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-48">
-            <MapPin className="w-3.5 h-3.5 text-neutral-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <MapPin className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               inputMode="numeric"
@@ -146,13 +146,13 @@ export function BoltServiceabilityBanner() {
                 setErrorMsg(null)
               }}
               placeholder="Enter 6-digit PIN"
-              className="w-full bg-neutral-900 border border-neutral-700 rounded px-2.5 py-1 pl-8 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+              className="w-full bg-white border border-[#D4D4D8] rounded px-2.5 py-1 pl-8 text-xs text-[#09090B] placeholder-neutral-400 focus:outline-none focus:border-[#09090B] focus:ring-1 focus:ring-[#09090B]"
             />
           </div>
           <button
             type="submit"
             disabled={loading || inputPin.trim().length === 0}
-            className="bg-neutral-100 hover:bg-white text-neutral-950 font-semibold px-3 py-1 rounded text-xs transition-colors flex items-center gap-1 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="bg-[#09090B] hover:bg-[#27272A] text-white font-semibold px-3 py-1 rounded text-xs transition-colors flex items-center gap-1 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {loading ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -167,7 +167,7 @@ export function BoltServiceabilityBanner() {
             <button
               type="button"
               onClick={() => setIsChanging(false)}
-              className="text-neutral-500 hover:text-neutral-300 p-1"
+              className="text-neutral-400 hover:text-neutral-600 p-1"
               title="Close"
             >
               <X className="w-3.5 h-3.5" />
@@ -177,7 +177,7 @@ export function BoltServiceabilityBanner() {
       </div>
 
       {errorMsg && (
-        <div className="max-w-7xl mx-auto mt-1.5 text-center text-amber-400 text-[11px] flex items-center justify-center gap-1">
+        <div className="max-w-7xl mx-auto mt-1.5 text-center text-[#B91C1C] text-[11px] flex items-center justify-center gap-1">
           <AlertCircle className="w-3 h-3" />
           <span>{errorMsg}</span>
         </div>

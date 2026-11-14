@@ -660,6 +660,7 @@ export default function LuxuryAdminOrdersPage() {
                                                   src={item.product.image_url}
                                                   alt={item.product.title || 'Work'}
                                                   fill
+                                                  unoptimized
                                                   className="object-cover"
                                                   sizes="28px"
                                                 />

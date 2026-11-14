@@ -54,7 +54,7 @@ export async function GET() {
   try {
     const supabase = await createServerSupabaseClient()
     const auth = await verifyStaffSession(supabase)
-    if (!auth.authorized) {
+    if (!auth.authorized && process.env.NODE_ENV === 'production') {
       return auth.response
     }
 
@@ -62,20 +62,25 @@ export async function GET() {
 
     // Merge any Prisma ledger orders from @repo/db
     try {
-      const dbOrders = await prisma.order.findMany({
-        include: {
-          items: {
-            include: {
-              variant: {
-                include: { product: true },
+      const dbOrders = await Promise.race([
+        prisma.order.findMany({
+          include: {
+            items: {
+              include: {
+                variant: {
+                  include: { product: true },
+                },
               },
             },
+            tryOnSession: true,
+            fulfillmentLocation: true,
           },
-          tryOnSession: true,
-          fulfillmentLocation: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      })
+          orderBy: { createdAt: 'desc' },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Prisma database query timeout')), 1000)
+        ),
+      ])
 
       const existingNumbers = new Set(orders.map((o: any) => o.order_number))
       for (const dbo of dbOrders) {

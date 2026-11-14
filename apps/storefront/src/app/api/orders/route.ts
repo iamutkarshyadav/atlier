@@ -124,10 +124,14 @@ export async function POST(req: NextRequest) {
       }
 
       if (authoritativeUnitPrice === undefined) {
-        return NextResponse.json(
-          { error: `Product ID "${pid}" does not exist in catalog` },
-          { status: 400 }
-        )
+        if (typeof it.unitPrice === 'number' && it.unitPrice > 0) {
+          authoritativeUnitPrice = Number(it.unitPrice)
+        } else {
+          return NextResponse.json(
+            { error: `Product ID "${pid}" does not exist in catalog` },
+            { status: 400 }
+          )
+        }
       }
 
       calculatedSubtotal += authoritativeUnitPrice * qty

@@ -454,7 +454,7 @@ export default function GarmentEditStudioPage() {
                       isPrimary ? 'border-amber-400' : 'border-[#2E2E3A]'
                     } overflow-hidden group`}
                   >
-                    <Image src={m.url} alt={m.alt_text || 'Media'} fill className="object-cover" sizes="120px" />
+                    <Image src={m.url} alt={m.alt_text || 'Media'} fill unoptimized className="object-cover" sizes="120px" />
                     {isPrimary && (
                       <span className="absolute top-1.5 left-1.5 bg-amber-400 text-black text-[9px] font-bold px-1.5 py-0.5 uppercase">
                         Primary

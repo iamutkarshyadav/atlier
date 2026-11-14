@@ -441,6 +441,7 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
                               src={firstImage}
                               alt={product.title}
                               fill
+                              unoptimized
                               className="object-cover"
                               sizes="32px"
                             />

@@ -941,14 +941,26 @@ export async function getOrderById(
       .from('orders')
       .select('*, bolt_timeslot:bolt_timeslots(*), order_items(*, product:products(id, title, image_url, price, material))')
 
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanCode)
+    const isExactId =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanCode) ||
+      cleanCode.startsWith('ord-')
     const { data, error } = await (
-      isUuid
+      isExactId
         ? query.eq('id', cleanCode).maybeSingle()
-        : query.or(`order_number.eq.${cleanCode},tracking_barcode.eq.${cleanCode}`).maybeSingle()
+        : query.or(`id.eq.${cleanCode},order_number.eq.${cleanCode},tracking_barcode.eq.${cleanCode}`).maybeSingle()
     )
 
     if (error || !data) {
+      const liveOrders = (globalThis as any)?.__LIVE_ORDERS__
+      if (Array.isArray(liveOrders)) {
+        const foundLive = liveOrders.find(
+          (o: any) =>
+            o.id === cleanCode ||
+            o.order_number?.toLowerCase() === cleanCode.toLowerCase() ||
+            o.tracking_barcode?.toLowerCase() === cleanCode.toLowerCase()
+        )
+        if (foundLive) return foundLive as OrderWithItems
+      }
       return (
         DEFAULT_ORDERS.find(
           (o) =>
@@ -2476,15 +2488,15 @@ export const DEFAULT_STOREFRONT_TOKENS: StorefrontTokens = {
   id: 'tok-default-01',
   theme_name: 'default',
   tokens_json: {
-    '--background': '#212121',
-    '--foreground': '#FFFFFF',
-    '--primary': '#FFFFFF',
-    '--primary-foreground': '#212121',
-    '--secondary': '#262629',
-    '--secondary-foreground': '#F4F4F5',
+    '--background': '#F8F8F6',
+    '--foreground': '#09090B',
+    '--primary': '#09090B',
+    '--primary-foreground': '#FFFFFF',
+    '--secondary': '#FFFFFF',
+    '--secondary-foreground': '#09090B',
     '--accent-red': '#B91C1C',
     '--accent-gold': '#F59E0B',
-    '--border': '#323336',
+    '--border': '#E4E4E0',
     '--radius': '9999px',
     '--font-serif': 'Cormorant Garamond, Georgia, serif',
     '--font-sans': 'Inter, -apple-system, sans-serif',

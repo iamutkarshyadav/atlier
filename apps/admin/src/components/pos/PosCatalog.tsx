@@ -227,6 +227,7 @@ export function PosCatalog({
                           src={prod.image_url}
                           alt={prod.title}
                           fill
+                          unoptimized
                           sizes="(max-width: 768px) 100vw, 300px"
                           className="object-cover group-hover:scale-105 transition-transform duration-300"
                         />
