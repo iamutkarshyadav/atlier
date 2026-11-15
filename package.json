@@ -10,6 +10,7 @@
     "db:seed": "pnpm --filter @repo/db db:seed",
     "simulate:e2e": "tsx scripts/simulate-e2e-flow.ts",
     "workers": "tsx scripts/run-workers.ts",
+    "postinstall": "pnpm --filter @repo/db db:generate",
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
@@ -27,5 +28,12 @@
   "engines": {
     "node": ">=18.18.0 <=24.x",
     "pnpm": ">=9.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma"
+    ]
   }
 }

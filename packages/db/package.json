@@ -9,6 +9,7 @@
     "./ledger": "./src/ledger.ts"
   },
   "scripts": {
+    "build": "prisma generate",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
