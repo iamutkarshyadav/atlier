@@ -43,7 +43,7 @@ export function HeroSplitScreen() {
       ref={containerRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className="relative w-full min-h-screen flex flex-col md:flex-row bg-white dark:bg-[#121214] text-neutral-900 dark:text-white overflow-hidden select-none transition-colors duration-200"
+      className="relative w-full min-h-screen flex flex-col md:flex-row bg-[#FDFCF7] text-[#09090B] overflow-hidden select-none transition-colors duration-200"
     >
       {/* ========================================================= */}
       {/* LEFT PANE: 50% Female Haute Couture Editorial Portrait   */}
@@ -70,7 +70,7 @@ export function HeroSplitScreen() {
       {/* ========================================================= */}
       {/* RIGHT PANE: Signature Typographic Lockup & Minimal CTA    */}
       {/* ========================================================= */}
-      <div className="relative w-full md:w-1/2 min-h-[55vh] md:h-screen bg-white dark:bg-[#121214] text-neutral-900 dark:text-white flex flex-col justify-center px-8 sm:px-14 lg:px-18 xl:px-24 py-16 md:py-0 transition-colors duration-200">
+      <div className="relative w-full md:w-1/2 min-h-[55vh] md:h-screen bg-[#FDFCF7] text-[#09090B] flex flex-col justify-center px-8 sm:px-14 lg:px-18 xl:px-24 py-16 md:py-0 transition-colors duration-200">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -150,7 +150,7 @@ export function HeroSplitScreen() {
           <div className="pt-2 sm:pt-4">
             <Link
               href="/shop"
-              className="hero-cta-btn inline-flex items-center justify-center px-10 sm:px-12 py-3 sm:py-3.5 rounded-full bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 hover:bg-neutral-800 dark:hover:bg-neutral-200 font-sans text-xs sm:text-sm font-semibold tracking-wider uppercase transition-all duration-300 shadow-md hover:shadow-[0_12px_32px_-4px_rgba(220,38,38,0.5),0_4px_14px_-2px_rgba(185,28,28,0.35)] active:scale-95 cursor-pointer"
+              className="hero-cta-btn inline-flex items-center justify-center px-10 sm:px-12 py-3 sm:py-3.5 rounded-full bg-neutral-950 text-white hover:bg-neutral-800 font-sans text-xs sm:text-sm font-semibold tracking-wider uppercase transition-all duration-300 shadow-md hover:shadow-[0_12px_32px_-4px_rgba(220,38,38,0.5),0_4px_14px_-2px_rgba(185,28,28,0.35)] active:scale-95 cursor-pointer"
             >
               Order Now
             </Link>

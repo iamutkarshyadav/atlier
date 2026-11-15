@@ -18,21 +18,29 @@ import {
   Tag,
   ArrowRight,
   ShieldCheck,
+  Store,
+  Layers,
+  Sparkles,
+  Split,
 } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { createBrowserClient } from '@repo/supabase/browser'
 import {
   getPurchaseOrders,
+  getPurchaseOrderItems,
+  createPurchaseOrderWithItems,
   getSuppliers,
   getLocations,
   getLocationShelves,
   getAllProductsAdmin,
-  receiveGrnAndPutaway,
+  receiveSplitGrnAndPutaway,
   type PurchaseOrder,
+  type PurchaseOrderItem,
   type Supplier,
   type StoreLocation,
   type Shelf,
   type Product,
+  type SplitItemReceivePayload,
 } from '@repo/supabase/utils'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { SlideOverDrawer } from '@/components/ui/SlideOverDrawer'
@@ -48,18 +56,31 @@ interface LineItemDraft {
   quantity: number
   unitCost: number
   gstPercent: number
+  destinationLocationId?: string
+}
+
+interface LocationAllocationDraft {
+  locationId: string
+  locationCode: string
+  locationName: string
+  locationType: string
+  shelfId: string
+  qty: number
 }
 
 interface GrnLineItemState {
-  orderItemId: string
+  orderItemId?: string
   variantId: string
   sku: string
   title: string
   size: string
   orderedQty: number
+  receivedSoFar: number
   acceptedQty: number
   rejectedQty: number
   rejectionReason?: string
+  unitCost: number
+  allocations: LocationAllocationDraft[]
 }
 
 export default function ProcurementPage() {
@@ -67,6 +88,7 @@ export default function ProcurementPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [locations, setLocations] = useState<StoreLocation[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [shelvesByLocation, setShelvesByLocation] = useState<Record<string, Shelf[]>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -75,17 +97,14 @@ export default function ProcurementPage() {
   const [selectedSupplierId, setSelectedSupplierId] = useState('')
   const [destLocationId, setDestLocationId] = useState('')
   const [expectedDate, setExpectedDate] = useState('')
-  const [poNotes, setPoNotes] = useState('')
   const [lineItems, setLineItems] = useState<LineItemDraft[]>([])
   const [isSubmittingPO, setIsSubmittingPO] = useState(false)
   const [createPoError, setCreatePoError] = useState<string | null>(null)
 
-  // Drawer 2: Receive GRN & Shelf Putaway Workspace
+  // Drawer 2: Receive GRN & Multi-Location Split Putaway Workspace
   const [grnDrawerOpen, setGrnDrawerOpen] = useState(false)
   const [activePOForGrn, setActivePOForGrn] = useState<PurchaseOrder | null>(null)
   const [grnItems, setGrnItems] = useState<GrnLineItemState[]>([])
-  const [availableShelves, setAvailableShelves] = useState<Shelf[]>([])
-  const [selectedPutawayShelfId, setSelectedPutawayShelfId] = useState('')
   const [grnChallanNumber, setGrnChallanNumber] = useState('')
   const [isCommittingGrn, setIsCommittingGrn] = useState(false)
   const [grnError, setGrnError] = useState<string | null>(null)
@@ -108,8 +127,19 @@ export default function ProcurementPage() {
       setSuppliers(sups)
       setLocations(locs)
       setProducts(prods)
+
       if (sups.length > 0 && !selectedSupplierId) setSelectedSupplierId(sups[0]?.id || '')
       if (locs.length > 0 && !destLocationId) setDestLocationId(locs[0]?.id || '')
+
+      // Pre-fetch shelves for all active locations
+      const shelfMap: Record<string, Shelf[]> = {}
+      await Promise.all(
+        locs.map(async (l) => {
+          const sh = await getLocationShelves(supabase, l.id)
+          shelfMap[l.id] = sh
+        })
+      )
+      setShelvesByLocation(shelfMap)
     } finally {
       setIsLoading(false)
     }
@@ -125,21 +155,21 @@ export default function ProcurementPage() {
       const code = scanned.trim().toUpperCase()
       if (!grnDrawerOpen) return
 
-      // 1. If scanning a shelf barcode (e.g. BLK-A-01-A1 or LOC-...)
-      const matchedShelf = availableShelves.find(
-        (s) => s.coordinate.toUpperCase() === code || s.barcode.toUpperCase() === code
-      )
-      if (matchedShelf) {
-        setSelectedPutawayShelfId(matchedShelf.id)
-        return
-      }
-
-      // 2. If scanning a garment SKU or barcode: increment accepted quantity
+      // Scan garment SKU to increment accepted quantity
       setGrnItems((prev) =>
         prev.map((item) => {
           if (item.sku.toUpperCase() === code) {
             const nextAccepted = Math.min(item.orderedQty, item.acceptedQty + 1)
-            return { ...item, acceptedQty: nextAccepted }
+            // Auto-increment storefront allocation first
+            const updatedAllocations = item.allocations.map((a, idx) => {
+              if (idx === 0) return { ...a, qty: a.qty + 1 }
+              return a
+            })
+            return {
+              ...item,
+              acceptedQty: nextAccepted,
+              allocations: updatedAllocations,
+            }
           }
           return item
         })
@@ -147,7 +177,7 @@ export default function ProcurementPage() {
     },
   })
 
-  // Open Create PO Drawer with 1 default item
+  // Open Create PO Drawer
   const openCreatePo = () => {
     setCreatePoError(null)
     const today = new Date()
@@ -158,7 +188,7 @@ export default function ProcurementPage() {
       const p = products[0]
       setLineItems([
         {
-          variantId: `v-${p?.id || 'prod'}-s`,
+          variantId: `v-${p?.id || 'prod'}-48`,
           sku: `SKU-${(p?.title || 'GARMENT').slice(0, 4).toUpperCase()}-48`,
           title: p?.title || 'Cashmere Topcoat',
           size: '48',
@@ -166,6 +196,7 @@ export default function ProcurementPage() {
           quantity: 20,
           unitCost: Math.round(Number(p?.price || 1000) * 0.4),
           gstPercent: 12,
+          destinationLocationId: destLocationId || locations[0]?.id,
         },
       ])
     }
@@ -185,6 +216,7 @@ export default function ProcurementPage() {
         quantity: 10,
         unitCost: 150,
         gstPercent: 12,
+        destinationLocationId: destLocationId || locations[0]?.id,
       },
     ])
   }
@@ -204,6 +236,7 @@ export default function ProcurementPage() {
 
   const poGrandTotal = poSubtotal + poTaxAmount
 
+  // Create PO with real Line Items persisted in Supabase
   const handleCreatePO = async (e: React.FormEvent) => {
     e.preventDefault()
     if (lineItems.length === 0) {
@@ -220,9 +253,9 @@ export default function ProcurementPage() {
       const randSeq = Math.floor(1000 + Math.random() * 9000)
       const poNumber = `PO-${today}-${randSeq}`
 
-      const { data: newPo, error: poErr } = await supabase
-        .from('purchase_orders')
-        .insert({
+      const res = await createPurchaseOrderWithItems(
+        supabase,
+        {
           po_number: poNumber,
           supplier_id: selectedSupplierId,
           destination_location_id: destLocationId,
@@ -232,11 +265,20 @@ export default function ProcurementPage() {
           tax_amount: poTaxAmount,
           total_amount: poGrandTotal,
           created_by: 'admin',
-        })
-        .select()
-        .single()
+        },
+        lineItems.map((it) => ({
+          variant_id: it.variantId,
+          hsn_code: it.hsn || '610910',
+          quantity_ordered: it.quantity,
+          unit_cost: it.unitCost,
+          tax_rate_percent: it.gstPercent,
+          tax_amount: it.quantity * it.unitCost * (it.gstPercent / 100),
+          line_total: it.quantity * it.unitCost * (1 + it.gstPercent / 100),
+          destination_location_id: it.destinationLocationId || destLocationId,
+        }))
+      )
 
-      if (poErr) throw poErr
+      if (!res.success) throw new Error(res.error)
 
       setCreateDrawerOpen(false)
       loadData()
@@ -247,7 +289,7 @@ export default function ProcurementPage() {
     }
   }
 
-  // Open Receive GRN & Directed Shelf Putaway
+  // Open Receive GRN & Multi-Location Split Putaway Workspace
   const openGrnWorkspace = async (po: PurchaseOrder) => {
     setActivePOForGrn(po)
     setGrnError(null)
@@ -256,49 +298,150 @@ export default function ProcurementPage() {
 
     try {
       const supabase = createBrowserClient()
-      const shelves = await getLocationShelves(supabase, po.destination_location_id)
-      setAvailableShelves(shelves)
-      if (shelves.length > 0) {
-        setSelectedPutawayShelfId(shelves[0]?.id || '')
+      // Fetch actual items belonging to this PO
+      const poItems = await getPurchaseOrderItems(supabase, po.id)
+
+      if (poItems && poItems.length > 0) {
+        setGrnItems(
+          poItems.map((item) => {
+            const pendingQty = Math.max(0, item.quantity_ordered - (item.quantity_received || 0))
+            const initialAllocations: LocationAllocationDraft[] = locations.map((loc, idx) => {
+              const locShelves = shelvesByLocation[loc.id] || []
+              const isWarehouse = loc.type === 'warehouse' || loc.code.includes('WH')
+              // Default: allocate 100% to primary hub warehouse, 0 to others
+              return {
+                locationId: loc.id,
+                locationCode: loc.code,
+                locationName: loc.name,
+                locationType: loc.type,
+                shelfId: locShelves[0]?.id || '',
+                qty: isWarehouse ? pendingQty : 0,
+              }
+            })
+
+            return {
+              orderItemId: item.id,
+              variantId: item.variant_id,
+              sku: item.variant?.sku || `SKU-ITEM-${item.id.slice(0, 4)}`,
+              title: item.variant?.product?.title || 'Garment Item',
+              size: item.variant?.size || '48',
+              orderedQty: item.quantity_ordered,
+              receivedSoFar: item.quantity_received || 0,
+              acceptedQty: pendingQty,
+              rejectedQty: 0,
+              unitCost: Number(item.unit_cost) || 120,
+              allocations: initialAllocations,
+            }
+          })
+        )
+      } else {
+        // Fallback for seed / mock POs
+        const defaultAllocations: LocationAllocationDraft[] = locations.map((loc) => {
+          const locShelves = shelvesByLocation[loc.id] || []
+          const isWarehouse = loc.type === 'warehouse' || loc.code.includes('WH')
+          return {
+            locationId: loc.id,
+            locationCode: loc.code,
+            locationName: loc.name,
+            locationType: loc.type,
+            shelfId: locShelves[0]?.id || '',
+            qty: isWarehouse ? 10 : 0,
+          }
+        })
+
+        setGrnItems([
+          {
+            orderItemId: undefined,
+            variantId: 'a2000000-0000-0000-0000-000000000001',
+            sku: 'SKU-COAT-BLK-48',
+            title: 'Cashmere Double-Breasted Overcoat',
+            size: '48',
+            orderedQty: 10,
+            receivedSoFar: 0,
+            acceptedQty: 10,
+            rejectedQty: 0,
+            unitCost: 150,
+            allocations: defaultAllocations,
+          },
+        ])
       }
 
-      // Initialize mock or real PO line items for receiving
-      setGrnItems([
-        {
-          orderItemId: `poi-1`,
-          variantId: `v1000000-0000-0000-0000-000000000001`,
-          sku: 'SKU-COAT-BLK-48',
-          title: 'Cashmere Double-Breasted Overcoat',
-          size: '48',
-          orderedQty: 10,
-          acceptedQty: 10,
-          rejectedQty: 0,
-        },
-        {
-          orderItemId: `poi-2`,
-          variantId: `v1000000-0000-0000-0000-000000000002`,
-          sku: 'SKU-COAT-BLK-50',
-          title: 'Cashmere Double-Breasted Overcoat',
-          size: '50',
-          orderedQty: 10,
-          acceptedQty: 8,
-          rejectedQty: 2,
-          rejectionReason: 'Fabric weave snag on collar',
-        },
-      ])
-
       setGrnDrawerOpen(true)
-    } catch {
-      // Continue
+    } catch (err: any) {
+      setGrnError('Failed to initialize GRN workspace: ' + err.message)
     }
   }
 
-  // Commit GRN & Directed Shelf Putaway via Atomic RPC
+  // Quick Split Helper Preset
+  const applyPresetSplit = (itemIdx: number, preset: '100_storefront' | 'equal_boutiques' | '50_50') => {
+    setGrnItems((prev) =>
+      prev.map((item, idx) => {
+        if (idx !== itemIdx) return item
+
+        const total = item.acceptedQty
+        const whLoc = item.allocations.find((a) => a.locationType === 'warehouse' || a.locationCode.includes('WH'))
+        const boutiqueLocs = item.allocations.filter((a) => a.locationType !== 'warehouse' && !a.locationCode.includes('WH'))
+
+        let newAllocations = [...item.allocations]
+
+        if (preset === '100_storefront') {
+          newAllocations = item.allocations.map((a) => ({
+            ...a,
+            qty: a.locationId === whLoc?.locationId ? total : 0,
+          }))
+        } else if (preset === 'equal_boutiques') {
+          const count = Math.max(1, boutiqueLocs.length)
+          const share = Math.floor(total / count)
+          let remainder = total % count
+          newAllocations = item.allocations.map((a) => {
+            if (a.locationId === whLoc?.locationId) return { ...a, qty: 0 }
+            const allocated = share + (remainder > 0 ? 1 : 0)
+            if (remainder > 0) remainder--
+            return { ...a, qty: allocated }
+          })
+        } else if (preset === '50_50') {
+          const whQty = Math.ceil(total / 2)
+          const remainingForStores = total - whQty
+          const count = Math.max(1, boutiqueLocs.length)
+          const storeShare = Math.floor(remainingForStores / count)
+          let rem = remainingForStores % count
+          newAllocations = item.allocations.map((a) => {
+            if (a.locationId === whLoc?.locationId) return { ...a, qty: whQty }
+            const allocated = storeShare + (rem > 0 ? 1 : 0)
+            if (rem > 0) rem--
+            return { ...a, qty: allocated }
+          })
+        }
+
+        return { ...item, allocations: newAllocations }
+      })
+    )
+  }
+
+  // Commit Multi-Location Split GRN Putaway via Atomic RPC
   const handleCommitGrn = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!activePOForGrn || !selectedPutawayShelfId) {
-      setGrnError('Please select a valid putaway shelf bin.')
-      return
+    if (!activePOForGrn) return
+
+    // Validation: Verify that each item's split allocations sum to acceptedQty
+    for (const item of grnItems) {
+      const sumAllocated = item.allocations.reduce((sum, a) => sum + (Number(a.qty) || 0), 0)
+      if (sumAllocated !== item.acceptedQty) {
+        setGrnError(
+          `Allocation mismatch for "${item.title} (${item.sku})": Accepted units = ${item.acceptedQty}, but total allocated across locations = ${sumAllocated}. Please balance all units before committing.`
+        )
+        return
+      }
+
+      // Verify that any destination with qty > 0 has a valid shelf selected
+      for (const alloc of item.allocations) {
+        if (alloc.qty > 0 && !alloc.shelfId) {
+          setGrnError(
+            `Please select a valid putaway shelf for location "${alloc.locationCode}" for item "${item.title}".`
+          )
+          return
+        }
+      }
     }
 
     setIsCommittingGrn(true)
@@ -307,33 +450,43 @@ export default function ProcurementPage() {
 
     try {
       const supabase = createBrowserClient()
-      const totalAccepted = grnItems.reduce((sum, it) => sum + it.acceptedQty, 0)
-      const primaryItem = grnItems[0]
 
-      const res = await receiveGrnAndPutaway(supabase, {
+      // Format payload for receive_split_grn_and_putaway RPC
+      const splitsPayload: SplitItemReceivePayload[] = grnItems.map((item) => ({
+        order_item_id: item.orderItemId,
+        variant_id: item.variantId,
+        unit_cost: item.unitCost,
+        destinations: item.allocations
+          .filter((a) => a.qty > 0)
+          .map((a) => ({
+            location_id: a.locationId,
+            shelf_id: a.shelfId,
+            qty_accepted: a.qty,
+            qty_rejected: 0,
+          })),
+      }))
+
+      const res = await receiveSplitGrnAndPutaway(supabase, {
         poId: activePOForGrn.id,
-        locationId: activePOForGrn.destination_location_id,
-        targetShelfId: selectedPutawayShelfId,
+        challanNumber: grnChallanNumber,
         operatorId: 'admin',
-        receivedItems: grnItems.map((it) => ({
-          variant_id: it.variantId,
-          qty_accepted: it.acceptedQty,
-          qty_rejected: it.rejectedQty,
-          unit_cost: 180,
-        })),
+        splits: splitsPayload,
       })
 
       if (!res.success) {
-        throw new Error(res.error || 'Failed to commit GRN')
+        throw new Error(res.error || 'Failed to commit split GRN')
       }
 
-      setGrnSuccess(`GRN Verified! ${totalAccepted} units stocked into shelf bin.`)
+      const totalAccepted = grnItems.reduce((acc, it) => acc + it.acceptedQty, 0)
+      setGrnSuccess(
+        `GRN ${res.grnNumber} Confirmed! ${totalAccepted} units stocked and split across locations with double-entry ledger audit.`
+      )
       setTimeout(() => {
         setGrnDrawerOpen(false)
         loadData()
-      }, 1200)
+      }, 1500)
     } catch (err: any) {
-      setGrnError(err?.message || 'GRN putaway transaction failed')
+      setGrnError(err?.message || 'GRN multi-location putaway transaction failed')
     } finally {
       setIsCommittingGrn(false)
     }
@@ -367,16 +520,6 @@ export default function ProcurementPage() {
           gstPercent: 12,
           lineTotal: 3000,
         },
-        {
-          sku: 'SKU-COAT-BLK-50',
-          title: 'Cashmere Double-Breasted Overcoat',
-          size: '50',
-          hsn: '6201.11',
-          quantity: 10,
-          unitCost: 150,
-          gstPercent: 12,
-          lineTotal: 1500,
-        },
       ],
       subtotal: po.subtotal,
       taxAmount: po.tax_amount,
@@ -397,10 +540,10 @@ export default function ProcurementPage() {
         <div>
           <h1 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
             <ClipboardList className="w-4 h-4 text-emerald-400" />
-            <span>Inbound Supply Chain — Purchase Orders & GRN Putaway</span>
+            <span>Inbound Supply Chain — PO & Multi-Location Split Putaway</span>
           </h1>
           <p className="text-2xs text-zinc-400">
-            Vendor procurement, commercial orders, barcode-directed receiving, and shelf bin putaway
+            Issue vendor POs, split incoming stock between Storefront (App Inventory) and Physical Stores, and execute shelf putaway
           </p>
         </div>
 
@@ -449,7 +592,7 @@ export default function ProcurementPage() {
             <tr className="border-b border-chrome-800 bg-chrome-950 text-3xs uppercase tracking-wider text-zinc-400">
               <th className="py-2.5 px-3 font-semibold">PO Number</th>
               <th className="py-2.5 px-3 font-semibold">Vendor Partner</th>
-              <th className="py-2.5 px-3 font-semibold">Destination Hub</th>
+              <th className="py-2.5 px-3 font-semibold">Default Destination</th>
               <th className="py-2.5 px-3 font-semibold">Expected Delivery</th>
               <th className="py-2.5 px-3 font-semibold text-right">Committed Value</th>
               <th className="py-2.5 px-3 font-semibold">Status</th>
@@ -504,14 +647,14 @@ export default function ProcurementPage() {
                   {/* Actions */}
                   <td className="py-2.5 px-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
-                      {/* Receive GRN Trigger */}
+                      {/* Receive & Split GRN Trigger */}
                       {po.status !== 'received' && po.status !== 'cancelled' && (
                         <button
                           onClick={() => openGrnWorkspace(po)}
                           className="px-2 py-1 text-2xs bg-emerald-950/40 hover:bg-emerald-900/40 text-emerald-400 border border-emerald-800/60 transition-colors flex items-center gap-1 font-semibold"
                         >
-                          <PackageCheck className="w-3 h-3" />
-                          <span>Receive GRN</span>
+                          <Split className="w-3 h-3" />
+                          <span>Receive & Split GRN</span>
                         </button>
                       )}
 
@@ -577,7 +720,7 @@ export default function ProcurementPage() {
 
             <div className="space-y-1">
               <label className="text-2xs uppercase tracking-wider text-zinc-400 font-semibold block">
-                Destination Receiving Node *
+                Default Receiving Node *
               </label>
               <select
                 value={destLocationId}
@@ -719,13 +862,13 @@ export default function ProcurementPage() {
         </form>
       </SlideOverDrawer>
 
-      {/* DRAWER 2: Split-Screen GRN & Directed Shelf Putaway Workspace */}
+      {/* DRAWER 2: Multi-Location Inbound Split & Shelf Putaway Workspace */}
       <SlideOverDrawer
         isOpen={grnDrawerOpen}
         onClose={() => setGrnDrawerOpen(false)}
-        title={`Goods Receipt (GRN) & Putaway: ${activePOForGrn?.po_number}`}
-        description="Verify physical delivered cartons against PO manifest, log QC inspection, and stock accepted units into destination shelf bins."
-        width="max-w-2xl"
+        title={`Multi-Location Inbound Split: ${activePOForGrn?.po_number}`}
+        description="Arbitrarily distribute arriving supplier inventory between Storefront App Inventory and Physical Offline Boutiques."
+        width="max-w-3xl"
       >
         <form onSubmit={handleCommitGrn} className="space-y-4">
           {grnError && (
@@ -746,7 +889,7 @@ export default function ProcurementPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-2xs uppercase tracking-wider text-zinc-400 font-semibold block">
-                Vendor Delivery Challan # *
+                Vendor Delivery Challan / Invoice # *
               </label>
               <input
                 type="text"
@@ -757,24 +900,14 @@ export default function ProcurementPage() {
                 className="w-full bg-chrome-950 border border-chrome-800 px-3 py-1.5 text-xs text-zinc-100 focus:outline-none uppercase font-mono"
               />
             </div>
-
             <div className="space-y-1">
               <label className="text-2xs uppercase tracking-wider text-zinc-400 font-semibold block">
-                Target Shelf Putaway Bin *
+                Inbound Receiving Mode
               </label>
-              <select
-                value={selectedPutawayShelfId}
-                onChange={(e) => setSelectedPutawayShelfId(e.target.value)}
-                required
-                className="w-full bg-chrome-950 border border-chrome-800 px-3 py-1.5 text-xs text-zinc-100 focus:outline-none font-mono"
-              >
-                <option value="">Select target putaway bin...</option>
-                {availableShelves.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.coordinate} (Cap: {s.max_unit_capacity})
-                  </option>
-                ))}
-              </select>
+              <div className="w-full bg-chrome-950 border border-emerald-800/60 px-3 py-1.5 text-xs text-emerald-400 flex items-center gap-2 font-mono">
+                <Split className="w-3.5 h-3.5" />
+                <span className="font-semibold">Dynamic Multi-Store Split Putaway</span>
+              </div>
             </div>
           </div>
 
@@ -782,102 +915,248 @@ export default function ProcurementPage() {
           <div className="p-2.5 bg-chrome-950 border border-chrome-800 flex items-center justify-between text-2xs text-zinc-400">
             <div className="flex items-center gap-2">
               <Scan className="w-4 h-4 text-emerald-400" />
-              <span>Scan garment barcode to accept items automatically</span>
+              <span>Scan garment SKU or carton barcode to automatically increment verified stock</span>
             </div>
             <span className="text-3xs text-emerald-400 font-semibold">CADENCE &lt;35MS</span>
           </div>
 
-          {/* GRN Line Items Receiving & QC */}
-          <div className="space-y-2">
-            <span className="text-2xs uppercase tracking-wider text-zinc-300 font-semibold block">
-              Carton Verification & QC Inspection
-            </span>
+          {/* Inbound Line Items & Multi-Location Splitters */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-2xs uppercase tracking-wider text-zinc-300 font-semibold block">
+                Carton Verification & Multi-Store Split Allocation
+              </span>
+            </div>
 
-            <div className="border border-chrome-800 divide-y divide-chrome-800 bg-chrome-950">
-              {grnItems.map((item, idx) => (
-                <div key={idx} className="p-3 space-y-2">
-                  <div className="flex justify-between items-center text-xs">
-                    <div>
-                      <span className="font-semibold text-zinc-100 block">{item.title}</span>
-                      <span className="text-3xs text-zinc-500 font-mono">
-                        {item.sku} &bull; Size {item.size} &bull; Ordered: {item.orderedQty} pcs
-                      </span>
+            <div className="space-y-3">
+              {grnItems.map((item, idx) => {
+                const totalAllocated = item.allocations.reduce((acc, a) => acc + (Number(a.qty) || 0), 0)
+                const isBalanced = totalAllocated === item.acceptedQty
+                const unallocated = item.acceptedQty - totalAllocated
+
+                return (
+                  <div
+                    key={idx}
+                    className="p-3.5 bg-chrome-950 border border-chrome-800 space-y-3 rounded-none"
+                  >
+                    {/* Item Manifest Bar */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2.5 border-b border-chrome-850">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-zinc-100 text-xs">{item.title}</span>
+                          <span className="px-1.5 py-0.2 text-3xs font-mono bg-chrome-850 text-cyan-400 border border-cyan-800/40">
+                            Size {item.size}
+                          </span>
+                        </div>
+                        <span className="text-3xs text-zinc-500 font-mono">
+                          {item.sku} &bull; Ordered: {item.orderedQty} pcs &bull; Unit Cost: ${item.unitCost}
+                        </span>
+                      </div>
+
+                      {/* Accepted / Rejected verification */}
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <label className="text-3xs text-emerald-400 font-semibold block">Accepted</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max={item.orderedQty}
+                            value={item.acceptedQty}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10) || 0
+                              setGrnItems((prev) =>
+                                prev.map((it, i) => {
+                                  if (i !== idx) return it
+                                  // Update accepted and re-adjust warehouse allocation default
+                                  const updatedAllocs = it.allocations.map((a, aIdx) => {
+                                    if (aIdx === 0) return { ...a, qty: val }
+                                    return { ...a, qty: 0 }
+                                  })
+                                  return {
+                                    ...it,
+                                    acceptedQty: val,
+                                    rejectedQty: Math.max(0, it.orderedQty - val),
+                                    allocations: updatedAllocs,
+                                  }
+                                })
+                              )
+                            }}
+                            className="w-16 bg-chrome-900 border border-emerald-700/60 text-emerald-400 px-2 py-0.5 text-xs text-center font-mono font-bold"
+                          />
+                        </div>
+
+                        <div className="text-right">
+                          <label className="text-3xs text-rose-400 font-semibold block">Damaged/Reject</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max={item.orderedQty}
+                            value={item.rejectedQty}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10) || 0
+                              setGrnItems((prev) =>
+                                prev.map((it, i) =>
+                                  i === idx
+                                    ? { ...it, rejectedQty: val, acceptedQty: Math.max(0, it.orderedQty - val) }
+                                    : it
+                                )
+                              )
+                            }}
+                            className="w-16 bg-chrome-900 border border-rose-800/60 text-rose-400 px-2 py-0.5 text-xs text-center font-mono font-bold"
+                          />
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <label className="text-3xs text-emerald-400 font-semibold block">Accepted</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max={item.orderedQty}
-                          value={item.acceptedQty}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value, 10) || 0
-                            setGrnItems((prev) =>
-                              prev.map((it, i) =>
-                                i === idx
-                                  ? { ...it, acceptedQty: val, rejectedQty: Math.max(0, it.orderedQty - val) }
-                                  : it
-                              )
-                            )
-                          }}
-                          className="w-16 bg-chrome-900 border border-emerald-700/60 text-emerald-400 px-2 py-0.5 text-xs text-center font-mono font-bold"
-                        />
+                    {/* Split Allocation Presets & Balance Bar */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-2 bg-chrome-900 border border-chrome-850 text-2xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-zinc-400 text-3xs uppercase font-semibold">Quick Split:</span>
+                        <button
+                          type="button"
+                          onClick={() => applyPresetSplit(idx, '100_storefront')}
+                          className="px-1.5 py-0.5 text-3xs bg-chrome-950 hover:bg-chrome-800 text-zinc-300 border border-chrome-750"
+                        >
+                          100% Storefront
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => applyPresetSplit(idx, 'equal_boutiques')}
+                          className="px-1.5 py-0.5 text-3xs bg-chrome-950 hover:bg-chrome-800 text-zinc-300 border border-chrome-750"
+                        >
+                          All to Boutiques
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => applyPresetSplit(idx, '50_50')}
+                          className="px-1.5 py-0.5 text-3xs bg-chrome-950 hover:bg-chrome-800 text-zinc-300 border border-chrome-750"
+                        >
+                          50/50 Split
+                        </button>
                       </div>
 
-                      <div className="text-right">
-                        <label className="text-3xs text-rose-400 font-semibold block">Rejected</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max={item.orderedQty}
-                          value={item.rejectedQty}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value, 10) || 0
-                            setGrnItems((prev) =>
-                              prev.map((it, i) =>
-                                i === idx
-                                  ? { ...it, rejectedQty: val, acceptedQty: Math.max(0, it.orderedQty - val) }
-                                  : it
-                              )
-                            )
-                          }}
-                          className="w-16 bg-chrome-900 border border-rose-800/60 text-rose-400 px-2 py-0.5 text-xs text-center font-mono font-bold"
-                        />
+                      <div className="flex items-center gap-2">
+                        {isBalanced ? (
+                          <span className="text-emerald-400 text-3xs font-semibold flex items-center gap-1">
+                            <Check className="w-3 h-3" /> All {item.acceptedQty} units allocated
+                          </span>
+                        ) : (
+                          <span className="text-amber-400 text-3xs font-semibold flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {unallocated > 0 ? `${unallocated} unallocated units` : `${Math.abs(unallocated)} over-allocated units`}
+                          </span>
+                        )}
                       </div>
+                    </div>
+
+                    {/* Destination Rows Matrix */}
+                    <div className="space-y-2 pt-1">
+                      <div className="text-3xs uppercase tracking-wider text-zinc-500 font-semibold grid grid-cols-12 gap-2 px-1">
+                        <span className="col-span-5">Destination Location (Channel)</span>
+                        <span className="col-span-4">Putaway Shelf Bin</span>
+                        <span className="col-span-3 text-right">Units Allocated</span>
+                      </div>
+
+                      {item.allocations.map((alloc, aIdx) => {
+                        const isWh = alloc.locationType === 'warehouse' || alloc.locationCode.includes('WH')
+                        const availableShelves = shelvesByLocation[alloc.locationId] || []
+
+                        return (
+                          <div
+                            key={alloc.locationId}
+                            className={`grid grid-cols-12 gap-2 items-center p-2 border ${
+                              alloc.qty > 0 ? 'bg-chrome-900/60 border-chrome-750' : 'bg-chrome-950 border-chrome-850'
+                            }`}
+                          >
+                            {/* Destination Label */}
+                            <div className="col-span-5 flex items-center gap-2">
+                              {isWh ? (
+                                <Warehouse className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                              ) : (
+                                <Store className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                              )}
+                              <div className="truncate">
+                                <span className="font-semibold text-zinc-200 text-2xs block truncate">
+                                  {alloc.locationName}
+                                </span>
+                                <span className="text-3xs text-zinc-500 font-mono">
+                                  {alloc.locationCode} &bull; {isWh ? 'Online Storefront' : 'Offline Boutique'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Shelf Selector */}
+                            <div className="col-span-4">
+                              <select
+                                value={alloc.shelfId}
+                                onChange={(e) => {
+                                  const sId = e.target.value
+                                  setGrnItems((prev) =>
+                                    prev.map((it, i) => {
+                                      if (i !== idx) return it
+                                      return {
+                                        ...it,
+                                        allocations: it.allocations.map((a) =>
+                                          a.locationId === alloc.locationId ? { ...a, shelfId: sId } : a
+                                        ),
+                                      }
+                                    })
+                                  )
+                                }}
+                                disabled={alloc.qty === 0}
+                                className="w-full bg-chrome-950 border border-chrome-800 px-2 py-1 text-3xs text-zinc-200 font-mono focus:outline-none disabled:opacity-40"
+                              >
+                                <option value="">Select shelf...</option>
+                                {availableShelves.map((sh) => (
+                                  <option key={sh.id} value={sh.id}>
+                                    {sh.coordinate}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Qty Input */}
+                            <div className="col-span-3 text-right">
+                              <input
+                                type="number"
+                                min="0"
+                                max={item.acceptedQty}
+                                value={alloc.qty}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value, 10) || 0
+                                  setGrnItems((prev) =>
+                                    prev.map((it, i) => {
+                                      if (i !== idx) return it
+                                      return {
+                                        ...it,
+                                        allocations: it.allocations.map((a) =>
+                                          a.locationId === alloc.locationId ? { ...a, qty: val } : a
+                                        ),
+                                      }
+                                    })
+                                  )
+                                }}
+                                className="w-20 bg-chrome-950 border border-chrome-750 px-2 py-1 text-xs text-center text-zinc-100 font-mono font-bold focus:border-emerald-400 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
-
-                  {item.rejectedQty > 0 && (
-                    <div className="pt-1">
-                      <input
-                        type="text"
-                        value={item.rejectionReason || ''}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          setGrnItems((prev) =>
-                            prev.map((it, i) => (i === idx ? { ...it, rejectionReason: val } : it))
-                          )
-                        }}
-                        placeholder="Rejection reason: e.g. Weave defect, torn hem, staining..."
-                        className="w-full bg-rose-950/20 border border-rose-900/60 px-2.5 py-1 text-2xs text-rose-300 placeholder-rose-700 focus:outline-none"
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
           <div className="p-3 bg-chrome-950 border border-chrome-800 text-3xs text-zinc-400 space-y-1">
-            <span className="font-semibold text-zinc-300 block flex items-center gap-1.5">
+            <span className="font-semibold text-zinc-300 flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              Atomic Database Execution:
+              Atomic Double-Entry Inbound Execution:
             </span>
             <p>
-              Clicking Commit invokes <strong className="text-zinc-200">receive_grn_and_putaway()</strong>:
-              generates sequential GRN document, logs goods receipt, restocks target shelf bin, increments variant stock, and commits immutable audit ledger entries.
+              Clicking Commit invokes <strong className="text-zinc-200">receive_split_grn_and_putaway()</strong>:
+              stocks exact quantities directly to each destination shelf, ringfences Storefront App vs. Offline Boutique inventory, and commits immutable double-entry ledger audit records in Supabase.
             </p>
           </div>
 
@@ -897,7 +1176,7 @@ export default function ProcurementPage() {
               isLoading={isCommittingGrn}
               className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold rounded-none flex items-center gap-1.5"
             >
-              <PackageCheck className="w-4 h-4" /> Commit GRN & Putaway to Shelf
+              <PackageCheck className="w-4 h-4" /> Commit Multi-Location Split Putaway
             </Button>
           </div>
         </form>

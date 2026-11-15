@@ -130,7 +130,7 @@ export default function OutboundDispatchPage() {
       // Find current location UUID
       const matchedLoc =
         fetchedLocations.find((l) => l.code === activeLocationCode) ||
-        fetchedLocations[0] || { id: activeLocationId || 'l1000000-0000-0000-0000-000000000001' }
+        fetchedLocations[0] || { id: activeLocationId || 'd1000000-0000-0000-0000-000000000001' }
 
       const fetchedShelves = await getLocationShelves(supabase, matchedLoc.id)
       setShelves(fetchedShelves)
@@ -318,7 +318,7 @@ export default function OutboundDispatchPage() {
       const { success, restockedShelfId, error } = await processBorisReturn(supabase, {
         orderId: item.orderId,
         orderItemId: item.orderItemId,
-        locationId: activeLocationId || 'l1000000-0000-0000-0000-000000000001',
+        locationId: activeLocationId || 'd1000000-0000-0000-0000-000000000001',
         targetShelfId: item.targetShelfId,
         condition: item.qcCondition,
         refundMode: item.refundMode,

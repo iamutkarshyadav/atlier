@@ -16,28 +16,28 @@
 }
 
 :root {
-  /* Crisp Editorial White / Light Theme (Couture Alabaster) */
-  --background: 0 0% 100%;
+  /* Crisp Editorial Warm Off-White / Alabaster Cream Theme (Matching Navbar #FDFCF7) */
+  --background: 45 40% 98%;
   --foreground: 240 10% 4%;
-  --border: 240 6% 90%;
-  --input: 240 6% 90%;
+  --border: 38 18% 88%;
+  --input: 38 18% 88%;
   --ring: 0 72% 40%;
   --primary: 240 10% 4%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 240 5% 96%;
+  --secondary: 40 20% 96%;
   --secondary-foreground: 240 10% 4%;
-  --muted: 240 5% 96%;
+  --muted: 40 20% 96%;
   --muted-foreground: 240 4% 32%;
   --accent-red: #b91c1c;
   --accent-red-glow: rgba(185, 28, 28, 0.15);
   --accent-green: #047857;
   --accent-green-glow: rgba(4, 120, 87, 0.15);
-  --royal-canvas: #F8F8F6;
-  --royal-surface: #FFFFFF;
-  --royal-card: #FFFFFF;
-  --royal-pill: #F4F4F5;
-  --royal-pill-hover: #E4E4E7;
-  --royal-border: #E4E4E7;
+  --royal-canvas: #FDFCF7;
+  --royal-surface: #FAF8F2;
+  --royal-card: #FAF8F2;
+  --royal-pill: #F2EFE8;
+  --royal-pill-hover: #E7E3D8;
+  --royal-border: #E8E4DA;
   --royal-foreground: #09090B;
   --royal-subtle: #71717A;
   --font-serif: var(--font-sans), 'Plus Jakarta Sans', sans-serif;
@@ -47,35 +47,35 @@
 }
 
 .dark {
-  /* Dark Theme Fallback */
-  --background: 0 0% 100%;
+  /* Enforce Unified Warm Off-White Palette Across Entire Application */
+  --background: 45 40% 98%;
   --foreground: 240 10% 4%;
-  --border: 240 6% 90%;
-  --input: 240 6% 90%;
+  --border: 38 18% 88%;
+  --input: 38 18% 88%;
   --ring: 0 72% 40%;
   --primary: 240 10% 4%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 240 5% 96%;
+  --secondary: 40 20% 96%;
   --secondary-foreground: 240 10% 4%;
-  --muted: 240 5% 96%;
+  --muted: 40 20% 96%;
   --muted-foreground: 240 4% 32%;
   --accent-red: #b91c1c;
   --accent-red-glow: rgba(185, 28, 28, 0.15);
   --accent-green: #047857;
   --accent-green-glow: rgba(4, 120, 87, 0.15);
-  --royal-canvas: #F8F8F6;
-  --royal-surface: #FFFFFF;
-  --royal-card: #FFFFFF;
-  --royal-pill: #F4F4F5;
-  --royal-pill-hover: #E4E4E7;
-  --royal-border: #E4E4E7;
+  --royal-canvas: #FDFCF7;
+  --royal-surface: #FAF8F2;
+  --royal-card: #FAF8F2;
+  --royal-pill: #F2EFE8;
+  --royal-pill-hover: #E7E3D8;
+  --royal-border: #E8E4DA;
   --royal-foreground: #09090B;
   --royal-subtle: #71717A;
 }
 
-body {
-  background-color: var(--royal-canvas, #F8F8F6);
-  color: var(--royal-foreground, #09090B);
+body, html, main {
+  background-color: var(--royal-canvas, #FDFCF7) !important;
+  color: var(--royal-foreground, #09090B) !important;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -148,21 +148,29 @@ body {
 }
 
 /* ======================================================== */
-/* WHITE (LIGHT) THEME OVERRIDES ENGINE                     */
-/* High-contrast, pitch-black typography, crisp cards       */
+/* WARM OFF-WHITE LUXURY THEME OVERRIDES ENGINE             */
+/* Perfectly matches sovereign navbar (#FDFCF7 / Alabaster) */
 /* ======================================================== */
+html,
 html.light,
-html[data-theme='light'] {
+html[data-theme='light'],
+html.dark,
+html[data-theme='dark'] {
   color-scheme: light;
 }
 
+body,
+main,
+html body,
 html.light body,
-html[data-theme='light'] body {
-  background-color: var(--royal-canvas, #F8F9FA) !important;
-  color: var(--royal-foreground, #09090B) !important;
+html[data-theme='light'] body,
+html.dark body,
+html[data-theme='dark'] body {
+  background-color: #FDFCF7 !important;
+  color: #09090B !important;
 }
 
-/* 1. Canvas & Section Backgrounds in Light Mode */
+/* 1. Canvas & Section Backgrounds Across Entire Application */
 html.light .bg-\[\#212121\],
 html[data-theme='light'] .bg-\[\#212121\],
 html.light .bg-\[\#080808\],
@@ -170,11 +178,23 @@ html[data-theme='light'] .bg-\[\#080808\],
 html.light .bg-\[\#121212\],
 html[data-theme='light'] .bg-\[\#121212\],
 html.light .bg-\[\#141517\],
-html[data-theme='light'] .bg-\[\#141517\] {
-  background-color: var(--royal-canvas, #F8F9FA) !important;
+html[data-theme='light'] .bg-\[\#141517\],
+html.light .bg-\[\#F8F8F6\],
+html[data-theme='light'] .bg-\[\#F8F8F6\],
+html.light .bg-\[\#F8F9FA\],
+html[data-theme='light'] .bg-\[\#F8F9FA\],
+html.light .bg-\[\#F2F2F0\],
+html[data-theme='light'] .bg-\[\#F2F2F0\],
+html.light div.bg-white,
+html[data-theme='light'] div.bg-white,
+html.light section.bg-white,
+html[data-theme='light'] section.bg-white,
+html.light main.bg-white,
+html[data-theme='light'] main.bg-white {
+  background-color: #FDFCF7 !important;
 }
 
-/* 2. Primary Surfaces & Panels in Light Mode */
+/* 2. Primary Surfaces & Panels in Off-White Luxury Theme */
 html.light .bg-\[\#1e1e21\],
 html[data-theme='light'] .bg-\[\#1e1e21\],
 html.light .bg-\[\#1e1e21\]\/90,
@@ -185,17 +205,20 @@ html.light .bg-\[\#1A1B1D\]\/95,
 html[data-theme='light'] .bg-\[\#1A1B1D\]\/95,
 html.light .bg-\[\#18181a\]\/95,
 html[data-theme='light'] .bg-\[\#18181a\]\/95 {
-  background-color: var(--royal-surface, #FFFFFF) !important;
+  background-color: #FAF8F2 !important;
+  border-color: #E8E4DA !important;
 }
 
-/* 3. Cards in Light Mode: Crisp White Surface with Structural Border & Depth */
+/* 3. Cards in Off-White Theme: Subtle Warm Depth with Structural Border */
 html.light .bg-\[\#18181A\],
 html[data-theme='light'] .bg-\[\#18181A\],
 html.light .bg-\[\#262629\],
-html[data-theme='light'] .bg-\[\#262629\] {
-  background-color: #FFFFFF !important;
-  border-color: #E4E4E7 !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04) !important;
+html[data-theme='light'] .bg-\[\#262629\],
+html.light .bg-white.border,
+html[data-theme='light'] .bg-white.border {
+  background-color: #FAF8F2 !important;
+  border-color: #E8E4DA !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02) !important;
 }
 
 /* 4. Active Filter Pills, Selection Badges & Secondary CTAs */
@@ -456,15 +479,21 @@ html[data-theme='light'] .border-white\/25,
 html.light .border-white\/30,
 html[data-theme='light'] .border-white\/30,
 html.light .border-\[\#262626\],
-html[data-theme='light'] .border-\[\#262626\] {
-  border-color: #E4E4E7 !important;
+html[data-theme='light'] .border-\[\#262626\],
+html.light .border-\[\#E4E4E7\],
+html[data-theme='light'] .border-\[\#E4E4E7\],
+html.light .border-\[\#E4E4E0\],
+html[data-theme='light'] .border-\[\#E4E4E0\] {
+  border-color: #E8E4DA !important;
 }
 
 html.light .divide-white\/5 > :not([hidden]) ~ :not([hidden]),
 html[data-theme='light'] .divide-white\/5 > :not([hidden]) ~ :not([hidden]),
 html.light .divide-white\/10 > :not([hidden]) ~ :not([hidden]),
-html[data-theme='light'] .divide-white\/10 > :not([hidden]) ~ :not([hidden]) {
-  border-color: #E4E4E7 !important;
+html[data-theme='light'] .divide-white\/10 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-\[\#E4E4E0\] > :not([hidden]) ~ :not([hidden]),
+html[data-theme='light'] .divide-\[\#E4E4E0\] > :not([hidden]) ~ :not([hidden]) {
+  border-color: #E8E4DA !important;
 }
 
 /* 8. Fix Invisible Hover States in Light Mode */
@@ -674,15 +703,15 @@ html[data-theme='light'] header.bg-\[\#1e1e21\],
 html.light header.bg-\[\#1e1e21\]\/90,
 html[data-theme='light'] header.bg-\[\#1e1e21\]\/90 {
   background-color: rgba(253, 252, 247, 0.94) !important;
-  border-bottom: 1px solid #E4E4E7 !important;
+  border-bottom: 1px solid #E8E4DA !important;
 }
 
-/* 13. Mobile / Desktop Slide-over Drawer in Light Mode */
+/* 13. Mobile / Desktop Slide-over Drawer in Off-White Luxury Theme */
 html.light .bg-\[\#1A1B1D\]\/95,
 html[data-theme='light'] .bg-\[\#1A1B1D\]\/95 {
-  background-color: #FFFFFF !important;
+  background-color: #FAF8F2 !important;
   color: #09090B !important;
-  border-left: 1px solid #E4E4E7 !important;
+  border-left: 1px solid #E8E4DA !important;
 }
 
 html.light .bg-\[\#1A1B1D\]\/95 blockquote,
@@ -690,18 +719,24 @@ html[data-theme='light'] .bg-\[\#1A1B1D\]\/95 blockquote {
   color: #18181B !important;
 }
 
-/* 14. Footer in Light Mode */
+/* 14. Footer in Off-White Luxury Theme */
+html.light footer,
+html[data-theme='light'] footer,
 html.light footer.bg-\[\#1A1B1D\],
-html[data-theme='light'] footer.bg-\[\#1A1B1D\] {
-  background-color: #FFFFFF !important;
+html[data-theme='light'] footer.bg-\[\#1A1B1D\],
+html.light footer.bg-\[\#F2F2F0\],
+html[data-theme='light'] footer.bg-\[\#F2F2F0\] {
+  background-color: #FAF8F2 !important;
   color: #09090B !important;
-  border-top: 1px solid #E4E4E7 !important;
+  border-top: 1px solid #E8E4DA !important;
 }
 
 html.light footer .bg-\[\#262629\],
-html[data-theme='light'] footer .bg-\[\#262629\] {
-  background-color: #F8F9FA !important;
-  border-color: #E4E4E7 !important;
+html[data-theme='light'] footer .bg-\[\#262629\],
+html.light footer .bg-white,
+html[data-theme='light'] footer .bg-white {
+  background-color: #FDFCF7 !important;
+  border-color: #E8E4DA !important;
 }
 
 html.light footer a.hover\:text-white:hover,
@@ -862,6 +897,23 @@ html.light .hero-cta-btn:hover,
 html[data-theme='light'] .hero-cta-btn:hover {
   box-shadow: 0 12px 32px -4px rgba(220, 38, 38, 0.5), 0 4px 14px -2px rgba(185, 28, 28, 0.35) !important;
 }
+
+/* ======================================================== */
+/* 18. ATELIER FULLSCREEN HAUTE COUTURE MENU ARCHITECTURE   */
+/* Enforces pitch obsidian typography & off-white canvas    */
+/* ======================================================== */
+.sovereign-fullscreen-menu,
+html.light .sovereign-fullscreen-menu,
+html[data-theme='light'] .sovereign-fullscreen-menu {
+  background-color: #FDFCF7 !important;
+  color: #09090B !important;
+}
+
+.sovereign-fullscreen-menu a,
+.sovereign-fullscreen-menu span {
+  transition: color 200ms ease, transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 
 
 

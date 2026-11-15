@@ -7,7 +7,7 @@ export type { SupabaseClient, User, Session } from '@supabase/supabase-js'
 
 // Export clients
 export { createClient as createBrowserClient } from './clients/browser'
-export { createServerSupabaseClient } from './clients/server'
+export { createServerSupabaseClient, createServiceRoleClient } from './clients/server'
 export { createMiddlewareClient, protectRoute } from './clients/middleware'
 export type { ProtectRouteOptions } from './clients/middleware'
 export * from './clients/resilientFetch'

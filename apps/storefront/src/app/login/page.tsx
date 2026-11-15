@@ -90,7 +90,7 @@ function LoginForm() {
           SIGN IN TO <span className="text-[#B91C1C] font-script font-normal lowercase text-5xl">atelier</span>
         </h1>
         <p className="text-xs text-neutral-400 font-light leading-relaxed">
-          Access your saved addresses, track drop orders, and view past editions.
+          Access your saved addresses, track atelier orders, and view past editions.
         </p>
       </div>
 
@@ -171,8 +171,8 @@ export default function StorefrontLoginPage() {
             >
               <ArrowLeft className="w-3.5 h-3.5 text-[#B91C1C]" /> Back to Store
             </Link>
-            <span className="text-[10px] tracking-wider uppercase font-mono text-neutral-300 border border-white/20 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full">
-              DROP 01 // ARCHIVE
+            <span className="text-[10px] tracking-wider uppercase font-mono text-neutral-300 border border-white/20 px-3 py-1 bg-black/40 backdrop-blur-md rounded-none">
+              MAISON ARCHIVE
             </span>
           </div>
 

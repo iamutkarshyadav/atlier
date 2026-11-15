@@ -40,16 +40,19 @@ export default async function HomePage() {
     layoutNodes = DEFAULT_HOME_LAYOUT.layout_json as unknown as LayoutNode[]
   }
 
-  // Filter out any legacy HeroBanner block so the Split-Screen Hero is the sole primary hero
-  const secondaryLayoutNodes = layoutNodes.filter((node) => node.type !== 'HeroBanner')
+  // Filter out any legacy HeroBanner block so the Split-Screen Hero is the sole primary hero,
+  // and omit the legacy material lab banner
+  const secondaryLayoutNodes = layoutNodes.filter(
+    (node) => node.type !== 'HeroBanner' && node.id !== 'custom-div-specs-01'
+  )
 
   return (
-    <div className="bg-white dark:bg-[#121214] text-neutral-900 dark:text-white overflow-hidden selection:bg-red-600 selection:text-white transition-colors duration-200">
+    <div className="bg-[#FDFCF7] text-[#09090B] overflow-hidden selection:bg-red-600 selection:text-white transition-colors duration-200">
       {/* 50/50 Split-Screen Reconstructed Hero Landing Section */}
       <HeroSplitScreen />
 
       {/* Marquee & Curated Collections */}
-      <div id="collection" className="bg-white dark:bg-[#121214] text-neutral-900 dark:text-white transition-colors duration-200">
+      <div id="collection" className="bg-[#FDFCF7] text-[#09090B] transition-colors duration-200">
         <LayoutRenderer
           initialLayout={secondaryLayoutNodes}
           pageSlug="home"

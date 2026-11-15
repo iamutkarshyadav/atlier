@@ -102,7 +102,7 @@ export const DEFAULT_PURCHASE_ORDERS = [
     id: 'po-00000000-0000-0000-0000-000000000001',
     po_number: 'PO-20261108-0001',
     supplier_id: 'sup-00000000-0000-0000-0000-000000000001',
-    destination_location_id: 'l1000000-0000-0000-0000-000000000001',
+    destination_location_id: 'd1000000-0000-0000-0000-000000000001',
     status: 'issued',
     expected_delivery_date: '2026-11-20',
     subtotal: 4200.0,
@@ -117,11 +117,11 @@ export const DEFAULT_PURCHASE_ORDERS = [
 export const DEFAULT_PROMOTIONAL_BANNERS = [
   {
     id: 'banner-01',
-    title: 'Drop 01 // Heavyweight French Terry & Selvedge Denim',
+    title: 'Atelier Collection // Heavyweight French Terry & Selvedge Denim',
     subtitle: 'Limited batch production with strict units allocated per size.',
-    badge_text: 'CREATOR DROP ACTIVE',
+    badge_text: 'COLLECTION ACTIVE',
     image_url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
-    cta_label: 'Shop Drop 01',
+    cta_label: 'Shop Collections',
     cta_link: '/shop',
     is_active: true,
     display_order: 1,
@@ -584,7 +584,7 @@ export const SEEDED_PINCODES: Record<string, { city: string; state: string }> = 
 
 export const SEEDED_LOCATIONS = [
   {
-    id: 'l1000000-0000-0000-0000-000000000001',
+    id: 'd1000000-0000-0000-0000-000000000001',
     code: 'BLR-WH01',
     name: 'Atelier Central Mother Hub (Bengaluru)',
     type: 'warehouse',
@@ -604,7 +604,7 @@ export const SEEDED_LOCATIONS = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'l1000000-0000-0000-0000-000000000002',
+    id: 'd1000000-0000-0000-0000-000000000002',
     code: 'BLR-ST01',
     name: 'Indiranagar Flagship Boutique (Bengaluru)',
     type: 'boutique',
@@ -624,7 +624,7 @@ export const SEEDED_LOCATIONS = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'l1000000-0000-0000-0000-000000000003',
+    id: 'd1000000-0000-0000-0000-000000000003',
     code: 'BOM-ST01',
     name: 'Kala Ghoda Heritage Boutique (Mumbai)',
     type: 'boutique',
@@ -646,19 +646,19 @@ export const SEEDED_LOCATIONS = [
 ]
 
 export const SEEDED_ZONES = [
-  { id: 'z1000000-0000-0000-0000-000000000001', location_id: 'l1000000-0000-0000-0000-000000000001', code: 'RCV', name: 'Receiving Dock 01', type: 'receiving_dock', is_active: true, created_at: new Date().toISOString() },
-  { id: 'z1000000-0000-0000-0000-000000000002', location_id: 'l1000000-0000-0000-0000-000000000001', code: 'BLK', name: 'Central Bulk Racks', type: 'bulk_storage', is_active: true, created_at: new Date().toISOString() },
-  { id: 'z1000000-0000-0000-0000-000000000003', location_id: 'l1000000-0000-0000-0000-000000000001', code: 'DSK', name: 'Outbound Dispatch Bay', type: 'dispatch_bay', is_active: true, created_at: new Date().toISOString() },
-  { id: 'z1000000-0000-0000-0000-000000000004', location_id: 'l1000000-0000-0000-0000-000000000002', code: 'FLR', name: 'Indiranagar Sales Floor', type: 'sales_floor', is_active: true, created_at: new Date().toISOString() },
-  { id: 'z1000000-0000-0000-0000-000000000005', location_id: 'l1000000-0000-0000-0000-000000000002', code: 'STK', name: 'Indiranagar Backroom Stock', type: 'backroom_stock', is_active: true, created_at: new Date().toISOString() },
-  { id: 'z1000000-0000-0000-0000-000000000006', location_id: 'l1000000-0000-0000-0000-000000000002', code: 'QRN', name: 'Indiranagar Fitting Quarantine', type: 'fitting_room_quarantine', is_active: true, created_at: new Date().toISOString() },
+  { id: 'e1000000-0000-0000-0000-000000000001', location_id: 'd1000000-0000-0000-0000-000000000001', code: 'RCV', name: 'Receiving Dock 01', type: 'receiving_dock', is_active: true, created_at: new Date().toISOString() },
+  { id: 'e1000000-0000-0000-0000-000000000002', location_id: 'd1000000-0000-0000-0000-000000000001', code: 'BLK', name: 'Central Bulk Racks', type: 'bulk_storage', is_active: true, created_at: new Date().toISOString() },
+  { id: 'e1000000-0000-0000-0000-000000000003', location_id: 'd1000000-0000-0000-0000-000000000001', code: 'DSK', name: 'Outbound Dispatch Bay', type: 'dispatch_bay', is_active: true, created_at: new Date().toISOString() },
+  { id: 'e1000000-0000-0000-0000-000000000004', location_id: 'd1000000-0000-0000-0000-000000000002', code: 'FLR', name: 'Indiranagar Sales Floor', type: 'sales_floor', is_active: true, created_at: new Date().toISOString() },
+  { id: 'e1000000-0000-0000-0000-000000000005', location_id: 'd1000000-0000-0000-0000-000000000002', code: 'STK', name: 'Indiranagar Backroom Stock', type: 'backroom_stock', is_active: true, created_at: new Date().toISOString() },
+  { id: 'e1000000-0000-0000-0000-000000000006', location_id: 'd1000000-0000-0000-0000-000000000002', code: 'QRN', name: 'Indiranagar Fitting Quarantine', type: 'fitting_room_quarantine', is_active: true, created_at: new Date().toISOString() },
 ]
 
 export const SEEDED_SHELVES = [
-  { id: 's1000000-0000-0000-0000-000000000001', location_id: 'l1000000-0000-0000-0000-000000000001', zone_id: 'z1000000-0000-0000-0000-000000000002', coordinate: 'BLK-A-01-A1', barcode: 'LOC-BLR01-BLK-A-01-A1', assigned_category_id: null, max_unit_capacity: 500, is_active: true, last_cycle_count_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 's1000000-0000-0000-0000-000000000002', location_id: 'l1000000-0000-0000-0000-000000000001', zone_id: 'z1000000-0000-0000-0000-000000000002', coordinate: 'BLK-A-01-A2', barcode: 'LOC-BLR01-BLK-A-01-A2', assigned_category_id: null, max_unit_capacity: 500, is_active: true, last_cycle_count_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 's1000000-0000-0000-0000-000000000003', location_id: 'l1000000-0000-0000-0000-000000000002', zone_id: 'z1000000-0000-0000-0000-000000000004', coordinate: 'FLR-RACK-01', barcode: 'LOC-BLR02-FLR-RACK-01', assigned_category_id: null, max_unit_capacity: 100, is_active: true, last_cycle_count_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 's1000000-0000-0000-0000-000000000004', location_id: 'l1000000-0000-0000-0000-000000000002', zone_id: 'z1000000-0000-0000-0000-000000000006', coordinate: 'QRN-BIN-01', barcode: 'LOC-BLR02-QRN-BIN-01', assigned_category_id: null, max_unit_capacity: 50, is_active: true, last_cycle_count_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'f1000000-0000-0000-0000-000000000001', location_id: 'd1000000-0000-0000-0000-000000000001', zone_id: 'e1000000-0000-0000-0000-000000000002', coordinate: 'BLK-A-01-A1', barcode: 'LOC-BLR01-BLK-A-01-A1', assigned_category_id: null, max_unit_capacity: 500, is_active: true, last_cycle_count_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'f1000000-0000-0000-0000-000000000002', location_id: 'd1000000-0000-0000-0000-000000000001', zone_id: 'e1000000-0000-0000-0000-000000000002', coordinate: 'BLK-A-01-A2', barcode: 'LOC-BLR01-BLK-A-01-A2', assigned_category_id: null, max_unit_capacity: 500, is_active: true, last_cycle_count_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'f1000000-0000-0000-0000-000000000003', location_id: 'd1000000-0000-0000-0000-000000000002', zone_id: 'e1000000-0000-0000-0000-000000000004', coordinate: 'FLR-RACK-01', barcode: 'LOC-BLR02-FLR-RACK-01', assigned_category_id: null, max_unit_capacity: 100, is_active: true, last_cycle_count_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'f1000000-0000-0000-0000-000000000004', location_id: 'd1000000-0000-0000-0000-000000000002', zone_id: 'e1000000-0000-0000-0000-000000000006', coordinate: 'QRN-BIN-01', barcode: 'LOC-BLR02-QRN-BIN-01', assigned_category_id: null, max_unit_capacity: 50, is_active: true, last_cycle_count_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 ]
 
 function base64UrlEncode(str: string): string {
@@ -768,10 +768,9 @@ export function buildSupabaseUser(account: MockUserAccount) {
  * and seamlessly handles Supabase Auth / PostgREST if the network is unreachable.
  */
 export function createResilientFetch(options?: { timeoutMs?: number }): typeof fetch {
-  const timeoutMs = options?.timeoutMs ?? 2000
-
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const urlString = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+    const timeoutMs = options?.timeoutMs ?? (urlString.includes('supabase.co') ? 15000 : 2500)
 
     // 1. Attempt live network fetch with a tight timeout to detect unreachable host
     try {
@@ -971,37 +970,42 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
 
   // F. PostgREST: public.users query (/rest/v1/users)
   if (url.includes('/rest/v1/users')) {
-    // Check if filtering by id or email
+    // Check if filtering by id, email, or role
     const idMatch = url.match(/id=eq\.([^&]+)/)
     const emailMatch = url.match(/email=eq\.([^&]+)/)
+    const roleMatch = url.match(/role=eq\.([^&]+)/)
     const targetId = idMatch ? decodeURIComponent(idMatch[1]) : null
     const targetEmail = emailMatch ? decodeURIComponent(emailMatch[1]).toLowerCase() : null
+    const targetRole = roleMatch ? decodeURIComponent(roleMatch[1]).toLowerCase() : null
 
-    let matched = SEEDED_ACCOUNTS.find(
-      (a) => (targetId && a.id === targetId) || (targetEmail && a.email.toLowerCase() === targetEmail)
-    )
+    let results = SEEDED_ACCOUNTS.map((a, idx) => ({
+      id: a.id,
+      email: a.email,
+      name: a.name,
+      role: a.role,
+      created_at: new Date(Date.now() - (idx + 1) * 86400000 * 5).toISOString(),
+    }))
 
-    if (!matched && targetId) {
-      // Fallback matching strictly defaults to 'customer'
-      matched = {
-        id: targetId,
-        email: 'user@atelier.internal',
-        name: 'Atelier User',
-        role: 'customer',
-      }
+    if (targetId) {
+      const found = results.find((u) => u.id === targetId)
+      results = found
+        ? [found]
+        : [
+            {
+              id: targetId,
+              email: 'user@atelier.internal',
+              name: 'Atelier User',
+              role: 'customer',
+              created_at: new Date().toISOString(),
+            },
+          ]
+    } else if (targetEmail) {
+      results = results.filter((u) => u.email.toLowerCase() === targetEmail)
     }
 
-    const results = matched
-      ? [
-          {
-            id: matched.id,
-            email: matched.email,
-            name: matched.name,
-            role: matched.role,
-            created_at: new Date().toISOString(),
-          },
-        ]
-      : []
+    if (targetRole) {
+      results = results.filter((u) => u.role.toLowerCase() === targetRole)
+    }
 
     // If PostgREST single mode (Accept: application/vnd.pgrst.object+json)
     const accept = getHeader(init?.headers, 'Accept')
@@ -1163,7 +1167,7 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
           stock: Number(item?.stock) || 0,
           image_url: item?.image_url || 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
           material: item?.material || '100% Hand-Spun Mulberry Silk',
-          edition: item?.edition || 'Drop 01 // Limited Edition',
+          edition: item?.edition || 'Collection // Limited Edition',
           is_archived: Boolean(item?.is_archived || false),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -1264,7 +1268,7 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
       const items = Array.isArray(bodyJson) ? bodyJson : [bodyJson]
       const inserted: any[] = []
       for (const item of items) {
-        const vId = item?.id || `v1000000-${Date.now().toString(16).padStart(12, '0')}-${Math.random().toString(36).substring(2, 6)}`
+        const vId = item?.id || `a2000000-${Date.now().toString(16).padStart(12, '0')}-${Math.random().toString(36).substring(2, 6)}`
         const newVar = {
           id: vId,
           product_id: item?.product_id,
@@ -1423,7 +1427,7 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
     }
 
     if (method === 'PATCH' || method === 'PUT') {
-      const idMatch = url.match(/id=eq\.([^&]+)/)
+      const idMatch = url.match(/(?:^|[?&])id=eq\.([^&]+)/)
       if (idMatch) {
         const targetId = decodeURIComponent(idMatch[1])
         const targetOrder = liveOrdersList.find((o: any) => o.id === targetId || o.order_number === targetId)
@@ -1438,24 +1442,78 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
       }
     }
 
-    // Single order query
-    const idMatch = url.match(/id=eq\.([^&]+)/)
+    // Query & Filtering for GET requests
+    let filteredOrders = liveOrdersList
+
+    // 1. Filter by id
+    const idMatch = url.match(/(?:^|[?&])id=eq\.([^&]+)/)
     if (idMatch) {
       const targetId = decodeURIComponent(idMatch[1])
-      const found = liveOrdersList.filter((o: any) => o.id === targetId || o.order_number === targetId)
-      const accept = getHeader(init?.headers, 'Accept')
-      const isSingle = accept.includes('vnd.pgrst.object+json')
-      return new Response(JSON.stringify(isSingle ? found[0] || null : found), {
-        status: isSingle && !found[0] ? 404 : 200,
+      filteredOrders = filteredOrders.filter((o: any) => o.id === targetId || o.order_number === targetId)
+    }
+
+    // 2. Filter by user_id
+    const userIdMatch = url.match(/(?:^|[?&])user_id=eq\.([^&]+)/)
+    if (userIdMatch) {
+      const targetUserId = decodeURIComponent(userIdMatch[1])
+      filteredOrders = filteredOrders.filter((o: any) => o.user_id === targetUserId)
+    }
+
+    // 3. Filter by order_number
+    const ordNumMatch = url.match(/(?:^|[?&])order_number=eq\.([^&]+)/)
+    if (ordNumMatch) {
+      const targetOrdNum = decodeURIComponent(ordNumMatch[1])
+      filteredOrders = filteredOrders.filter((o: any) => o.order_number?.toLowerCase() === targetOrdNum.toLowerCase())
+    }
+
+    // 4. Filter by tracking_barcode
+    const trkMatch = url.match(/(?:^|[?&])tracking_barcode=eq\.([^&]+)/)
+    if (trkMatch) {
+      const targetTrk = decodeURIComponent(trkMatch[1])
+      filteredOrders = filteredOrders.filter((o: any) => o.tracking_barcode?.toLowerCase() === targetTrk.toLowerCase())
+    }
+
+    // 5. Filter by delivery_partner_id
+    const partnerMatch = url.match(/(?:^|[?&])delivery_partner_id=eq\.([^&]+)/)
+    if (partnerMatch) {
+      const targetPartner = decodeURIComponent(partnerMatch[1])
+      filteredOrders = filteredOrders.filter((o: any) => o.delivery_partner_id === targetPartner)
+    }
+
+    // 6. Support PostgREST .or() filter syntax (e.g. or=(id.eq.X,order_number.eq.X,tracking_barcode.eq.X))
+    const orMatch = url.match(/(?:^|[?&])or=\(([^)]+)\)/)
+    if (orMatch) {
+      const orClauses = decodeURIComponent(orMatch[1]).split(',')
+      filteredOrders = filteredOrders.filter((o: any) => {
+        return orClauses.some((clause) => {
+          const [field, opVal] = clause.split('.')
+          if (!opVal) return false
+          const val = opVal.replace(/^eq\./, '').trim()
+          if (field === 'id') return o.id === val
+          if (field === 'order_number') return o.order_number?.toLowerCase() === val.toLowerCase()
+          if (field === 'tracking_barcode') return o.tracking_barcode?.toLowerCase() === val.toLowerCase()
+          if (field === 'user_id') return o.user_id === val
+          return false
+        })
+      })
+    }
+
+    // Return single object if Accept header specifies PostgREST object
+    const accept = getHeader(init?.headers, 'Accept')
+    const isSingle = accept.includes('vnd.pgrst.object+json')
+    if (isSingle) {
+      const singleOrder = filteredOrders[0] || null
+      return new Response(JSON.stringify(singleOrder), {
+        status: singleOrder ? 200 : 404,
         headers: { 'Content-Type': 'application/json' },
       })
     }
 
-    return new Response(JSON.stringify(liveOrdersList), {
+    return new Response(JSON.stringify(filteredOrders), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Content-Range': `0-${liveOrdersList.length ? liveOrdersList.length - 1 : 0}/${liveOrdersList.length}`,
+        'Content-Range': `0-${filteredOrders.length ? filteredOrders.length - 1 : 0}/${filteredOrders.length}`,
       },
     })
   }
@@ -1510,7 +1568,7 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
       const items = Array.isArray(bodyJson) ? bodyJson : [bodyJson]
       const inserted: any[] = []
       for (const item of items) {
-        const lId = item?.id || `l1000000-${Date.now().toString(16).padStart(12, '0')}`
+        const lId = item?.id || `d1000000-${Date.now().toString(16).padStart(12, '0')}`
         const newLoc = {
           ...item,
           id: lId,
@@ -1576,7 +1634,7 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
       const items = Array.isArray(bodyJson) ? bodyJson : [bodyJson]
       const inserted: any[] = []
       for (const item of items) {
-        const sId = item?.id || `s1000000-${Date.now().toString(16).padStart(12, '0')}`
+        const sId = item?.id || `f1000000-${Date.now().toString(16).padStart(12, '0')}`
         const newShelf = { ...item, id: sId, created_at: new Date().toISOString() }
         SEEDED_SHELVES.push(newShelf)
         inserted.push(newShelf)
@@ -1603,7 +1661,7 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
     const diskVariants = loadLocalDbProductVariants()
     const mockInventory = diskVariants.map((v, idx) => ({
       id: `si-${idx + 1}`,
-      shelf_id: targetShelf || 's1000000-0000-0000-0000-000000000001',
+      shelf_id: targetShelf || 'f1000000-0000-0000-0000-000000000001',
       variant_id: v.id,
       quantity: Math.max(0, Math.floor(v.stock / 2)),
       updated_at: new Date().toISOString(),
@@ -1622,7 +1680,7 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
     const diskVariants = loadLocalDbProductVariants()
     const mockLevels = diskVariants.map((v, idx) => ({
       id: `il-${idx + 1}`,
-      location_id: targetLoc || 'l1000000-0000-0000-0000-000000000001',
+      location_id: targetLoc || 'd1000000-0000-0000-0000-000000000001',
       variant_id: v.id,
       on_hand: v.stock,
       reserved: 0,
@@ -1714,7 +1772,7 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
         id: bodyJson?.id || `po-${Date.now()}`,
         po_number: bodyJson?.po_number || `PO-${Date.now()}`,
         supplier_id: bodyJson?.supplier_id || 'sup-00000000-0000-0000-0000-000000000001',
-        destination_location_id: bodyJson?.destination_location_id || 'l1000000-0000-0000-0000-000000000001',
+        destination_location_id: bodyJson?.destination_location_id || 'd1000000-0000-0000-0000-000000000001',
         status: bodyJson?.status || 'draft',
         expected_delivery_date: bodyJson?.expected_delivery_date || new Date().toISOString().slice(0, 10),
         subtotal: Number(bodyJson?.subtotal) || 0,
@@ -1769,6 +1827,63 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
       headers: {
         'Content-Type': 'application/json',
         'Content-Range': `0-${result.length ? result.length - 1 : 0}/${result.length}`,
+      },
+    })
+  }
+
+  // R1b. PostgREST: purchase_order_items (/rest/v1/purchase_order_items)
+  if (url.includes('/rest/v1/purchase_order_items')) {
+    if (!(globalThis as any).__LIVE_PO_ITEMS__) {
+      ;(globalThis as any).__LIVE_PO_ITEMS__ = []
+    }
+    const memItems: any[] = (globalThis as any).__LIVE_PO_ITEMS__
+
+    if (method === 'POST') {
+      const payloadArr = Array.isArray(bodyJson) ? bodyJson : [bodyJson]
+      const inserted = payloadArr.map((it: any, idx: number) => ({
+        id: it.id || `poi-${Date.now()}-${idx}`,
+        po_id: it.po_id,
+        variant_id: it.variant_id,
+        hsn_code: it.hsn_code || '610910',
+        quantity_ordered: Number(it.quantity_ordered) || 1,
+        quantity_received: Number(it.quantity_received) || 0,
+        unit_cost: Number(it.unit_cost) || 0,
+        tax_rate_percent: Number(it.tax_rate_percent) || 12,
+        tax_amount: Number(it.tax_amount) || 0,
+        line_total: Number(it.line_total) || 0,
+        destination_location_id: it.destination_location_id || null,
+        created_at: new Date().toISOString(),
+      }))
+      memItems.push(...inserted)
+      return new Response(JSON.stringify(inserted), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const poMatch = url.match(/po_id=eq\.([^&]+)/)
+    const targetPoId = poMatch ? decodeURIComponent(poMatch[1]) : null
+    let filtered = memItems
+    if (targetPoId) {
+      filtered = filtered.filter((i: any) => i.po_id === targetPoId)
+    }
+
+    const diskVariants = loadLocalDbProductVariants()
+    const diskProducts = loadLocalDbProducts()
+    const enrichedItems = filtered.map((it: any) => {
+      const v = diskVariants.find((varItem: any) => varItem.id === it.variant_id) || diskVariants[0]
+      const prod = v ? diskProducts.find((p: any) => p.id === v.product_id) || diskProducts[0] : null
+      return {
+        ...it,
+        variant: v ? { ...v, product: prod } : null,
+      }
+    })
+
+    return new Response(JSON.stringify(enrichedItems), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Range': `0-${enrichedItems.length ? enrichedItems.length - 1 : 0}/${enrichedItems.length}`,
       },
     })
   }
@@ -1861,8 +1976,8 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
       const newTrf = {
         id: `trf-${Date.now()}`,
         transfer_number: bodyJson?.transfer_number || `TRF-${Date.now()}`,
-        source_location_id: bodyJson?.source_location_id || 'l1000000-0000-0000-0000-000000000001',
-        destination_location_id: bodyJson?.destination_location_id || 'l1000000-0000-0000-0000-000000000002',
+        source_location_id: bodyJson?.source_location_id || 'd1000000-0000-0000-0000-000000000001',
+        destination_location_id: bodyJson?.destination_location_id || 'd1000000-0000-0000-0000-000000000002',
         status: 'draft',
         eway_bill_number: bodyJson?.eway_bill_number || null,
         dispatched_at: null,
@@ -1880,8 +1995,8 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
       {
         id: 'trf-00000000-0000-0000-0000-000000000001',
         transfer_number: 'TRF-20261108-0001',
-        source_location_id: 'l1000000-0000-0000-0000-000000000001',
-        destination_location_id: 'l1000000-0000-0000-0000-000000000002',
+        source_location_id: 'd1000000-0000-0000-0000-000000000001',
+        destination_location_id: 'd1000000-0000-0000-0000-000000000002',
         status: 'in_transit',
         eway_bill_number: 'EWB-20261108-9842',
         dispatched_at: new Date().toISOString(),
@@ -1903,10 +2018,10 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
       {
         id: 'led-1',
         transaction_timestamp: new Date().toISOString(),
-        variant_id: 'v1000000-0000-0000-0000-000000000001',
-        location_id: 'l1000000-0000-0000-0000-000000000001',
+        variant_id: 'a2000000-0000-0000-0000-000000000001',
+        location_id: 'd1000000-0000-0000-0000-000000000001',
         from_shelf_id: null,
-        to_shelf_id: 's1000000-0000-0000-0000-000000000001',
+        to_shelf_id: 'f1000000-0000-0000-0000-000000000001',
         movement_type: 'inbound_grn',
         quantity: 25,
         balance_after: 25,
@@ -1918,9 +2033,9 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
       {
         id: 'led-2',
         transaction_timestamp: new Date(Date.now() - 3600000).toISOString(),
-        variant_id: 'v1000000-0000-0000-0000-000000000002',
-        location_id: 'l1000000-0000-0000-0000-000000000002',
-        from_shelf_id: 's1000000-0000-0000-0000-000000000003',
+        variant_id: 'a2000000-0000-0000-0000-000000000002',
+        location_id: 'd1000000-0000-0000-0000-000000000002',
+        from_shelf_id: 'f1000000-0000-0000-0000-000000000003',
         to_shelf_id: null,
         movement_type: 'pos_sale',
         quantity: -1,
@@ -1960,7 +2075,7 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
       {
         id: 'layout-home-01',
         page_slug: 'home',
-        page_title: 'Atelier Haute Couture & Creator Apparel Drop 01',
+        page_title: 'The Grace Atelier Haute Couture',
         layout_json: [
           {
             id: 'hero-section-01',
@@ -1972,7 +2087,7 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
             props: {
               pillText: 'Introducing Bolt ⚡ Doorstep Try-On Salon',
               pillLink: '#bolt-experience',
-              kicker: 'AUTONOMOUS ATELIER // SPECIFICATION DROP 01',
+              kicker: 'AUTONOMOUS ATELIER // SPECIFICATION ARCHIVE',
               titleLine1: 'ARCHITECTURAL',
               titleLine2: 'SILHOUETTES',
               description: 'Custom-milled 480 GSM French Terry, 14oz Japanese raw selvedge denim, and sculptural outerwear. Order up to 5 curated works to try on at your doorstep before final settlement.',
@@ -2029,35 +2144,21 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
             className: 'max-w-7xl mx-auto px-6 sm:px-12 py-16',
             styles: {},
             props: {
-              kicker: 'CURATED ATELIER ARCHIVE',
-              title: 'Selected Works Available for Try-On',
-              subtitle: 'Select your pieces and choose Bolt ⚡ Try-On at checkout.',
+              title: 'SELECTED WORKS',
               categoryFilter: 'all',
               limit: 6,
               columns: 3,
             },
           },
           {
-            id: 'custom-div-specs-01',
-            type: 'CustomDivBlock',
-            name: 'Creator Fabric Lab Technical Banner',
-            isVisible: true,
-            className: 'bg-neutral-900 text-white p-8 sm:p-12 my-12 max-w-7xl mx-auto border border-neutral-800',
-            styles: {},
-            props: {
-              htmlContent: '<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6"><div class="space-y-2"><span class="text-xs font-mono text-emerald-400 uppercase tracking-widest">PHYSICAL MATERIAL LAB</span><h3 class="text-2xl font-serif font-light">Strictly Unblended Organic Fibers</h3><p class="text-xs text-neutral-400 font-sans max-w-xl">Every yard of fabric is commissioned directly from artisanal mills in Wakayama, Okayama, and Courtrai. No microplastics, no synthetic elastane.</p></div><a href="/shop" class="px-6 py-3 bg-white text-black font-mono text-xs uppercase font-bold tracking-wider hover:bg-neutral-200 transition-colors shrink-0">Shop Collection</a></div>',
-            },
-          },
-          {
             id: 'reviews-showcase-01',
             type: 'ReviewsShowcase',
-            name: 'Doorstep Salon Verified Patron Reviews',
+            name: 'User Reviews',
             isVisible: true,
-            className: 'bg-[#FAF9F6] border-t border-neutral-200 py-20 px-6 sm:px-12',
+            className: 'bg-[#FDFCF7] border-t border-[#E5E0D8] py-20 sm:py-28 px-6 sm:px-12',
             styles: {},
             props: {
-              title: 'Verified Doorstep Fitting Testimonials',
-              subtitle: 'What patrons say about experiencing couture in front of their own mirror.',
+              title: 'USER REVIEWS',
             },
           },
         ],
@@ -2118,6 +2219,32 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
   }
 
   // U. RPC Calls (/rest/v1/rpc/...)
+  if (url.includes('/rest/v1/rpc/receive_split_grn_and_putaway')) {
+    const splits = bodyJson?.p_splits || []
+    let totalAcc = 0
+    let totalRej = 0
+    for (const item of splits) {
+      for (const dest of item.destinations || []) {
+        totalAcc += Number(dest.qty_accepted) || 0
+        totalRej += Number(dest.qty_rejected) || 0
+      }
+    }
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const randSeq = Math.floor(1000 + Math.random() * 9000)
+    const grnNumber = `GRN-${today}-${randSeq}`
+    return new Response(
+      JSON.stringify({
+        success: true,
+        grn_id: `grn-${Date.now()}`,
+        grn_number: grnNumber,
+        total_accepted: totalAcc,
+        total_rejected: totalRej,
+        po_status: 'received',
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
   if (url.includes('/rest/v1/rpc/receive_grn_and_putaway')) {
     return new Response(
       JSON.stringify({
@@ -2169,7 +2296,7 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
     return new Response(
       JSON.stringify({
         status: bodyJson?.p_action === 'allocate' ? 'allocated' : 'picked',
-        allocated_location_id: bodyJson?.p_location_id || 'l1000000-0000-0000-0000-000000000001',
+        allocated_location_id: bodyJson?.p_location_id || 'd1000000-0000-0000-0000-000000000001',
         success: true,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
@@ -2179,7 +2306,7 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
   if (url.includes('/rest/v1/rpc/process_boris_return')) {
     return new Response(
       JSON.stringify({
-        restocked_shelf_id: bodyJson?.p_target_shelf_id || 's1000000-0000-0000-0000-000000000001',
+        restocked_shelf_id: bodyJson?.p_target_shelf_id || 'f1000000-0000-0000-0000-000000000001',
         condition: bodyJson?.p_condition || 'pass',
         refund_mode: bodyJson?.p_refund_mode || 'store_credit',
         success: true,

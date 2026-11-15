@@ -91,9 +91,7 @@ const COMPONENT_BLUEPRINTS: Record<ComponentType, { name: string; defaultProps: 
     name: 'Curated Product Grid',
     defaultClass: 'max-w-7xl mx-auto px-6 sm:px-12 py-16',
     defaultProps: {
-      kicker: 'CURATED ATELIER ARCHIVE',
-      title: 'Selected Works Available for Try-On',
-      subtitle: 'Select your pieces and choose Bolt ⚡ Try-On at checkout.',
+      title: 'SELECTED WORKS',
       categoryFilter: 'all',
       limit: 6,
       columns: 3,
@@ -108,11 +106,10 @@ const COMPONENT_BLUEPRINTS: Record<ComponentType, { name: string; defaultProps: 
     },
   },
   ReviewsShowcase: {
-    name: 'Verified Reviews Showcase',
-    defaultClass: 'bg-[#FAF9F6] border-t border-neutral-200 py-20 px-6 sm:px-12',
+    name: 'User Reviews',
+    defaultClass: 'bg-[#FDFCF7] border-t border-[#E5E0D8] py-20 sm:py-28 px-6 sm:px-12',
     defaultProps: {
-      title: 'Verified Doorstep Fitting Testimonials',
-      subtitle: 'What patrons say about experiencing couture in front of their own mirror.',
+      title: 'USER REVIEWS',
     },
   },
   CustomDivBlock: {

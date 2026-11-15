@@ -25,7 +25,7 @@
       "stock": 50,
       "image_url": "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1200&q=85",
       "material": "100% Mongolian Double-Faced Cashmere",
-      "edition": "Drop 01 // Limited 50 Pieces",
+      "edition": "Collection // Limited 50 Pieces",
       "is_archived": false,
       "created_at": "2026-11-13T21:48:25.523Z",
       "updated_at": "2026-11-13T21:48:25.523Z"
@@ -40,7 +40,7 @@
       "stock": 50,
       "image_url": "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1200&q=85",
       "material": "100% Mongolian Double-Faced Cashmere",
-      "edition": "Drop 01 // Limited 50 Pieces",
+      "edition": "Collection // Limited 50 Pieces",
       "is_archived": false,
       "created_at": "2026-11-13T21:46:16.935Z",
       "updated_at": "2026-11-13T21:46:16.935Z"
@@ -55,7 +55,7 @@
       "category_id": "c1000000-0000-0000-0000-000000000001",
       "category": "Hoodies & Fleece",
       "material": "480 GSM 100% Organic Cotton French Terry",
-      "edition": "Drop 01 // Limited 150 Pieces",
+      "edition": "Collection // Limited 150 Pieces",
       "is_archived": false,
       "created_at": "2026-11-12T19:29:35.358Z",
       "updated_at": "2026-11-12T19:29:35.358Z"
@@ -70,7 +70,7 @@
       "category_id": "c1000000-0000-0000-0000-000000000002",
       "category": "Tees & Tops",
       "material": "280 GSM Combed Cotton with Vintage Enzymatic Wash",
-      "edition": "Drop 01 // Core Essential",
+      "edition": "Collection // Core Essential",
       "is_archived": false,
       "created_at": "2026-11-12T19:29:35.358Z",
       "updated_at": "2026-11-12T19:29:35.358Z"
@@ -85,7 +85,7 @@
       "category_id": "c1000000-0000-0000-0000-000000000003",
       "category": "Outerwear & Jackets",
       "material": "Matte Technical Nylon Shell & Primaloft Insulation",
-      "edition": "Drop 01 // Limited 80 Pieces",
+      "edition": "Collection // Limited 80 Pieces",
       "is_archived": false,
       "created_at": "2026-11-12T19:29:35.358Z",
       "updated_at": "2026-11-12T19:29:35.358Z"
@@ -100,7 +100,7 @@
       "category_id": "c1000000-0000-0000-0000-000000000004",
       "category": "Pants & Raw Denim",
       "material": "14.5oz 100% Cotton Okayama Selvedge Denim",
-      "edition": "Drop 01 // Limited 100 Pieces",
+      "edition": "Collection // Limited 100 Pieces",
       "is_archived": false,
       "created_at": "2026-11-12T19:29:35.358Z",
       "updated_at": "2026-11-12T19:29:35.358Z"
@@ -108,7 +108,7 @@
   ],
   "product_variants": [
     {
-      "id": "v1000000-0000-0000-0000-000000000001",
+      "id": "a2000000-0000-0000-0000-000000000001",
       "product_id": "b1000000-0000-0000-0000-000000000001",
       "size": "S",
       "sku": "ATL-HD01-BLK-S",
@@ -120,7 +120,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-0000-0000-0000-000000000002",
+      "id": "a2000000-0000-0000-0000-000000000002",
       "product_id": "b1000000-0000-0000-0000-000000000001",
       "size": "M",
       "sku": "ATL-HD01-BLK-M",
@@ -132,7 +132,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-0000-0000-0000-000000000003",
+      "id": "a2000000-0000-0000-0000-000000000003",
       "product_id": "b1000000-0000-0000-0000-000000000001",
       "size": "L",
       "sku": "ATL-HD01-BLK-L",
@@ -144,7 +144,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-0000-0000-0000-000000000004",
+      "id": "a2000000-0000-0000-0000-000000000004",
       "product_id": "b1000000-0000-0000-0000-000000000001",
       "size": "XL",
       "sku": "ATL-HD01-BLK-XL",
@@ -156,7 +156,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-0000-0000-0000-000000000005",
+      "id": "a2000000-0000-0000-0000-000000000005",
       "product_id": "b1000000-0000-0000-0000-000000000002",
       "size": "S",
       "sku": "ATL-TEE01-WSH-S",
@@ -168,7 +168,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-0000-0000-0000-000000000006",
+      "id": "a2000000-0000-0000-0000-000000000006",
       "product_id": "b1000000-0000-0000-0000-000000000002",
       "size": "M",
       "sku": "ATL-TEE01-WSH-M",
@@ -180,7 +180,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-0000-0000-0000-000000000007",
+      "id": "a2000000-0000-0000-0000-000000000007",
       "product_id": "b1000000-0000-0000-0000-000000000002",
       "size": "L",
       "sku": "ATL-TEE01-WSH-L",
@@ -192,7 +192,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-0000-0000-0000-000000000008",
+      "id": "a2000000-0000-0000-0000-000000000008",
       "product_id": "b1000000-0000-0000-0000-000000000002",
       "size": "XL",
       "sku": "ATL-TEE01-WSH-XL",
@@ -204,7 +204,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-0000-0000-0000-000000000009",
+      "id": "a2000000-0000-0000-0000-000000000009",
       "product_id": "b1000000-0000-0000-0000-000000000003",
       "size": "S",
       "sku": "ATL-BMB01-OLV-S",
@@ -216,7 +216,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-0000-0000-0000-000000000010",
+      "id": "a2000000-0000-0000-0000-000000000010",
       "product_id": "b1000000-0000-0000-0000-000000000003",
       "size": "M",
       "sku": "ATL-BMB01-OLV-M",
@@ -228,7 +228,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-0000-0000-0000-000000000011",
+      "id": "a2000000-0000-0000-0000-000000000011",
       "product_id": "b1000000-0000-0000-0000-000000000003",
       "size": "L",
       "sku": "ATL-BMB01-OLV-L",
@@ -240,7 +240,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-0000-0000-0000-000000000012",
+      "id": "a2000000-0000-0000-0000-000000000012",
       "product_id": "b1000000-0000-0000-0000-000000000003",
       "size": "XL",
       "sku": "ATL-BMB01-OLV-XL",
@@ -252,7 +252,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-0000-0000-0000-000000000013",
+      "id": "a2000000-0000-0000-0000-000000000013",
       "product_id": "b1000000-0000-0000-0000-000000000004",
       "size": "30",
       "sku": "ATL-DNM01-RAW-30",
@@ -264,7 +264,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-0000-0000-0000-000000000014",
+      "id": "a2000000-0000-0000-0000-000000000014",
       "product_id": "b1000000-0000-0000-0000-000000000004",
       "size": "32",
       "sku": "ATL-DNM01-RAW-32",
@@ -276,7 +276,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-0000-0000-0000-000000000015",
+      "id": "a2000000-0000-0000-0000-000000000015",
       "product_id": "b1000000-0000-0000-0000-000000000004",
       "size": "34",
       "sku": "ATL-DNM01-RAW-34",
@@ -288,7 +288,7 @@
       "updated_at": "2026-11-12T19:29:35.358Z"
     },
     {
-      "id": "v1000000-01a1d6e0280e-q9qc",
+      "id": "a2000000-01a1d6e0280e-q9qc",
       "product_id": "b1000000-01a1d6e027e7",
       "size": "XS",
       "color": null,
@@ -302,7 +302,7 @@
       "updated_at": "2026-11-13T21:46:16.974Z"
     },
     {
-      "id": "v1000000-01a1d6e0280e-02x0",
+      "id": "a2000000-01a1d6e0280e-02x0",
       "product_id": "b1000000-01a1d6e027e7",
       "size": "S",
       "color": null,
@@ -316,7 +316,7 @@
       "updated_at": "2026-11-13T21:46:16.974Z"
     },
     {
-      "id": "v1000000-01a1d6e0280e-8lsd",
+      "id": "a2000000-01a1d6e0280e-8lsd",
       "product_id": "b1000000-01a1d6e027e7",
       "size": "M",
       "color": null,
@@ -330,7 +330,7 @@
       "updated_at": "2026-11-13T21:46:16.974Z"
     },
     {
-      "id": "v1000000-01a1d6e0280e-t7cd",
+      "id": "a2000000-01a1d6e0280e-t7cd",
       "product_id": "b1000000-01a1d6e027e7",
       "size": "L",
       "color": null,
@@ -344,7 +344,7 @@
       "updated_at": "2026-11-13T21:46:16.974Z"
     },
     {
-      "id": "v1000000-01a1d6e21e53-7bdp",
+      "id": "a2000000-01a1d6e21e53-7bdp",
       "product_id": "b1000000-01a1d6e21e33",
       "size": "XS",
       "color": null,
@@ -358,7 +358,7 @@
       "updated_at": "2026-11-13T21:48:25.555Z"
     },
     {
-      "id": "v1000000-01a1d6e21e53-o08k",
+      "id": "a2000000-01a1d6e21e53-o08k",
       "product_id": "b1000000-01a1d6e21e33",
       "size": "S",
       "color": null,
@@ -372,7 +372,7 @@
       "updated_at": "2026-11-13T21:48:25.555Z"
     },
     {
-      "id": "v1000000-01a1d6e21e53-r0eu",
+      "id": "a2000000-01a1d6e21e53-r0eu",
       "product_id": "b1000000-01a1d6e21e33",
       "size": "M",
       "color": null,
@@ -386,7 +386,7 @@
       "updated_at": "2026-11-13T21:48:25.555Z"
     },
     {
-      "id": "v1000000-01a1d6e21e53-qm6t",
+      "id": "a2000000-01a1d6e21e53-qm6t",
       "product_id": "b1000000-01a1d6e21e33",
       "size": "L",
       "color": null,
@@ -400,7 +400,7 @@
       "updated_at": "2026-11-13T21:48:25.555Z"
     },
     {
-      "id": "v1000000-01a1d9b5a691-556e",
+      "id": "a2000000-01a1d9b5a691-556e",
       "size": "XS",
       "color": null,
       "sku": "HEAVYWEIGHT-BOXY-XS",
@@ -413,7 +413,7 @@
       "updated_at": "2026-11-14T10:58:42.961Z"
     },
     {
-      "id": "v1000000-01a1d9b5a691-grg6",
+      "id": "a2000000-01a1d9b5a691-grg6",
       "size": "S",
       "color": null,
       "sku": "HEAVYWEIGHT-BOXY-S",
@@ -426,7 +426,7 @@
       "updated_at": "2026-11-14T10:58:42.961Z"
     },
     {
-      "id": "v1000000-01a1d9b5a691-ivtt",
+      "id": "a2000000-01a1d9b5a691-ivtt",
       "size": "M",
       "color": null,
       "sku": "HEAVYWEIGHT-BOXY-M",
@@ -439,7 +439,7 @@
       "updated_at": "2026-11-14T10:58:42.963Z"
     },
     {
-      "id": "v1000000-01a1d9b5a693-dkps",
+      "id": "a2000000-01a1d9b5a693-dkps",
       "size": "L",
       "color": null,
       "sku": "HEAVYWEIGHT-BOXY-L",
@@ -452,7 +452,7 @@
       "updated_at": "2026-11-14T10:58:42.963Z"
     },
     {
-      "id": "v1000000-01a1d9b5a693-1bbz",
+      "id": "a2000000-01a1d9b5a693-1bbz",
       "size": "XL",
       "color": null,
       "sku": "HEAVYWEIGHT-BOXY-XL",
@@ -465,7 +465,7 @@
       "updated_at": "2026-11-14T10:58:42.963Z"
     },
     {
-      "id": "v1000000-01a1d9b5a693-4vak",
+      "id": "a2000000-01a1d9b5a693-4vak",
       "size": "XXL",
       "color": null,
       "sku": "HEAVYWEIGHT-BOXY-XXL",
@@ -733,7 +733,7 @@
       "order_type": "bolt_try_on",
       "delivery_mode": "try_on",
       "bolt_pincode": "560038",
-      "bolt_timeslot_id": "t1000000-0000-0000-0000-000000000001",
+      "bolt_timeslot_id": "a1000000-0000-0000-0000-000000000001",
       "bolt_session_status": "scheduled",
       "try_on_status": "pending",
       "tax_amount": 0,
@@ -762,7 +762,7 @@
             "category_id": "c1000000-0000-0000-0000-000000000001",
             "category": "Hoodies & Fleece",
             "material": "480 GSM 100% Organic Cotton French Terry",
-            "edition": "Drop 01 // Limited 150 Pieces",
+            "edition": "Collection // Limited 150 Pieces",
             "is_archived": false,
             "created_at": "2026-11-13T20:20:38.024Z",
             "updated_at": "2026-11-13T20:20:38.024Z"
@@ -811,7 +811,7 @@
             "category_id": "c1000000-0000-0000-0000-000000000001",
             "category": "Hoodies & Fleece",
             "material": "480 GSM 100% Organic Cotton French Terry",
-            "edition": "Drop 01 // Limited 150 Pieces",
+            "edition": "Collection // Limited 150 Pieces",
             "is_archived": false,
             "created_at": "2026-11-13T20:15:57.074Z",
             "updated_at": "2026-11-13T20:15:57.074Z"
@@ -831,7 +831,7 @@
       "order_type": "bolt_try_on",
       "delivery_mode": "try_on",
       "bolt_pincode": "560038",
-      "bolt_timeslot_id": "t1000000-0000-0000-0000-000000000001",
+      "bolt_timeslot_id": "a1000000-0000-0000-0000-000000000001",
       "bolt_session_status": "scheduled",
       "try_on_status": "pending",
       "tax_amount": 0,
@@ -860,7 +860,7 @@
             "category_id": "c1000000-0000-0000-0000-000000000001",
             "category": "Hoodies & Fleece",
             "material": "480 GSM 100% Organic Cotton French Terry",
-            "edition": "Drop 01 // Limited 150 Pieces",
+            "edition": "Collection // Limited 150 Pieces",
             "is_archived": false,
             "created_at": "2026-11-12T23:06:42.200Z",
             "updated_at": "2026-11-12T23:06:42.200Z"
@@ -909,7 +909,7 @@
             "category_id": "c1000000-0000-0000-0000-000000000001",
             "category": "Hoodies & Fleece",
             "material": "480 GSM 100% Organic Cotton French Terry",
-            "edition": "Drop 01 // Limited 150 Pieces",
+            "edition": "Collection // Limited 150 Pieces",
             "is_archived": false,
             "created_at": "2026-11-12T23:02:23.903Z",
             "updated_at": "2026-11-12T23:02:23.903Z"

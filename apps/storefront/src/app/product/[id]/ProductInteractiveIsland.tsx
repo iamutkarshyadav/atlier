@@ -75,7 +75,7 @@ const MOCK_PDP_REVIEWS = [
     title: 'Exceptional craftsmanship, dense ribbing.',
     fitFeedback: 'Structured Boxy Fit',
     comment:
-      'The sleeve cuffs and bottom hem are double-needle reinforced. Only giving 4 stars because the drop sold out so fast in my colorway, but the product itself is 10/10.',
+      'The sleeve cuffs and bottom hem are double-needle reinforced. Only giving 4 stars because the collection sold out so fast in my colorway, but the product itself is 10/10.',
     verified: true,
   },
 ]
@@ -153,7 +153,7 @@ export function ProductInteractiveIsland({
       productId: product.id,
       title: product.title,
       category: product.category || 'Apparel',
-      edition: product.edition || 'Drop 01',
+      edition: product.edition || 'Collection',
       price: activePrice,
       quantity,
       image: galleryImages[0] || '/images/prod1-primary.jpg',
@@ -183,7 +183,7 @@ export function ProductInteractiveIsland({
           className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-[#52525B] hover:text-[#09090B] transition-colors font-medium"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Catalogue</span>
+          <span>Back to Shop Collections</span>
         </Link>
 
         <div className="flex items-center gap-2 text-xs font-mono">
@@ -192,7 +192,7 @@ export function ProductInteractiveIsland({
             Bolt ⚡ Doorstep Eligible
           </span>
           <span className="text-neutral-300 hidden sm:inline">•</span>
-          <span className="text-[#71717A] hidden sm:inline">Drop 01 Allocation</span>
+          <span className="text-[#71717A] hidden sm:inline">Atelier Allocation</span>
         </div>
       </div>
 
@@ -238,10 +238,10 @@ export function ProductInteractiveIsland({
                   key={idx}
                   type="button"
                   onClick={() => setActiveImageIndex(idx)}
-                  className={`relative h-16 w-14 lg:h-18 lg:w-16 overflow-hidden bg-white shrink-0 border-2 transition-all cursor-pointer rounded-none ${
+                  className={`relative h-16 w-14 lg:h-18 lg:w-16 overflow-hidden bg-[#FAF8F2] shrink-0 border-2 transition-all cursor-pointer rounded-none ${
                     activeImageIndex === idx
                       ? 'border-[#09090B] ring-1 ring-[#09090B] opacity-100'
-                      : 'border-[#E4E4E0] opacity-65 hover:opacity-100'
+                      : 'border-[#E8E4DA] opacity-65 hover:opacity-100'
                   }`}
                 >
                   <Image
@@ -293,8 +293,8 @@ export function ProductInteractiveIsland({
               'Engineered with architectural proportions from single-origin combed organic cotton. Built for creators who value textile permanence.'}
           </p>
 
-          {/* Bolt ⚡ Doorstep Try-On Feature Card (Clean Light Luxury Aesthetic) */}
-          <div className="p-4 bg-white border border-[#E4E4E0] space-y-2 rounded-none shadow-sm">
+          {/* Bolt ⚡ Doorstep Try-On Feature Card (Warm Off-White Luxury Aesthetic) */}
+          <div className="p-4 bg-[#FAF8F2] border border-[#E8E4DA] space-y-2 rounded-none shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="p-1 bg-red-50 text-[#B91C1C] border border-red-200 rounded-none">
@@ -304,7 +304,7 @@ export function ProductInteractiveIsland({
                   Bolt ⚡ White-Glove Doorstep Try-On
                 </span>
               </div>
-              <span className="text-[10px] font-mono uppercase px-2 py-0.5 bg-neutral-100 text-[#09090B] font-bold border border-[#E4E4E0]">
+              <span className="text-[10px] font-mono uppercase px-2 py-0.5 bg-[#F2EFE8] text-[#09090B] font-bold border border-[#E8E4DA]">
                 ₹99 Booking Hold
               </span>
             </div>
@@ -315,7 +315,7 @@ export function ProductInteractiveIsland({
 
           {/* Fabric Weight Highlight */}
           {product.material && (
-            <div className="p-3 bg-white border border-[#E4E4E0] text-xs font-mono space-y-0.5 rounded-none shadow-sm">
+            <div className="p-3 bg-[#FAF8F2] border border-[#E8E4DA] text-xs font-mono space-y-0.5 rounded-none shadow-sm">
               <span className="text-[10px] uppercase tracking-wider text-[#71717A] block font-bold">
                 Milled Textile Weight &amp; Composition:
               </span>
@@ -428,7 +428,7 @@ export function ProductInteractiveIsland({
               size="lg"
               disabled={isOutOfStock}
               isLoading={isAdding}
-              className="w-full h-11 bg-white hover:bg-neutral-50 hover:shadow-[0_10px_25px_-3px_rgba(220,38,38,0.35)] text-[#09090B] font-mono font-bold tracking-wider uppercase text-xs rounded-none border-2 border-[#09090B] flex items-center justify-center gap-2 group transition-all shadow-sm disabled:opacity-40"
+              className="w-full h-11 bg-[#FAF8F2] hover:bg-[#F2EFE8] hover:shadow-[0_10px_25px_-3px_rgba(220,38,38,0.35)] text-[#09090B] font-mono font-bold tracking-wider uppercase text-xs rounded-none border-2 border-[#09090B] flex items-center justify-center gap-2 group transition-all shadow-sm disabled:opacity-40"
             >
               <ShoppingBag className="w-3.5 h-3.5 text-[#09090B]" />
               <span>
@@ -444,7 +444,7 @@ export function ProductInteractiveIsland({
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="p-4 bg-white text-[#09090B] text-xs font-mono space-y-2 border border-[#E4E4E0] rounded-none shadow-xl"
+                className="p-4 bg-[#FAF8F2] text-[#09090B] text-xs font-mono space-y-2 border border-[#E8E4DA] rounded-none shadow-xl"
               >
                 <div className="flex justify-between items-center">
                   <span className="uppercase tracking-wider font-bold text-[#B91C1C] flex items-center gap-2">
@@ -474,7 +474,7 @@ export function ProductInteractiveIsland({
           {/* ========================================================= */}
           {/* ACCORDION DETAILS SECTION (UNDERSTATED LUXURY) */}
           {/* ========================================================= */}
-          <div className="border-t border-[#E4E4E0] divide-y divide-[#E4E4E0] font-mono text-xs pt-3">
+          <div className="border-t border-[#E8E4DA] divide-y divide-[#E8E4DA] font-mono text-xs pt-3">
             {/* Accordion 1: Materials & Care */}
             <div className="py-3">
               <button
@@ -553,9 +553,9 @@ export function ProductInteractiveIsland({
                     Model is 6&apos;1&quot; (185 cm) wearing Size <strong className="text-[#09090B]">L (Taille 02)</strong> for a boxy relaxed drape.
                   </p>
 
-                  <div className="border border-[#E4E4E0] bg-white overflow-x-auto rounded-none shadow-sm">
+                  <div className="border border-[#E8E4DA] bg-[#FAF8F2] overflow-x-auto rounded-none shadow-sm">
                     <table className="w-full text-left text-[11px] font-mono">
-                      <thead className="bg-neutral-100 border-b border-[#E4E4E0] text-[#09090B]">
+                      <thead className="bg-[#F2EFE8] border-b border-[#E8E4DA] text-[#09090B]">
                         <tr>
                           <th className="p-2.5 font-bold">Size</th>
                           <th className="p-2.5 font-bold">Chest (in)</th>
@@ -563,7 +563,7 @@ export function ProductInteractiveIsland({
                           <th className="p-2.5 font-bold">Sleeve (in)</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#E4E4E0] text-[#52525B]">
+                      <tbody className="divide-y divide-[#E8E4DA] text-[#52525B]">
                         <tr>
                           <td className="p-2.5 font-bold text-[#09090B]">S</td>
                           <td className="p-2.5">42</td>
@@ -601,8 +601,8 @@ export function ProductInteractiveIsland({
       {/* ========================================================= */}
       {/* REVIEWS & SOCIAL PROOF SECTION */}
       {/* ========================================================= */}
-      <section className="pt-12 border-t border-[#E4E4E0] space-y-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-4 border-b border-[#E4E4E0]">
+      <section className="pt-12 border-t border-[#E8E4DA] space-y-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-4 border-b border-[#E8E4DA]">
           <div>
             <div className="flex items-center gap-2 text-xs font-mono text-[#71717A] mb-1.5">
               <span className="text-[#B91C1C] font-bold">[ VERIFIED TRIAL RECORD ]</span>
@@ -622,7 +622,7 @@ export function ProductInteractiveIsland({
               <span className="text-xl font-bold text-[#09090B]">96%</span>
               <p className="text-[10px] text-[#71717A] uppercase">Recommended Fit</p>
             </div>
-            <div className="text-right border-l border-[#E4E4E0] pl-6">
+            <div className="text-right border-l border-[#E8E4DA] pl-6">
               <span className="text-xl font-bold text-[#B91C1C]">45m</span>
               <p className="text-[10px] text-[#71717A] uppercase">Avg Doorstep Salon</p>
             </div>
@@ -634,7 +634,7 @@ export function ProductInteractiveIsland({
           {MOCK_PDP_REVIEWS.map((rev) => (
             <div
               key={rev.id}
-              className="p-5 bg-white border border-[#E4E4E0] space-y-2.5 font-mono text-xs shadow-sm rounded-none"
+              className="p-5 bg-[#FAF8F2] border border-[#E8E4DA] space-y-2.5 font-mono text-xs shadow-sm rounded-none"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono font-bold tracking-wider text-[#09090B]">
@@ -660,7 +660,7 @@ export function ProductInteractiveIsland({
                 {rev.comment}
               </p>
 
-              <div className="pt-2.5 border-t border-[#E4E4E0] flex items-center justify-between text-[11px] text-[#71717A]">
+              <div className="pt-2.5 border-t border-[#E8E4DA] flex items-center justify-between text-[11px] text-[#71717A]">
                 <span>{rev.author} • {rev.city}</span>
                 <span>{rev.date}</span>
               </div>
@@ -672,7 +672,7 @@ export function ProductInteractiveIsland({
       {/* ========================================================= */}
       {/* MOBILE STICKY ACTION BAR */}
       {/* ========================================================= */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md p-3 border-t border-[#E4E4E0] shadow-xl flex items-center justify-between gap-3 font-mono">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#FDFCF7]/95 backdrop-blur-md p-3 border-t border-[#E8E4DA] shadow-xl flex items-center justify-between gap-3 font-mono">
         <div>
           <p className="text-[10px] text-[#71717A] uppercase">Price</p>
           <p className="text-sm font-bold text-[#09090B]">
@@ -695,7 +695,7 @@ export function ProductInteractiveIsland({
             type="button"
             onClick={() => handleAddToCart(false)}
             disabled={isOutOfStock}
-            className="p-2.5 bg-white text-[#09090B] hover:bg-neutral-100 border border-[#09090B] rounded-none cursor-pointer disabled:opacity-40"
+            className="p-2.5 bg-[#FAF8F2] text-[#09090B] hover:bg-[#F2EFE8] border border-[#09090B] rounded-none cursor-pointer disabled:opacity-40"
             aria-label="Add to bag"
           >
             <ShoppingBag className="w-4 h-4" />

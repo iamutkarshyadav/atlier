@@ -3,81 +3,81 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
-  Zap,
   ArrowRight,
   ShieldCheck,
   Scissors,
   Layers,
   MapPin,
+  Sparkles,
 } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'About Atelier • Heritage, Craftsmanship & The Bolt ⚡ Promise',
+  title: 'About Us • The Grace Atelier',
   description:
-    'The story of Atelier: architectural creator apparel engineered from 480 GSM French Terry and Japanese raw selvedge denim, coupled with the revolutionary Bolt ⚡ doorstep fitting salon.',
+    'The story of The Grace Atelier: architectural creator apparel engineered from 480 GSM French Terry and Japanese raw selvedge denim, coupled with private doorstep salon fitting.',
 }
 
 export default function AboutBrandPage() {
   return (
-    <div className="bg-[#212121] text-white selection:bg-[#B91C1C] selection:text-white min-h-screen">
+    <div className="bg-[#FDFCF7] text-[#09090B] selection:bg-[#B91C1C] selection:text-white min-h-screen">
       {/* ========================================================= */}
       {/* 1. EDITORIAL HEADER */}
       {/* ========================================================= */}
-      <section className="relative px-6 sm:px-12 pt-28 pb-16 sm:pb-24 border-b border-white/10 bg-[#1A1B1D]">
-        <div className="max-w-4xl mx-auto space-y-6 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#262629] border border-white/10 text-neutral-300 text-xs font-mono uppercase tracking-[0.25em] rounded-full">
-            <span>ATELIER ARCHIVE • EST. 2024</span>
+      <section className="relative px-6 sm:px-12 pt-28 pb-12 sm:pb-16 border-b border-[#E8E4DA] bg-[#FAF8F2]">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-3">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight text-[#09090B] font-display">
+              ABOUT <span className="text-[#B91C1C]">US</span>
+            </h1>
+            <p className="text-sm sm:text-base text-[#52525B] max-w-2xl font-sans leading-relaxed">
+              We construct clothing the way brutalist architects erect monoliths: prioritizing raw material integrity, deliberate proportions, and uncompromising permanence.
+            </p>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold uppercase tracking-tight text-white font-sans leading-[1.05]">
-            The Architecture <br />
-            <span className="font-script font-normal lowercase tracking-normal text-[#B91C1C] text-5xl sm:text-7xl block mt-2">
-              of honest garments
-            </span>
-          </h1>
-
-          <p className="text-sm sm:text-base text-neutral-400 font-light leading-relaxed max-w-2xl mx-auto font-sans">
-            We build clothing the way brutalist architects erect monoliths: prioritizing raw material integrity, deliberate proportions, and uncompromising permanence.
-          </p>
+          <div className="hidden md:flex items-center gap-3 font-mono text-xs uppercase tracking-widest text-[#71717A]">
+            <span className="w-2 h-2 rounded-full bg-[#B91C1C]" />
+            <span>Atelier Archive • Established 2024</span>
+          </div>
         </div>
       </section>
 
       {/* ========================================================= */}
-      {/* 2. SECTION: OUR HERITAGE */}
+      {/* 2. SECTION: CHAPTER 01 — PROVENANCE */}
       {/* ========================================================= */}
-      <section className="py-20 sm:py-28 px-6 sm:px-12 max-w-5xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start">
-          <div className="md:col-span-4 font-mono text-xs uppercase tracking-widest text-neutral-400 space-y-2 sticky top-28">
-            <span className="text-[#B91C1C] block font-bold">Chapter 01</span>
-            <h2 className="text-xl font-bold uppercase tracking-tight text-white font-sans">
-              Our Heritage
+      <section className="py-16 sm:py-24 px-6 sm:px-12 max-w-7xl mx-auto border-b border-[#E8E4DA]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+          <div className="lg:col-span-4 font-mono text-xs uppercase tracking-widest space-y-2 lg:sticky lg:top-28">
+            <span className="text-[#B91C1C] font-bold block">01 / PROVENANCE</span>
+            <h2 className="text-2xl font-bold uppercase tracking-tight text-[#09090B] font-sans">
+              Raw Material Integrity
             </h2>
-            <p className="text-[11px] text-neutral-400 lowercase font-mono">
-              from fast fashion fatigue to single-origin fibers
-            </p>
           </div>
 
-          <div className="md:col-span-8 space-y-6 text-sm sm:text-base font-light text-neutral-300 leading-relaxed font-sans">
-            <p className="text-lg sm:text-xl text-white font-serif italic border-l-2 border-[#B91C1C] pl-4">
+          <div className="lg:col-span-8 space-y-8 text-base text-[#27272A] leading-relaxed font-sans">
+            <blockquote className="text-xl sm:text-2xl text-[#09090B] font-serif italic border-l-2 border-[#B91C1C] pl-6 py-1 leading-snug">
               &ldquo;Modern apparel was broken by the spreadsheet. Fabrics were thinned, synthetic plastics were blended into cotton, and returns were treated as trash.&rdquo;
-            </p>
+            </blockquote>
 
-            <p>
+            <p className="text-[#3F3F46]">
               Atelier was established as a direct rebellion against disposable luxury. We observed that contemporary labels charged exorbitant sums for 220 GSM blended cotton that deformed after three washes. Our mission was straightforward: engineer clothing with the permanence of stone and timber.
             </p>
 
-            <p>
-              Every garment in our catalog begins with raw, unadulterated fiber. We partner directly with historic knitting mills in Wakayama, Japan, where loopwheel machines rotate at a sluggish 24 revolutions per minute, allowing tensionless loops of cotton to form naturally without mechanical strain.
+            <p className="text-[#3F3F46]">
+              Every garment in our collection begins with raw, unadulterated fiber. We partner directly with historic knitting mills in Wakayama, Japan, where loopwheel machines rotate at a sluggish 24 revolutions per minute, allowing tensionless loops of cotton to form naturally without mechanical strain.
             </p>
 
-            <div className="grid grid-cols-2 gap-6 pt-6 border-t border-white/10 font-mono text-xs">
-              <div>
-                <p className="text-white font-bold text-base">Zero Synthetics</p>
-                <p className="text-neutral-400 mt-1">100% biodegradable natural cotton and raw selvedge yarns.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-[#E8E4DA] font-mono text-xs">
+              <div className="bg-[#FAF8F2] border border-[#E8E4DA] p-5">
+                <p className="text-[#09090B] font-bold text-sm uppercase tracking-wider">Zero Synthetics</p>
+                <p className="text-[#52525B] mt-2 leading-relaxed">
+                  100% biodegradable single-origin organic cotton and raw selvedge yarns. Zero microplastics, zero synthetic elastane.
+                </p>
               </div>
-              <div>
-                <p className="text-white font-bold text-base">Strict Allocations</p>
-                <p className="text-neutral-400 mt-1">Under 150 pieces per size run worldwide. Never mass produced.</p>
+              <div className="bg-[#FAF8F2] border border-[#E8E4DA] p-5">
+                <p className="text-[#09090B] font-bold text-sm uppercase tracking-wider">Strict Allocations</p>
+                <p className="text-[#52525B] mt-2 leading-relaxed">
+                  Under 150 pieces per size run worldwide. Hand-inspected and individually serialized. Never mass produced.
+                </p>
               </div>
             </div>
           </div>
@@ -87,7 +87,7 @@ export default function AboutBrandPage() {
       {/* ========================================================= */}
       {/* 3. FULL-WIDTH EDITORIAL IMAGE BANNER */}
       {/* ========================================================= */}
-      <section className="relative w-full h-[65vh] sm:h-[80vh] overflow-hidden bg-black">
+      <section className="relative w-full h-[55vh] sm:h-[70vh] overflow-hidden bg-[#09090B]">
         <Image
           src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=2000&q=85"
           alt="Atelier Fashion Editorial Spread"
@@ -96,14 +96,14 @@ export default function AboutBrandPage() {
           className="object-cover object-center filter grayscale contrast-125 brightness-90"
         />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-[#212121] via-transparent to-black/50" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#09090B]/90 via-black/20 to-transparent" />
 
         <div className="absolute bottom-10 left-6 sm:left-12 right-6 sm:right-12 max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-end justify-between gap-4 text-white">
           <div className="space-y-1">
-            <span className="text-[11px] font-mono uppercase tracking-[0.25em] text-[#B91C1C] font-bold">
-              Editorial Volume 01
+            <span className="text-[11px] font-mono uppercase tracking-[0.25em] text-[#B91C1C] font-bold block">
+              EDITORIAL ARCHIVE // 35MM FILM
             </span>
-            <h3 className="text-2xl sm:text-4xl font-light uppercase font-sans tracking-tight">
+            <h3 className="text-2xl sm:text-4xl font-light uppercase font-sans tracking-tight text-white">
               Form follows textile.
             </h3>
           </div>
@@ -114,46 +114,49 @@ export default function AboutBrandPage() {
       </section>
 
       {/* ========================================================= */}
-      {/* 4. SECTION: THE CRAFTSMANSHIP */}
+      {/* 4. SECTION: CHAPTER 02 — ARCHITECTURE & CRAFTSMANSHIP */}
       {/* ========================================================= */}
-      <section className="py-20 sm:py-28 px-6 sm:px-12 max-w-5xl mx-auto border-b border-white/10">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start">
-          <div className="md:col-span-4 font-mono text-xs uppercase tracking-widest text-neutral-400 space-y-2 sticky top-28">
-            <span className="text-[#B91C1C] block font-bold">Chapter 02</span>
-            <h2 className="text-xl font-bold uppercase tracking-tight text-white font-sans">
-              The Craftsmanship
+      <section className="py-16 sm:py-24 px-6 sm:px-12 max-w-7xl mx-auto border-b border-[#E8E4DA]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+          <div className="lg:col-span-4 font-mono text-xs uppercase tracking-widest space-y-2 lg:sticky lg:top-28">
+            <span className="text-[#B91C1C] font-bold block">02 / ARCHITECTURE</span>
+            <h2 className="text-2xl font-bold uppercase tracking-tight text-[#09090B] font-sans">
+              Artisanal Craftsmanship
             </h2>
-            <p className="text-[11px] text-neutral-400 lowercase font-mono">
-              shuttle looms, double-needle cover-stitching, raw brass
-            </p>
           </div>
 
-          <div className="md:col-span-8 space-y-6 text-sm sm:text-base font-light text-neutral-300 leading-relaxed font-sans">
-            <p>
-              Our signature hoodies weigh a formidable <strong>480 grams per square meter (GSM)</strong>. To achieve this density, our French Terry is knitted using 3-end fleece yarns with combed exterior faces that resist wind penetration while remaining cloud-soft against the skin.
+          <div className="lg:col-span-8 space-y-8 text-base text-[#27272A] leading-relaxed font-sans">
+            <p className="text-[#3F3F46]">
+              Our signature hoodies weigh a formidable <strong className="text-[#09090B]">480 grams per square meter (GSM)</strong>. To achieve this density, our French Terry is knitted using 3-end fleece yarns with combed exterior faces that resist wind penetration while remaining cloud-soft against the skin.
             </p>
 
-            <p>
+            <p className="text-[#3F3F46]">
               Our denim is woven exclusively in Kojima, Okayama on vintage 1960s Toyoda shuttle looms. We weave 14.5oz raw selvedge denim using deep rope-dyed indigo yarns that develop distinct high-contrast fading patterns unique to your everyday posture and movements.
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 font-mono text-xs">
-              <div className="p-5 bg-[#262629] border border-white/10 rounded-2xl space-y-2">
-                <Scissors className="w-5 h-5 text-[#B91C1C] mb-2" />
-                <p className="font-bold text-white">Cover-Stitching</p>
-                <p className="text-[11px] text-neutral-400">Reinforced bar-tack joints and twin-needle binding across stress seams.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 pt-4 font-mono text-xs">
+              <div className="p-6 bg-[#FAF8F2] border border-[#E8E4DA] space-y-3">
+                <Scissors className="w-5 h-5 text-[#B91C1C]" />
+                <p className="font-bold text-[#09090B] text-sm uppercase tracking-wider">Cover-Stitching</p>
+                <p className="text-[#52525B] leading-relaxed">
+                  Reinforced bar-tack joints and twin-needle binding across high-stress seams.
+                </p>
               </div>
 
-              <div className="p-5 bg-[#262629] border border-white/10 rounded-2xl space-y-2">
-                <Layers className="w-5 h-5 text-[#B91C1C] mb-2" />
-                <p className="font-bold text-white">Custom Dye Vats</p>
-                <p className="text-[11px] text-neutral-400">Garment over-dyed in small batches with low-impact natural pigments.</p>
+              <div className="p-6 bg-[#FAF8F2] border border-[#E8E4DA] space-y-3">
+                <Layers className="w-5 h-5 text-[#B91C1C]" />
+                <p className="font-bold text-[#09090B] text-sm uppercase tracking-wider">Custom Dye Vats</p>
+                <p className="text-[#52525B] leading-relaxed">
+                  Garment over-dyed in small batches with low-impact, rich mineral pigments.
+                </p>
               </div>
 
-              <div className="p-5 bg-[#262629] border border-white/10 rounded-2xl space-y-2">
-                <ShieldCheck className="w-5 h-5 text-[#B91C1C] mb-2" />
-                <p className="font-bold text-white">Raw Hardware</p>
-                <p className="text-[11px] text-neutral-400">Solid antiqued brass eyelets and custom engraved copper shank rivets.</p>
+              <div className="p-6 bg-[#FAF8F2] border border-[#E8E4DA] space-y-3">
+                <ShieldCheck className="w-5 h-5 text-[#B91C1C]" />
+                <p className="font-bold text-[#09090B] text-sm uppercase tracking-wider">Raw Hardware</p>
+                <p className="text-[#52525B] leading-relaxed">
+                  Solid antiqued brass eyelets and custom engraved copper shank rivets.
+                </p>
               </div>
             </div>
           </div>
@@ -161,77 +164,69 @@ export default function AboutBrandPage() {
       </section>
 
       {/* ========================================================= */}
-      {/* 5. SECTION: THE BOLT ⚡ PROMISE */}
+      {/* 5. SECTION: CHAPTER 03 — DOORSTEP SALON */}
       {/* ========================================================= */}
-      <section className="py-20 sm:py-28 px-6 sm:px-12 bg-[#1A1B1D]">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-12 items-start">
-          <div className="md:col-span-4 font-mono text-xs uppercase tracking-widest text-neutral-400 space-y-2 sticky top-28">
-            <span className="text-amber-400 block font-bold flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-              Chapter 03
-            </span>
-            <h2 className="text-xl font-bold uppercase tracking-tight text-white font-sans">
-              The Bolt ⚡ Promise
+      <section className="py-16 sm:py-24 px-6 sm:px-12 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+          <div className="lg:col-span-4 font-mono text-xs uppercase tracking-widest space-y-2 lg:sticky lg:top-28">
+            <span className="text-[#B91C1C] font-bold block">03 / DOORSTEP SALON</span>
+            <h2 className="text-2xl font-bold uppercase tracking-tight text-[#09090B] font-sans">
+              The Private Fitting
             </h2>
-            <p className="text-[11px] text-neutral-400 lowercase font-mono">
-              why the future of luxury shopping happens at your door
-            </p>
           </div>
 
-          <div className="md:col-span-8 space-y-6 text-sm sm:text-base font-light text-neutral-300 leading-relaxed font-sans">
-            <p className="text-lg sm:text-xl text-white font-serif italic border-l-2 border-amber-400 pl-4">
-              &ldquo;You should never have to pay full price for clothes you have never touched, or wait two weeks for a return refund.&rdquo;
+          <div className="lg:col-span-8 space-y-8 text-base text-[#27272A] leading-relaxed font-sans">
+            <blockquote className="text-xl sm:text-2xl text-[#09090B] font-serif italic border-l-2 border-[#B91C1C] pl-6 py-1 leading-snug">
+              &ldquo;You should never have to pay upfront for garments you have never touched, or wait two weeks for a return refund.&rdquo;
+            </blockquote>
+
+            <p className="text-[#3F3F46]">
+              Traditional online shopping forces patrons to guess sizes, authorize large sums on cards, and spend weekends packing return boxes.
             </p>
 
-            <p>
-              Traditional online shopping forces creators to guess their sizes, authorize huge sums on credit cards, and spend their weekends packing boxes for return shipping.
+            <p className="text-[#3F3F46]">
+              With our <strong className="text-[#09090B]">Doorstep Try-On Salon</strong>, we bring the private luxury boutique fitting room directly to your residence. Select up to 5 curated silhouettes for a nominal ₹99 hold. A dedicated white-glove courier delivers during your selected 2-hour IST window.
             </p>
 
-            <p>
-              With <strong>Bolt ⚡ Doorstep Try-On</strong>, we inverted this broken model. We bring the luxury boutique dressing room directly to your home. Select up to 5 curated silhouettes for a nominal ₹99 hold. A dedicated courier delivers during your designated 2-hour IST window.
+            <p className="text-[#3F3F46]">
+              You receive 45 private minutes to examine drape, verify proportions under personal lighting, and pair garments with your existing wardrobe. What does not suit you is returned immediately to the transit courier. What you retain is paid for seamlessly on the spot via instant UPI.
             </p>
 
-            <p>
-              You receive 45 private minutes to examine the drape, verify the fit under your home lighting, and pair the garment with your existing wardrobe. What doesn’t work goes immediately back into the transit vehicle. What you love is paid for on the spot via instant UPI QR code.
-            </p>
-
-            {/* Metro Fleet Dispatches */}
-            <div className="p-6 bg-[#262629] border border-white/10 rounded-2xl space-y-4 font-mono text-xs mt-6 shadow-xl">
-              <div className="flex items-center gap-2 text-white font-bold uppercase tracking-wider">
+            {/* Metro Fleet Hubs */}
+            <div className="p-6 bg-[#FAF8F2] border border-[#E8E4DA] space-y-5 font-mono text-xs">
+              <div className="flex items-center gap-2 text-[#09090B] font-bold uppercase tracking-wider">
                 <MapPin className="w-4 h-4 text-[#B91C1C]" />
-                <span>Active White-Glove Fleet Hubs (India)</span>
+                <span>Active White-Glove Fleet Hubs</span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px] text-neutral-300">
-                <div className="p-3 bg-[#1A1B1D] border border-white/10 rounded-xl">
-                  <p className="font-bold text-white">Bengaluru</p>
-                  <p className="text-[10px] text-neutral-400">Indiranagar • Koramangala • HSR</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                <div className="p-4 bg-[#FDFCF7] border border-[#E8E4DA]">
+                  <p className="font-bold text-[#09090B] text-sm">Bengaluru</p>
+                  <p className="text-[11px] text-[#71717A] mt-1">Indiranagar • Koramangala • HSR</p>
                 </div>
-                <div className="p-3 bg-[#1A1B1D] border border-white/10 rounded-xl">
-                  <p className="font-bold text-white">Mumbai</p>
-                  <p className="text-[10px] text-neutral-400">Bandra • Colaba • BKC</p>
+                <div className="p-4 bg-[#FDFCF7] border border-[#E8E4DA]">
+                  <p className="font-bold text-[#09090B] text-sm">Mumbai</p>
+                  <p className="text-[11px] text-[#71717A] mt-1">Bandra • Colaba • BKC</p>
                 </div>
-                <div className="p-3 bg-[#1A1B1D] border border-white/10 rounded-xl">
-                  <p className="font-bold text-white">Delhi NCR</p>
-                  <p className="text-[10px] text-neutral-400">South Delhi • Gurugram</p>
+                <div className="p-4 bg-[#FDFCF7] border border-[#E8E4DA]">
+                  <p className="font-bold text-[#09090B] text-sm">Delhi NCR</p>
+                  <p className="text-[11px] text-[#71717A] mt-1">South Delhi • Gurugram</p>
                 </div>
-                <div className="p-3 bg-[#1A1B1D] border border-white/10 rounded-xl">
-                  <p className="font-bold text-white">Hyderabad</p>
-                  <p className="text-[10px] text-neutral-400">Jubilee Hills • Hitec City</p>
+                <div className="p-4 bg-[#FDFCF7] border border-[#E8E4DA]">
+                  <p className="font-bold text-[#09090B] text-sm">Hyderabad</p>
+                  <p className="text-[11px] text-[#71717A] mt-1">Jubilee Hills • Hitec City</p>
                 </div>
               </div>
             </div>
 
-            {/* CTA */}
-            <div className="pt-6">
+            {/* Minimalist Luxury CTA */}
+            <div className="pt-4">
               <Link
                 href="/shop"
-                style={{ color: '#ffffff', backgroundColor: '#09090b' }}
-                className="btn-dark inline-flex items-center gap-2.5 px-8 py-4 hover:bg-[#27272A] dark:hover:bg-[#4A4B50] font-mono text-xs uppercase tracking-widest font-bold rounded-full border border-neutral-800 dark:border-white/15 shadow-xl transition-all duration-300 group cursor-pointer"
+                className="bg-[#09090B] text-white hover:bg-[#1A1A1A] hover:shadow-[0_4px_24px_rgba(185,28,28,0.35)] px-8 py-4 font-mono text-xs uppercase tracking-widest font-bold rounded-none transition-all duration-300 inline-flex items-center gap-3 cursor-pointer"
               >
-                <Zap className="w-4 h-4 fill-amber-400 text-amber-400" />
-                <span style={{ color: '#ffffff' }}>Experience Bolt ⚡ Doorstep Try-On</span>
-                <ArrowRight style={{ color: '#ffffff' }} className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                <span>Explore Shop Collections</span>
+                <ArrowRight className="w-4 h-4 text-[#B91C1C]" />
               </Link>
             </div>
           </div>

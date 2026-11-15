@@ -62,6 +62,20 @@ export async function POST(req: NextRequest) {
       destLoc = await prisma.location.findUnique({
         where: { code: destinationLocationCode },
       })
+      if (!destLoc) {
+        const aliasMap: Record<string, string> = {
+          'BLR-ST01': 'STORE-BLR01',
+          'STORE-BLR01': 'BLR-ST01',
+          'BOM-ST01': 'STORE-MUM01',
+          'STORE-MUM01': 'BOM-ST01',
+          'BLR-WH01': 'ECOM-WH01',
+          'ECOM-WH01': 'BLR-WH01',
+        }
+        const alias = aliasMap[destinationLocationCode]
+        if (alias) {
+          destLoc = await prisma.location.findUnique({ where: { code: alias } })
+        }
+      }
     } else {
       // Default to ECOM_WAREHOUSE if not explicitly set
       destLoc = await prisma.location.findFirst({

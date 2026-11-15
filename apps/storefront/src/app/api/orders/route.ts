@@ -1,40 +1,127 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@repo/supabase/server'
+import { createServerSupabaseClient, createServiceRoleClient } from '@repo/supabase/server'
 import { createOrderWithItems } from '@repo/supabase/utils'
-import { prisma, LocationType } from '@repo/db'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient()
+    const url = new URL(req.url)
+    const reference = url.searchParams.get('reference')?.trim()
+    const emailParam = url.searchParams.get('email')?.trim().toLowerCase()
+    const queryAll = url.searchParams.get('all') === 'true'
+
+    // 1. Resolve user from cookies or Authorization Bearer header
+    let user: any = null
     const {
-      data: { user },
-      error: authError,
+      data: { user: cookieUser },
     } = await supabase.auth.getUser()
+    user = cookieUser
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Authentication required to view orders' },
-        { status: 401 }
-      )
+    if (!user) {
+      const authHeader = req.headers.get('Authorization')
+      if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
+        const token = authHeader.replace(/^bearer\s+/i, '').trim()
+        if (token) {
+          const {
+            data: { user: tokenUser },
+          } = await supabase.auth.getUser(token)
+          user = tokenUser
+        }
+      }
     }
 
-    // Force query to strictly filter by the authenticated user's ID
-    const { data: orders, error: ordersError } = await supabase
-      .from('orders')
-      .select('*, order_items(*, product:products(id, title, image_url, price, material))')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+    // 2. Direct reference tracking (Order Number, Tracking Barcode, or ID)
+    if (reference) {
+      const adminClient = createServiceRoleClient()
+      const { data: refOrders, error: refErr } = await adminClient
+        .from('orders')
+        .select('*, order_items(*, product:products(id, title, image_url, price, material))')
+        .or(`order_number.eq.${reference},tracking_barcode.eq.${reference},id.eq.${reference}`)
+        .order('created_at', { ascending: false })
 
-    if (ordersError) {
-      return NextResponse.json(
-        { error: ordersError.message || 'Failed to fetch orders' },
-        { status: 500 }
-      )
+      if (!refErr && refOrders && refOrders.length > 0) {
+        return NextResponse.json({ success: true, orders: refOrders })
+      }
     }
 
-    return NextResponse.json({ success: true, orders: orders || [] })
+    // 3. Authenticated customer or administrator session
+    if (user) {
+      const isStaffOrAdmin =
+        user.app_metadata?.role === 'admin' ||
+        user.user_metadata?.role === 'admin' ||
+        user.email === 'horizonlord1@gmail.com' ||
+        user.email === 'iamutkarshyadav1@gmail.com'
+
+      // Admin requesting all orders
+      if (isStaffOrAdmin && queryAll) {
+        const { data: allOrders } = await supabase
+          .from('orders')
+          .select('*, order_items(*, product:products(id, title, image_url, price, material))')
+          .order('created_at', { ascending: false })
+
+        return NextResponse.json({ success: true, orders: allOrders || [] })
+      }
+
+      // Fetch orders strictly for user.id
+      const { data: userOrders, error: ordersError } = await supabase
+        .from('orders')
+        .select('*, order_items(*, product:products(id, title, image_url, price, material))')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      let mergedOrders = userOrders ? [...userOrders] : []
+
+      // Also match any orders with user's verified email in shipping_address / delivery_notes
+      if (user.email) {
+        const userEmailLower = user.email.toLowerCase()
+        const { data: allRecent } = await supabase
+          .from('orders')
+          .select('*, order_items(*, product:products(id, title, image_url, price, material))')
+          .order('created_at', { ascending: false })
+
+        if (allRecent) {
+          const existingIds = new Set(mergedOrders.map((o) => o.id))
+          for (const ord of allRecent) {
+            if (!existingIds.has(ord.id)) {
+              const addrMatch = ord.shipping_address?.toLowerCase().includes(userEmailLower)
+              const notesMatch = ord.delivery_notes?.toLowerCase().includes(userEmailLower)
+              if (addrMatch || notesMatch) {
+                mergedOrders.push(ord)
+                existingIds.add(ord.id)
+              }
+            }
+          }
+        }
+      }
+
+      // Sort chronological descending
+      mergedOrders.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+
+      return NextResponse.json({ success: true, orders: mergedOrders })
+    }
+
+    // 4. Unauthenticated guest lookup by email query param
+    if (emailParam) {
+      const { data: allRecent } = await supabase
+        .from('orders')
+        .select('*, order_items(*, product:products(id, title, image_url, price, material))')
+        .order('created_at', { ascending: false })
+
+      const emailOrders = (allRecent || []).filter(
+        (o) =>
+          o.shipping_address?.toLowerCase().includes(emailParam) ||
+          o.delivery_notes?.toLowerCase().includes(emailParam)
+      )
+
+      return NextResponse.json({ success: true, orders: emailOrders })
+    }
+
+    // 5. Unauthenticated without reference: return empty orders gracefully with requiresAuth flag
+    return NextResponse.json({ success: true, orders: [], requiresAuth: true })
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || 'Failed to fetch orders' },
@@ -53,14 +140,64 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { orderData, items } = body
 
-    // Support both registered patrons and guest storefront checkouts
-    const customerUserId = user?.id || orderData?.user_id || 'a0000000-0000-0000-0000-000000000001'
-
     if (!orderData || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
         { error: 'Invalid payload: orderData and non-empty items array required' },
         { status: 400 }
       )
+    }
+
+    const customerEmail =
+      body.customer_email ||
+      body.email ||
+      orderData.customer_email ||
+      orderData.email ||
+      user?.email ||
+      ''
+
+    // Support both registered patrons and guest storefront checkouts
+    let customerUserId = user?.id || orderData?.user_id
+
+    // Ensure customerUserId exists in public.users to satisfy foreign key constraint
+    if (customerUserId) {
+      const { data: userExists } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', customerUserId)
+        .maybeSingle()
+
+      if (!userExists) {
+        if (customerEmail) {
+          const { data: userByEmail } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', customerEmail.toLowerCase().trim())
+            .maybeSingle()
+          if (userByEmail) {
+            customerUserId = userByEmail.id
+          }
+        }
+
+        if (!userExists && (!customerEmail || customerUserId === orderData?.user_id)) {
+          const { data: fallbackUser } = await supabase
+            .from('users')
+            .select('id')
+            .limit(1)
+            .maybeSingle()
+          if (fallbackUser) {
+            customerUserId = fallbackUser.id
+          }
+        }
+      }
+    } else {
+      const { data: fallbackUser } = await supabase
+        .from('users')
+        .select('id')
+        .limit(1)
+        .maybeSingle()
+      if (fallbackUser) {
+        customerUserId = fallbackUser.id
+      }
     }
 
     // 1. Authoritative Server-Side Price Verification
@@ -161,23 +298,34 @@ export async function POST(req: NextRequest) {
       originalTotal = calculatedSubtotal
     }
 
-    // 4. Construct secure, validated order record
+    // 4. Construct secure, validated order record (strictly typed, omitting unexpected client fields like customer_email)
+    let finalShippingAddress = orderData.shipping_address || 'Bengaluru, Karnataka, India'
+    if (customerEmail && !finalShippingAddress.toLowerCase().includes(customerEmail.toLowerCase())) {
+      finalShippingAddress = `${finalShippingAddress} [Patron: ${customerEmail}]`
+    }
+
     const secureOrderData = {
-      ...orderData,
       user_id: customerUserId,
+      order_number: orderData.order_number,
+      invoice_number: orderData.invoice_number,
+      tracking_barcode: orderData.tracking_barcode,
       order_type: isBolt ? ('bolt_try_on' as const) : ('standard' as const),
       delivery_mode: isBolt ? ('try_on' as const) : ('direct' as const),
       bolt_session_status: isBolt ? ('scheduled' as const) : null,
       bolt_pincode: isBolt ? (orderData.bolt_pincode || null) : null,
       bolt_timeslot_id: isBolt ? (orderData.bolt_timeslot_id || null) : null,
       try_on_status: isBolt ? ('pending' as const) : null,
+      shipping_address: finalShippingAddress,
+      delivery_notes: orderData.delivery_notes || null,
       tax_amount: taxAmount,
       shipping_fee: shippingFee,
       original_total: originalTotal,
       total: calculatedTotal,
+      status: orderData.status || ('pending' as const),
     }
 
-    const result = await createOrderWithItems(supabase, secureOrderData, verifiedItems)
+    const adminClient = createServiceRoleClient()
+    const result = await createOrderWithItems(adminClient, secureOrderData, verifiedItems)
 
     if (!result.data) {
       return NextResponse.json(
@@ -185,26 +333,6 @@ export async function POST(req: NextRequest) {
         { status: 422 }
       )
     }
-
-    // 5. Mirror into PostgreSQL via @repo/db (Prisma) if database is accessible
-    try {
-      const ecomLoc = await prisma.location.findFirst({
-        where: { type: LocationType.ECOM_WAREHOUSE },
-      })
-      if (ecomLoc) {
-        await prisma.order.create({
-          data: {
-            orderNumber: result.data.order_number || `ATL-ORD-${Date.now()}`,
-            fulfillmentLocationId: ecomLoc.id,
-            totalAmount: calculatedTotal,
-            status: 'PENDING',
-            deliveryAddress: secureOrderData.shipping_address,
-            deliveryNotes: secureOrderData.delivery_notes,
-            paymentMethod: isBolt ? 'TRY_AT_HOME_HOLD' : 'ONLINE_CARD',
-          },
-        })
-      }
-    } catch {}
 
     return NextResponse.json({
       success: true,

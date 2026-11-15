@@ -93,7 +93,7 @@ function RegisterForm() {
           CREATE AN <span className="text-[#B91C1C] font-script font-normal lowercase text-5xl">account</span>
         </h1>
         <p className="text-xs text-neutral-400 font-light leading-relaxed">
-          Save shipping addresses, track drop orders, and get early drop access.
+          Save shipping addresses, track atelier orders, and receive private collection releases.
         </p>
       </div>
 
@@ -182,8 +182,8 @@ export default function StorefrontRegisterPage() {
             >
               <ArrowLeft className="w-3.5 h-3.5 text-[#B91C1C]" /> Back to Store
             </Link>
-            <span className="text-[10px] tracking-wider uppercase font-mono text-neutral-300 border border-white/20 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full">
-              DROP 01 // ARCHIVE
+            <span className="text-[10px] tracking-wider uppercase font-mono text-neutral-300 border border-white/20 px-3 py-1 bg-black/40 backdrop-blur-md rounded-none">
+              MAISON ARCHIVE
             </span>
           </div>
 

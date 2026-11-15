@@ -78,7 +78,7 @@ function getInitialSeed() {
       category_id: 'c1000000-0000-0000-0000-000000000001',
       category: 'Hoodies & Fleece',
       material: '480 GSM 100% Organic Cotton French Terry',
-      edition: 'Drop 01 // Limited 150 Pieces',
+      edition: 'Collection // Limited 150 Pieces',
       is_archived: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -93,7 +93,7 @@ function getInitialSeed() {
       category_id: 'c1000000-0000-0000-0000-000000000002',
       category: 'Tees & Tops',
       material: '280 GSM Combed Cotton with Vintage Enzymatic Wash',
-      edition: 'Drop 01 // Core Essential',
+      edition: 'Collection // Core Essential',
       is_archived: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -108,7 +108,7 @@ function getInitialSeed() {
       category_id: 'c1000000-0000-0000-0000-000000000003',
       category: 'Outerwear & Jackets',
       material: 'Matte Technical Nylon Shell & Primaloft Insulation',
-      edition: 'Drop 01 // Limited 80 Pieces',
+      edition: 'Collection // Limited 80 Pieces',
       is_archived: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -123,7 +123,7 @@ function getInitialSeed() {
       category_id: 'c1000000-0000-0000-0000-000000000004',
       category: 'Pants & Raw Denim',
       material: '14.5oz 100% Cotton Okayama Selvedge Denim',
-      edition: 'Drop 01 // Limited 100 Pieces',
+      edition: 'Collection // Limited 100 Pieces',
       is_archived: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -131,24 +131,24 @@ function getInitialSeed() {
   ]
 
   const product_variants = [
-    { id: 'v1000000-0000-0000-0000-000000000001', product_id: 'b1000000-0000-0000-0000-000000000001', size: 'S', sku: 'ATL-HD01-BLK-S', barcode: '8901234000014', barcode_url: null, stock: 25, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'v1000000-0000-0000-0000-000000000002', product_id: 'b1000000-0000-0000-0000-000000000001', size: 'M', sku: 'ATL-HD01-BLK-M', barcode: '8901234000021', barcode_url: null, stock: 45, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'v1000000-0000-0000-0000-000000000003', product_id: 'b1000000-0000-0000-0000-000000000001', size: 'L', sku: 'ATL-HD01-BLK-L', barcode: '8901234000038', barcode_url: null, stock: 35, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'v1000000-0000-0000-0000-000000000004', product_id: 'b1000000-0000-0000-0000-000000000001', size: 'XL', sku: 'ATL-HD01-BLK-XL', barcode: '8901234000045', barcode_url: null, stock: 10, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000001', product_id: 'b1000000-0000-0000-0000-000000000001', size: 'S', sku: 'ATL-HD01-BLK-S', barcode: '8901234000014', barcode_url: null, stock: 25, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000002', product_id: 'b1000000-0000-0000-0000-000000000001', size: 'M', sku: 'ATL-HD01-BLK-M', barcode: '8901234000021', barcode_url: null, stock: 45, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000003', product_id: 'b1000000-0000-0000-0000-000000000001', size: 'L', sku: 'ATL-HD01-BLK-L', barcode: '8901234000038', barcode_url: null, stock: 35, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000004', product_id: 'b1000000-0000-0000-0000-000000000001', size: 'XL', sku: 'ATL-HD01-BLK-XL', barcode: '8901234000045', barcode_url: null, stock: 10, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 
-    { id: 'v1000000-0000-0000-0000-000000000005', product_id: 'b1000000-0000-0000-0000-000000000002', size: 'S', sku: 'ATL-TEE01-WSH-S', barcode: '8901234000052', barcode_url: null, stock: 30, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'v1000000-0000-0000-0000-000000000006', product_id: 'b1000000-0000-0000-0000-000000000002', size: 'M', sku: 'ATL-TEE01-WSH-M', barcode: '8901234000069', barcode_url: null, stock: 50, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'v1000000-0000-0000-0000-000000000007', product_id: 'b1000000-0000-0000-0000-000000000002', size: 'L', sku: 'ATL-TEE01-WSH-L', barcode: '8901234000076', barcode_url: null, stock: 40, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'v1000000-0000-0000-0000-000000000008', product_id: 'b1000000-0000-0000-0000-000000000002', size: 'XL', sku: 'ATL-TEE01-WSH-XL', barcode: '8901234000083', barcode_url: null, stock: 20, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000005', product_id: 'b1000000-0000-0000-0000-000000000002', size: 'S', sku: 'ATL-TEE01-WSH-S', barcode: '8901234000052', barcode_url: null, stock: 30, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000006', product_id: 'b1000000-0000-0000-0000-000000000002', size: 'M', sku: 'ATL-TEE01-WSH-M', barcode: '8901234000069', barcode_url: null, stock: 50, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000007', product_id: 'b1000000-0000-0000-0000-000000000002', size: 'L', sku: 'ATL-TEE01-WSH-L', barcode: '8901234000076', barcode_url: null, stock: 40, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000008', product_id: 'b1000000-0000-0000-0000-000000000002', size: 'XL', sku: 'ATL-TEE01-WSH-XL', barcode: '8901234000083', barcode_url: null, stock: 20, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 
-    { id: 'v1000000-0000-0000-0000-000000000009', product_id: 'b1000000-0000-0000-0000-000000000003', size: 'S', sku: 'ATL-BMB01-OLV-S', barcode: '8901234000090', barcode_url: null, stock: 10, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'v1000000-0000-0000-0000-000000000010', product_id: 'b1000000-0000-0000-0000-000000000003', size: 'M', sku: 'ATL-BMB01-OLV-M', barcode: '8901234000106', barcode_url: null, stock: 25, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'v1000000-0000-0000-0000-000000000011', product_id: 'b1000000-0000-0000-0000-000000000003', size: 'L', sku: 'ATL-BMB01-OLV-L', barcode: '8901234000113', barcode_url: null, stock: 15, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'v1000000-0000-0000-0000-000000000012', product_id: 'b1000000-0000-0000-0000-000000000003', size: 'XL', sku: 'ATL-BMB01-OLV-XL', barcode: '8901234000120', barcode_url: null, stock: 5, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000009', product_id: 'b1000000-0000-0000-0000-000000000003', size: 'S', sku: 'ATL-BMB01-OLV-S', barcode: '8901234000090', barcode_url: null, stock: 10, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000010', product_id: 'b1000000-0000-0000-0000-000000000003', size: 'M', sku: 'ATL-BMB01-OLV-M', barcode: '8901234000106', barcode_url: null, stock: 25, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000011', product_id: 'b1000000-0000-0000-0000-000000000003', size: 'L', sku: 'ATL-BMB01-OLV-L', barcode: '8901234000113', barcode_url: null, stock: 15, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000012', product_id: 'b1000000-0000-0000-0000-000000000003', size: 'XL', sku: 'ATL-BMB01-OLV-XL', barcode: '8901234000120', barcode_url: null, stock: 5, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 
-    { id: 'v1000000-0000-0000-0000-000000000013', product_id: 'b1000000-0000-0000-0000-000000000004', size: '30', sku: 'ATL-DNM01-RAW-30', barcode: '8901234000137', barcode_url: null, stock: 20, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'v1000000-0000-0000-0000-000000000014', product_id: 'b1000000-0000-0000-0000-000000000004', size: '32', sku: 'ATL-DNM01-RAW-32', barcode: '8901234000144', barcode_url: null, stock: 30, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'v1000000-0000-0000-0000-000000000015', product_id: 'b1000000-0000-0000-0000-000000000004', size: '34', sku: 'ATL-DNM01-RAW-34', barcode: '8901234000151', barcode_url: null, stock: 25, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000013', product_id: 'b1000000-0000-0000-0000-000000000004', size: '30', sku: 'ATL-DNM01-RAW-30', barcode: '8901234000137', barcode_url: null, stock: 20, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000014', product_id: 'b1000000-0000-0000-0000-000000000004', size: '32', sku: 'ATL-DNM01-RAW-32', barcode: '8901234000144', barcode_url: null, stock: 30, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'a2000000-0000-0000-0000-000000000015', product_id: 'b1000000-0000-0000-0000-000000000004', size: '34', sku: 'ATL-DNM01-RAW-34', barcode: '8901234000151', barcode_url: null, stock: 25, price_override: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
   ]
 
   const product_media = [
@@ -650,6 +650,30 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { success: true })
   }
 
+  // 7b. RPC: receive_split_grn_and_putaway (/rest/v1/rpc/receive_split_grn_and_putaway)
+  if (pathname === '/rest/v1/rpc/receive_split_grn_and_putaway') {
+    const splits = bodyJson?.p_splits || []
+    let totalAcc = 0
+    let totalRej = 0
+    for (const item of splits) {
+      for (const dest of item.destinations || []) {
+        totalAcc += Number(dest.qty_accepted) || 0
+        totalRej += Number(dest.qty_rejected) || 0
+      }
+    }
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const randSeq = Math.floor(1000 + Math.random() * 9000)
+    const grnNumber = `GRN-${today}-${randSeq}`
+    return sendJson(res, 200, {
+      success: true,
+      grn_id: `grn-${Date.now()}`,
+      grn_number: grnNumber,
+      total_accepted: totalAcc,
+      total_rejected: totalRej,
+      po_status: 'received',
+    })
+  }
+
   // 8. PAGE LAYOUTS (/rest/v1/page_layouts)
   if (pathname === '/rest/v1/page_layouts') {
     if (method === 'GET') {
@@ -690,6 +714,39 @@ const server = http.createServer(async (req, res) => {
       db.storefront_tokens.push(savedTokens)
       saveDatabase(db)
       return sendJson(res, 201, savedTokens)
+    }
+  }
+
+  // 9b. USERS (/rest/v1/users)
+  if (pathname === '/rest/v1/users') {
+    if (method === 'GET') {
+      const idMatch = url.searchParams.get('id')
+      const emailMatch = url.searchParams.get('email')
+      const roleMatch = url.searchParams.get('role')
+
+      let users = (db.accounts || []).map((a, idx) => ({
+        id: a.id,
+        email: a.email,
+        name: a.name,
+        role: a.role,
+        created_at: a.created_at || new Date(Date.now() - (idx + 1) * 86400000 * 5).toISOString(),
+      }))
+
+      if (idMatch) {
+        const targetId = idMatch.replace(/^eq\./, '')
+        users = users.filter((u) => u.id === targetId)
+      } else if (emailMatch) {
+        const targetEmail = emailMatch.replace(/^eq\./, '').toLowerCase()
+        users = users.filter((u) => u.email.toLowerCase() === targetEmail)
+      }
+
+      if (roleMatch) {
+        const targetRole = roleMatch.replace(/^eq\./, '').toLowerCase()
+        users = users.filter((u) => u.role.toLowerCase() === targetRole)
+      }
+
+      const isSingle = (req.headers['accept'] || '').includes('vnd.pgrst.object+json')
+      return sendJson(res, 200, isSingle ? users[0] || null : users)
     }
   }
 

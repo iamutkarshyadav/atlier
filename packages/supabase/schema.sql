@@ -759,11 +759,11 @@ ON CONFLICT (pincode) DO UPDATE SET
 -- Seed Indian Time Slots (IST Windows)
 INSERT INTO public.bolt_timeslots (id, label, slot_start, slot_end, cutoff_time, max_daily_capacity, is_active)
 VALUES
-  ('t1000000-0000-0000-0000-000000000001', '10:00 AM - 12:00 PM (Morning Priority)', '10:00:00', '12:00:00', '09:00:00', 12, true),
-  ('t1000000-0000-0000-0000-000000000002', '12:00 PM - 02:00 PM (Midday Salon)', '12:00:00', '14:00:00', '11:00:00', 12, true),
-  ('t1000000-0000-0000-0000-000000000003', '02:00 PM - 04:00 PM (Afternoon Fitting)', '14:00:00', '16:00:00', '13:00:00', 15, true),
-  ('t1000000-0000-0000-0000-000000000004', '04:00 PM - 06:00 PM (Evening Express)', '16:00:00', '18:00:00', '15:00:00', 15, true),
-  ('t1000000-0000-0000-0000-000000000005', '06:00 PM - 08:00 PM (Sunset White-Glove)', '18:00:00', '20:00:00', '17:00:00', 10, true)
+  ('a1000000-0000-0000-0000-000000000001', '10:00 AM - 12:00 PM (Morning Priority)', '10:00:00', '12:00:00', '09:00:00', 12, true),
+  ('a1000000-0000-0000-0000-000000000002', '12:00 PM - 02:00 PM (Midday Salon)', '12:00:00', '14:00:00', '11:00:00', 12, true),
+  ('a1000000-0000-0000-0000-000000000003', '02:00 PM - 04:00 PM (Afternoon Fitting)', '14:00:00', '16:00:00', '13:00:00', 15, true),
+  ('a1000000-0000-0000-0000-000000000004', '04:00 PM - 06:00 PM (Evening Express)', '16:00:00', '18:00:00', '15:00:00', 15, true),
+  ('a1000000-0000-0000-0000-000000000005', '06:00 PM - 08:00 PM (Sunset White-Glove)', '18:00:00', '20:00:00', '17:00:00', 10, true)
 ON CONFLICT (id) DO UPDATE SET
   label = EXCLUDED.label,
   slot_start = EXCLUDED.slot_start,

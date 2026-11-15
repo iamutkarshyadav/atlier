@@ -21,7 +21,7 @@ export function BoltServiceabilityBanner() {
   // Don't render with flash before hydration
   if (!isHydrated) {
     return (
-      <div className="bg-[#F0F0EE] text-[#09090B] text-xs py-2 px-4 text-center border-b border-[#E4E4E0]">
+      <div className="bg-[#FDFCF7] text-[#09090B] text-xs py-2 px-4 text-center border-b border-[#E8E4DA]">
         <div className="inline-flex items-center gap-1.5 opacity-80">
           <Zap className="w-3.5 h-3.5 text-[#B91C1C] fill-[#B91C1C]" />
           <span>Bolt ⚡ Doorstep Try-On: 45-Minute In-Home White-Glove Salon</span>
@@ -119,7 +119,7 @@ export function BoltServiceabilityBanner() {
 
   // State 3: Prompting input (No PIN set or Changing PIN)
   return (
-    <div className="bg-[#F0F0EE] border-b border-[#E4E4E0] text-[#09090B] px-4 py-2 text-xs">
+    <div className="bg-[#FDFCF7] border-b border-[#E8E4DA] text-[#09090B] px-4 py-2 text-xs">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-center sm:text-left">
           <span className="bg-red-50 text-[#B91C1C] p-1 rounded-sm border border-red-200">

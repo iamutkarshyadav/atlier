@@ -163,7 +163,7 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
       const supabase = createBrowserClient()
       const qty = parseInt(moveQuantity, 10) || 1
 
-      const locId = activeLocation === 'ALL' ? (locations[0]?.id || 'l1000000-0000-0000-0000-000000000001') : activeLocation.id
+      const locId = activeLocation === 'ALL' ? (locations[0]?.id || 'd1000000-0000-0000-0000-000000000001') : activeLocation.id
       await moveShelfStock(supabase, {
         locationId: locId,
         fromShelfId: selectedVariantForMove.sourceShelfId,

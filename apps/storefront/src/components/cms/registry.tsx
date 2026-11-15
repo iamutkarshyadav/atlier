@@ -227,29 +227,19 @@ export function ProductGridBlock({ node, context }: BaseComponentProps) {
   return (
     <section
       id={node.id}
-      className={`max-w-7xl mx-auto px-6 sm:px-12 py-20 ${node.className || ''}`}
+      className={`max-w-7xl mx-auto px-6 sm:px-12 py-20 text-[#09090B] ${node.className || ''}`}
       style={node.styles}
     >
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-white/10 pb-6 mb-10">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[#E5E0D8] pb-6 mb-10">
         <div>
-          {p.kicker && (
-            <span className="text-xs font-mono uppercase tracking-[0.25em] text-[#B91C1C] block font-bold">
-              {p.kicker}
-            </span>
-          )}
-          <h2 className="font-display text-2xl sm:text-4xl font-extrabold uppercase text-white tracking-tight mt-1">
-            {p.title ? p.title.replace(/Royal/gi, 'Atelier') : 'COLLECTION 01 // AUTONOMOUS WORKS'}
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight text-[#09090B] font-sans">
+            SELECTED <span className="text-[#B91C1C]">WORKS</span>
           </h2>
-          {p.subtitle && (
-            <p className="text-xs text-[#8E8E93] font-sans mt-1">
-              {p.subtitle}
-            </p>
-          )}
         </div>
 
         <Link
           href="/shop"
-          className="font-mono text-xs uppercase font-bold text-neutral-300 hover:text-white flex items-center gap-1.5 transition-colors tracking-wider"
+          className="font-mono text-xs uppercase font-bold text-[#09090B] hover:text-[#B91C1C] flex items-center gap-1.5 transition-colors tracking-wider"
         >
           <span>View All Works</span>
           <ArrowRight className="w-3.5 h-3.5 text-[#B91C1C]" />
@@ -261,15 +251,15 @@ export function ProductGridBlock({ node, context }: BaseComponentProps) {
           <Link
             key={prod.id}
             href={`/product/${prod.id}`}
-            className="group flex flex-col justify-between bg-[#18181A] border border-white/10 hover:border-white/30 transition-all p-5 shadow-2xl rounded-none"
+            className="group flex flex-col justify-between bg-[#FAF8F2] border border-[#E5E0D8] hover:border-[#09090B] transition-all p-5 shadow-sm hover:shadow-[0_12px_32px_rgba(0,0,0,0.06)] rounded-none"
           >
-            <div className="relative aspect-[3/4] bg-black overflow-hidden mb-4 border border-white/5 rounded-none">
+            <div className="relative aspect-[3/4] bg-[#F4F1EA] overflow-hidden mb-4 border border-[#E5E0D8] rounded-none">
               {prod.image_url ? (
                 <Image
                   src={prod.image_url}
                   alt={prod.title}
                   fill
-                  className="object-cover filter contrast-110 group-hover:scale-105 transition-transform duration-700"
+                  className="object-cover filter contrast-105 group-hover:scale-105 transition-transform duration-700"
                   sizes="(max-width: 768px) 100vw, 33vw"
                 />
               ) : (
@@ -277,29 +267,26 @@ export function ProductGridBlock({ node, context }: BaseComponentProps) {
                   NO IMAGE
                 </div>
               )}
-              <span className="absolute top-2.5 left-2.5 px-2.5 py-1 bg-[#B91C1C] text-white text-[9px] font-mono uppercase font-bold tracking-widest rounded-none border border-red-500/30">
+              <span className="absolute top-2.5 left-2.5 px-2.5 py-1 bg-[#FDF2F2] text-[#B91C1C] text-[10px] font-mono uppercase font-bold tracking-widest rounded-none border border-[#FCA5A5]/50">
                 TRY-ON ELIGIBLE
               </span>
             </div>
 
             <div className="space-y-1">
-              <span className="text-3xs font-mono uppercase text-[#8E8E93] block">
+              <span className="text-[10px] font-mono uppercase text-[#71717A] tracking-wider block">
                 {prod.category || 'Atelier Silhouette'}
               </span>
-              <h3 className="font-sans text-base font-bold uppercase text-white group-hover:text-red-400 transition-colors truncate">
+              <h3 className="font-sans text-base font-bold uppercase text-[#09090B] group-hover:text-[#B91C1C] transition-colors truncate">
                 {prod.title}
               </h3>
-              <p className="text-2xs text-[#8E8E93] font-sans line-clamp-1">
+              <p className="text-xs text-[#71717A] font-sans line-clamp-1">
                 {prod.material || 'Organic Heavyweight Fiber'}
               </p>
-              <div className="pt-3 border-t border-white/10 flex justify-between items-center font-mono">
-                <span className="text-sm font-bold text-white tabular-nums">
+              <div className="pt-3 border-t border-[#E5E0D8] flex justify-between items-center font-mono">
+                <span className="text-base font-bold text-[#09090B] tabular-nums">
                   ₹{Number(prod.price).toLocaleString('en-IN')}
                 </span>
-                <span
-                  style={{ color: '#ffffff', backgroundColor: '#09090b' }}
-                  className="btn-dark text-3xs uppercase font-bold px-3 py-1.5 rounded-none hover:bg-[#27272A] dark:group-hover:bg-white dark:group-hover:text-black transition-all border border-neutral-800 dark:border-white/10 shadow-sm"
-                >
+                <span className="bg-[#09090B] text-white hover:bg-[#1A1A1A] hover:shadow-[0_4px_24px_rgba(185,28,28,0.35)] text-xs uppercase font-bold px-4 py-2 font-mono transition-all rounded-none cursor-pointer">
                   Book Fitting &rarr;
                 </span>
               </div>
@@ -362,47 +349,38 @@ const DEFAULT_REVIEWS = [
 ]
 
 export function ReviewsShowcaseBlock({ node }: BaseComponentProps) {
-  const p = node.props || {}
-  const rawTitle = p.title || 'Client Impressions // Doorstep Fitting Archive'
-  const title = rawTitle.replace(/Royal/gi, 'Atelier').replace(/Patron/gi, 'Client')
-  const subtitle = p.subtitle || 'What creators say after experiencing the 45-minute in-home salon session.'
+  const sanitizedClassName = (node.className || '')
+    .replace(/bg-\[#141517\]/g, '')
+    .replace(/bg-neutral-900/g, '')
+    .replace(/text-white/g, '')
+    .trim()
 
   return (
     <section
       id={node.id}
-      className={`bg-[#141517] border-t border-white/10 py-24 px-6 sm:px-12 text-white ${node.className || ''}`}
+      className={`bg-[#FDFCF7] border-t border-[#E5E0D8] py-20 sm:py-28 px-6 sm:px-12 text-[#09090B] ${sanitizedClassName}`}
       style={node.styles}
     >
-      <div className="max-w-7xl mx-auto space-y-12">
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-mono uppercase tracking-[0.25em] text-[#B91C1C] font-bold block">
-            CLIENT ARCHIVE // 01 DROP PERSPECTIVES
-          </span>
-          <h2 className="font-display text-2xl sm:text-4xl font-extrabold uppercase text-white tracking-tight">
-            {title}
-          </h2>
-          <p className="text-xs text-[#8E8E93] font-sans">
-            {subtitle}
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto">
+        <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight text-[#09090B] font-sans mb-12 sm:mb-16">
+          USER <span className="text-[#B91C1C]">REVIEWS</span>
+        </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 lg:gap-14">
           {DEFAULT_REVIEWS.map((rev) => (
-            <div key={rev.id} className="p-8 bg-[#18181A] border border-white/10 rounded-none space-y-6 shadow-2xl hover:border-white/25 transition-all">
-              <div className="flex items-center justify-between pb-3 border-b border-white/10 font-mono text-[11px]">
-                <span className="text-neutral-400 uppercase tracking-widest">[ VERIFIED ATELIER TRIAL ]</span>
-                <span className="text-white font-bold tracking-wider font-mono">5.0 / 5.0</span>
-              </div>
-              <p className="text-sm text-neutral-300 font-sans leading-relaxed font-light">
+            <div
+              key={rev.id}
+              className="border-t border-[#E5E0D8] pt-6 flex flex-col justify-between space-y-6"
+            >
+              <p className="text-sm sm:text-base text-[#18181B] font-sans font-light leading-relaxed">
                 &ldquo;{rev.text}&rdquo;
               </p>
-              <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                <div>
-                  <span className="font-bold text-white uppercase tracking-wider block font-sans text-xs">{rev.author}</span>
-                  <span className="text-neutral-500 text-[10px] font-mono uppercase tracking-wide">{rev.role} &bull; {rev.city}</span>
-                </div>
-                <span className="text-[10px] font-mono text-neutral-300 bg-white/[0.04] border border-white/15 px-3 py-1 rounded-none uppercase tracking-wider shrink-0 w-fit">
-                  [ PIECE: {rev.garment.toUpperCase()} ]
+              <div className="pt-2">
+                <span className="font-bold text-xs uppercase tracking-wide text-[#09090B] block">
+                  {rev.author} <span className="text-[#71717A] font-normal">&bull; {rev.city}</span>
+                </span>
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#B91C1C] block mt-1">
+                  {rev.garment}
                 </span>
               </div>
             </div>

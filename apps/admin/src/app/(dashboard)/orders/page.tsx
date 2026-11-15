@@ -141,31 +141,45 @@ export default function LuxuryAdminOrdersPage() {
 
   const handleStatusChange = async (id: string, newStatus: OrderStatus) => {
     setUpdatingOrderId(id)
+    const prevOrders = [...orders]
+
+    // Optimistic UI update
     setOrders((prev) =>
       prev.map((ord) => (ord.id === id ? { ...ord, status: newStatus } : ord))
     )
 
     try {
-      await fetch('/api/orders', {
+      const res = await fetch('/api/orders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId: id, status: newStatus }),
       })
-    } catch {}
+      const data = await res.json()
 
-    const supabase = createBrowserClient()
-    const { success, error } = await updateOrderStatus(supabase, id, newStatus)
-    if (!success) {
-      setFeedback(`Status update error: ${error}`)
-    } else {
-      setFeedback(`Order ${id.slice(0, 8)} status set to ${newStatus}`)
+      if (!res.ok || !data.success) {
+        setOrders(prevOrders)
+        setFeedback(`Status update error: ${data.error || 'Server error'}`)
+      } else {
+        if (data.order) {
+          setOrders((prev) =>
+            prev.map((ord) => (ord.id === id ? { ...ord, ...data.order } : ord))
+          )
+        }
+        setFeedback(`Order ${id.slice(0, 8)} status set to "${newStatus}"`)
+        setTimeout(() => setFeedback(null), 3000)
+      }
+    } catch (err: any) {
+      setOrders(prevOrders)
+      setFeedback(`Status update error: ${err?.message || 'Network error'}`)
+    } finally {
+      setUpdatingOrderId(null)
     }
-    setUpdatingOrderId(null)
   }
 
   const handleAssignCourier = async (orderId: string, courierId: string) => {
     const assignedCourierId = courierId === 'unassigned' ? null : courierId
     setUpdatingOrderId(orderId)
+    const prevOrders = [...orders]
 
     setOrders((prev) =>
       prev.map((ord) =>
@@ -180,22 +194,32 @@ export default function LuxuryAdminOrdersPage() {
     )
 
     try {
-      await fetch('/api/orders', {
+      const res = await fetch('/api/orders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId, courierId: assignedCourierId }),
       })
-    } catch {}
+      const data = await res.json()
 
-    const supabase = createBrowserClient()
-    const { success, error } = await assignOrderCourier(supabase, orderId, assignedCourierId)
-    if (!success) {
-      setFeedback(`Courier assign error: ${error}`)
-    } else {
-      const courierName = couriers.find((c) => c.id === assignedCourierId)?.name || 'Courier'
-      setFeedback(`Assigned order to ${courierName}`)
+      if (!res.ok || !data.success) {
+        setOrders(prevOrders)
+        setFeedback(`Courier assign error: ${data.error || 'Server error'}`)
+      } else {
+        if (data.order) {
+          setOrders((prev) =>
+            prev.map((ord) => (ord.id === orderId ? { ...ord, ...data.order } : ord))
+          )
+        }
+        const courierName = couriers.find((c) => c.id === assignedCourierId)?.name || 'Courier'
+        setFeedback(`Assigned order to ${courierName}`)
+        setTimeout(() => setFeedback(null), 3000)
+      }
+    } catch (err: any) {
+      setOrders(prevOrders)
+      setFeedback(`Courier assign error: ${err?.message || 'Network error'}`)
+    } finally {
+      setUpdatingOrderId(null)
     }
-    setUpdatingOrderId(null)
   }
 
   const toggleExpand = (orderId: string) => {
@@ -592,9 +616,9 @@ export default function LuxuryAdminOrdersPage() {
                                 className="flex-1"
                               >
                                 <Button
-                                  variant="terminal"
+                                  variant="outline"
                                   size="sm"
-                                  className="w-full text-2xs flex items-center justify-center gap-1.5"
+                                  className="w-full text-2xs bg-chrome-950 hover:bg-chrome-850 border-chrome-750 text-zinc-100 flex items-center justify-center gap-1.5 font-semibold"
                                 >
                                   <FileText className="w-3.5 h-3.5" /> View Invoice
                                 </Button>
@@ -607,7 +631,7 @@ export default function LuxuryAdminOrdersPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="w-full text-2xs bg-chrome-800 border-chrome-700 text-zinc-200 flex items-center justify-center gap-1.5"
+                                  className="w-full text-2xs bg-chrome-950 hover:bg-chrome-850 border-chrome-750 text-zinc-100 flex items-center justify-center gap-1.5 font-semibold"
                                 >
                                   <Printer className="w-3.5 h-3.5" /> Packing Slip
                                 </Button>

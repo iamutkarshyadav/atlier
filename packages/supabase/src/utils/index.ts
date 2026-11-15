@@ -119,7 +119,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category_id: 'c1000000-0000-0000-0000-000000000001',
     category: 'Hoodies & Fleece',
     material: '480 GSM 100% Organic Cotton French Terry',
-    edition: 'Drop 01 // Limited 150 Pieces',
+    edition: 'Permanent Collection // Limited 150 Pieces',
     is_archived: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -134,7 +134,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category_id: 'c1000000-0000-0000-0000-000000000002',
     category: 'Tees & Tops',
     material: '280 GSM Combed Cotton with Vintage Enzymatic Wash',
-    edition: 'Drop 01 // Core Essential',
+    edition: 'Permanent Collection // Core Essential',
     is_archived: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -149,7 +149,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category_id: 'c1000000-0000-0000-0000-000000000003',
     category: 'Outerwear & Jackets',
     material: 'Matte Technical Nylon Shell & Primaloft Insulation',
-    edition: 'Drop 01 // Archive Edition of 60',
+    edition: 'Atelier Archive // Edition of 60',
     is_archived: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -164,7 +164,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category_id: 'c1000000-0000-0000-0000-000000000004',
     category: 'Pants & Denim',
     material: '14oz Japanese Selvedge Cotton Denim',
-    edition: 'Drop 01 // Strict Edition of 80',
+    edition: 'Atelier Archive // Strict Edition of 80',
     is_archived: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -194,7 +194,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category_id: 'c1000000-0000-0000-0000-000000000004',
     category: 'Pants & Denim',
     material: '400 GSM Heavyweight Double-Knit Cotton',
-    edition: 'Drop 01 // Daily Uniform',
+    edition: 'Permanent Collection // Daily Uniform',
     is_archived: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -241,7 +241,7 @@ export const DEFAULT_PRODUCT_VARIANTS: ProductVariant[] = [
 
 export const DEFAULT_BOLT_TIMESLOTS: BoltTimeslot[] = [
   {
-    id: 't1000000-0000-0000-0000-000000000001',
+    id: 'a1000000-0000-0000-0000-000000000001',
     label: '10:00 AM - 12:00 PM (Morning Priority)',
     slot_start: '10:00:00',
     slot_end: '12:00:00',
@@ -252,7 +252,7 @@ export const DEFAULT_BOLT_TIMESLOTS: BoltTimeslot[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 't1000000-0000-0000-0000-000000000002',
+    id: 'a1000000-0000-0000-0000-000000000002',
     label: '12:00 PM - 02:00 PM (Midday Salon)',
     slot_start: '12:00:00',
     slot_end: '14:00:00',
@@ -263,7 +263,7 @@ export const DEFAULT_BOLT_TIMESLOTS: BoltTimeslot[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 't1000000-0000-0000-0000-000000000003',
+    id: 'a1000000-0000-0000-0000-000000000003',
     label: '02:00 PM - 04:00 PM (Afternoon Fitting)',
     slot_start: '14:00:00',
     slot_end: '16:00:00',
@@ -274,7 +274,7 @@ export const DEFAULT_BOLT_TIMESLOTS: BoltTimeslot[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 't1000000-0000-0000-0000-000000000004',
+    id: 'a1000000-0000-0000-0000-000000000004',
     label: '04:00 PM - 06:00 PM (Evening Express)',
     slot_start: '16:00:00',
     slot_end: '18:00:00',
@@ -285,7 +285,7 @@ export const DEFAULT_BOLT_TIMESLOTS: BoltTimeslot[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 't1000000-0000-0000-0000-000000000005',
+    id: 'a1000000-0000-0000-0000-000000000005',
     label: '06:00 PM - 08:00 PM (Sunset White-Glove)',
     slot_start: '18:00:00',
     slot_end: '20:00:00',
@@ -304,9 +304,9 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
     user_id: 'a0000000-0000-0000-0000-000000000001',
     order_type: 'bolt_try_on',
     bolt_pincode: '560038',
-    bolt_timeslot_id: 't1000000-0000-0000-0000-000000000001',
+    bolt_timeslot_id: 'a1000000-0000-0000-0000-000000000001',
     bolt_timeslot: {
-      id: 't1000000-0000-0000-0000-000000000001',
+      id: 'a1000000-0000-0000-0000-000000000001',
       label: '10:00 AM - 12:00 PM (Morning Priority)',
       slot_start: '10:00:00',
       slot_end: '12:00:00',
@@ -472,7 +472,7 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
     user_id: 'a0000000-0000-0000-0000-000000000001',
     order_type: 'bolt_try_on',
     bolt_pincode: '560034',
-    bolt_timeslot_id: 't1000000-0000-0000-0000-000000000003',
+    bolt_timeslot_id: 'a1000000-0000-0000-0000-000000000003',
     bolt_session_status: 'scheduled',
     status: 'pending',
     delivery_mode: 'try_on',
@@ -1443,11 +1443,11 @@ export async function reconcileTryOnOrder(
 // ==========================================
 
 export const DEFAULT_HERO_CONFIG = {
-  kicker: 'CREATOR CAPSULE // DROP 001',
+  kicker: 'CREATOR CAPSULE // PERMANENT ARCHIVE',
   headline: 'AUTONOMOUS',
   headlineItalic: 'GARMENTS',
   description: 'Engineered heavyweight silhouettes cut from custom 480 GSM French Terry, 14oz Japanese selvedge denim, and technical outerwear. Made exclusively for the clothing creator.',
-  ctaLabel: 'EXPLORE DROP 01',
+  ctaLabel: 'EXPLORE COLLECTIONS',
   ctaLink: '/shop',
   secondaryCategory: 'Hoodies & Fleece',
   featuredProductId: 'b1000000-0000-0000-0000-000000000001',
@@ -2125,6 +2125,63 @@ export async function receiveGrnAndPutaway(
   }
 }
 
+export interface SplitDestinationAllocation {
+  location_id: string
+  shelf_id: string
+  qty_accepted: number
+  qty_rejected?: number
+  rejection_notes?: string
+}
+
+export interface SplitItemReceivePayload {
+  order_item_id?: string
+  variant_id: string
+  unit_cost?: number
+  destinations: SplitDestinationAllocation[]
+}
+
+export async function receiveSplitGrnAndPutaway(
+  supabase: SupabaseClient<Database>,
+  params: {
+    poId: string
+    challanNumber?: string
+    operatorId?: string
+    splits: SplitItemReceivePayload[]
+  }
+): Promise<{
+  success: boolean
+  grnId?: string
+  grnNumber?: string
+  totalAccepted?: number
+  totalRejected?: number
+  poStatus?: string
+  error?: string
+}> {
+  try {
+    const { data, error } = await (supabase.rpc as any)('receive_split_grn_and_putaway', {
+      p_po_id: params.poId,
+      p_challan_number: params.challanNumber || null,
+      p_operator_id: params.operatorId || null,
+      p_splits: params.splits,
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return {
+      success: true,
+      grnId: data?.grn_id,
+      grnNumber: data?.grn_number,
+      totalAccepted: data?.total_accepted,
+      totalRejected: data?.total_rejected,
+      poStatus: data?.po_status,
+    }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error processing split GRN receipt' }
+  }
+}
+
 export async function processPosCheckout(
   supabase: SupabaseClient<Database>,
   params: {
@@ -2399,6 +2456,78 @@ export async function getPurchaseOrders(
   return data as any
 }
 
+export async function getPurchaseOrderItems(
+  supabase: SupabaseClient<Database>,
+  poId: string
+): Promise<Array<PurchaseOrderItem & { variant?: ProductVariant & { product?: Product } }>> {
+  const { data, error } = await supabase
+    .from('purchase_order_items')
+    .select('*, variant:product_variants(*, product:products(*))')
+    .eq('po_id', poId)
+  if (error || !data) return []
+  return data as any
+}
+
+export async function createPurchaseOrderWithItems(
+  supabase: SupabaseClient<Database>,
+  poData: {
+    po_number: string
+    supplier_id: string
+    destination_location_id: string
+    status: any
+    expected_delivery_date: string
+    subtotal: number
+    tax_amount: number
+    total_amount: number
+    created_by?: string
+  },
+  items: Array<{
+    variant_id: string
+    hsn_code: string
+    quantity_ordered: number
+    unit_cost: number
+    tax_rate_percent: number
+    tax_amount: number
+    line_total: number
+    destination_location_id?: string
+  }>
+): Promise<{ success: boolean; po?: any; error?: string }> {
+  try {
+    const { data: newPo, error: poErr } = await supabase
+      .from('purchase_orders')
+      .insert(poData as any)
+      .select()
+      .single()
+
+    if (poErr) throw poErr
+
+    if (items.length > 0) {
+      const itemsToInsert = items.map((it) => ({
+        po_id: newPo.id,
+        variant_id: it.variant_id,
+        hsn_code: it.hsn_code || '610910',
+        quantity_ordered: it.quantity_ordered,
+        quantity_received: 0,
+        unit_cost: it.unit_cost,
+        tax_rate_percent: it.tax_rate_percent || 12.0,
+        tax_amount: it.tax_amount,
+        line_total: it.line_total,
+        destination_location_id: it.destination_location_id || poData.destination_location_id,
+      }))
+
+      const { error: itemsErr } = await supabase
+        .from('purchase_order_items')
+        .insert(itemsToInsert as any)
+
+      if (itemsErr) throw itemsErr
+    }
+
+    return { success: true, po: newPo }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to create PO with items' }
+  }
+}
+
 export async function getStockTransfers(
   supabase: SupabaseClient<Database>
 ): Promise<Array<StockTransfer & { source_location?: StoreLocation; destination_location?: StoreLocation }>> {
@@ -2488,15 +2617,15 @@ export const DEFAULT_STOREFRONT_TOKENS: StorefrontTokens = {
   id: 'tok-default-01',
   theme_name: 'default',
   tokens_json: {
-    '--background': '#F8F8F6',
+    '--background': '#FDFCF7',
     '--foreground': '#09090B',
     '--primary': '#09090B',
     '--primary-foreground': '#FFFFFF',
-    '--secondary': '#FFFFFF',
+    '--secondary': '#FAF8F2',
     '--secondary-foreground': '#09090B',
     '--accent-red': '#B91C1C',
     '--accent-gold': '#F59E0B',
-    '--border': '#E4E4E0',
+    '--border': '#E8E4DA',
     '--radius': '9999px',
     '--font-serif': 'Cormorant Garamond, Georgia, serif',
     '--font-sans': 'Inter, -apple-system, sans-serif',
@@ -2509,7 +2638,7 @@ export const DEFAULT_STOREFRONT_TOKENS: StorefrontTokens = {
 export const DEFAULT_HOME_LAYOUT: PageLayout = {
   id: 'layout-home-01',
   page_slug: 'home',
-  page_title: 'Atelier Haute Couture & Creator Apparel Drop 01',
+  page_title: 'The Grace Atelier Haute Couture',
   layout_json: [
     {
       id: 'hero-section-01',
@@ -2521,7 +2650,7 @@ export const DEFAULT_HOME_LAYOUT: PageLayout = {
       props: {
         pillText: 'Introducing Bolt ⚡ Doorstep Try-On Salon',
         pillLink: '#bolt-experience',
-        kicker: 'AUTONOMOUS ATELIER // SPECIFICATION DROP 01',
+        kicker: 'AUTONOMOUS ATELIER // SPECIFICATION ARCHIVE',
         titleLine1: 'ARCHITECTURAL',
         titleLine2: 'SILHOUETTES',
         description: 'Custom-milled 480 GSM French Terry, 14oz Japanese raw selvedge denim, and sculptural outerwear. Order up to 5 curated works to try on at your doorstep before final settlement.',
@@ -2578,35 +2707,21 @@ export const DEFAULT_HOME_LAYOUT: PageLayout = {
       className: 'max-w-7xl mx-auto px-6 sm:px-12 py-16',
       styles: {},
       props: {
-        kicker: 'CURATED ATELIER ARCHIVE',
-        title: 'Selected Works Available for Try-On',
-        subtitle: 'Select your pieces and choose Bolt ⚡ Try-On at checkout.',
+        title: 'SELECTED WORKS',
         categoryFilter: 'all',
         limit: 6,
         columns: 3,
       },
     },
     {
-      id: 'custom-div-specs-01',
-      type: 'CustomDivBlock',
-      name: 'Creator Fabric Lab Technical Banner',
-      isVisible: true,
-      className: 'bg-neutral-900 text-white p-8 sm:p-12 my-12 max-w-7xl mx-auto border border-neutral-800',
-      styles: {},
-      props: {
-        htmlContent: '<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6"><div class="space-y-2"><span class="text-xs font-mono text-emerald-400 uppercase tracking-widest">PHYSICAL MATERIAL LAB</span><h3 class="text-2xl font-serif font-light">Strictly Unblended Organic Fibers</h3><p class="text-xs text-neutral-400 font-sans max-w-xl">Every yard of fabric is commissioned directly from artisanal mills in Wakayama, Okayama, and Courtrai. No microplastics, no synthetic elastane.</p></div><a href="/shop" class="px-6 py-3 bg-white text-black font-mono text-xs uppercase font-bold tracking-wider hover:bg-neutral-200 transition-colors shrink-0">Shop Collection</a></div>',
-      },
-    },
-    {
       id: 'reviews-showcase-01',
       type: 'ReviewsShowcase',
-      name: 'Doorstep Salon Verified Patron Reviews',
+      name: 'User Reviews',
       isVisible: true,
-      className: 'bg-[#FAF9F6] border-t border-neutral-200 py-20 px-6 sm:px-12',
+      className: 'bg-[#FDFCF7] border-t border-[#E5E0D8] py-20 sm:py-28 px-6 sm:px-12',
       styles: {},
       props: {
-        title: 'Verified Doorstep Fitting Testimonials',
-        subtitle: 'What patrons say about experiencing couture in front of their own mirror.',
+        title: 'USER REVIEWS',
       },
     },
   ],

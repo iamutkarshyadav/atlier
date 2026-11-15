@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter, usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -38,10 +39,23 @@ export function Navbar() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [userName, setUserName] = useState<string | null>(null)
   const [isMenuHovered, setIsMenuHovered] = useState(false)
+  const [hoveredNavIndex, setHoveredNavIndex] = useState<number>(0)
 
   const searchInputRef = useRef<HTMLInputElement>(null)
   const { itemCount } = useHydratedCart()
   const { city: boltCity } = useHydratedBolt()
+
+  // Lock body scroll when full-screen menu is open
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [menuOpen])
 
   // Track scroll position for subtle backdrop when scrolling past hero
   useEffect(() => {
@@ -69,6 +83,27 @@ export function Navbar() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // One-time cleanup of legacy un-namespaced auth cookies on localhost so storefront stays in clean patron/guest state
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      try {
+        const cookies = document.cookie.split(';')
+        for (const c of cookies) {
+          const cookieName = c.split('=')[0].trim()
+          if (
+            cookieName.startsWith('sb-aavyohkylcguhrmblrcx') ||
+            cookieName.startsWith('sb-admin-session')
+          ) {
+            document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+            if (window.location.hostname) {
+              document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=${window.location.hostname}`
+            }
+          }
+        }
+      } catch {}
+    }
   }, [])
 
   // Resolve user session
@@ -153,13 +188,77 @@ export function Navbar() {
   const displayCartBadge = itemCount
 
   const navItems = [
-    { num: '01', label: 'THE ATELIER HOME', href: '/', subtitle: 'Return to flagship split screen' },
-    { num: '02', label: 'CURATED CATALOGUE', href: '/shop', subtitle: 'Explore limited 480 GSM apparel' },
-    { num: '03', label: 'BOLT ⚡ TRY-ON SALON', href: '/shop?try_on=true', subtitle: '45-minute in-home private fitting' },
-    { num: '04', label: 'BRAND HERITAGE', href: '/about', subtitle: 'Wakayama loopwheel & Kojima shuttle looms' },
-    { num: '05', label: 'SHOPPING BAG', href: '/cart', subtitle: `${itemCount} curated garments in bag`, badge: itemCount > 0 ? itemCount : undefined },
-    ...(userName ? [{ num: '06', label: 'PATRON ORDERS', href: '/orders', subtitle: 'Live dispatch & fitting settlements' }] : []),
+    {
+      num: '01',
+      label: 'The Atelier Home',
+      href: '/',
+      subtitle: 'Flagship split-screen architecture & maison identity',
+      image: '/images/hero-woman.jpg',
+      tagline: 'HAUTE COUTURE SILHOUETTE',
+      provenance: 'Single-origin unbleached silk & bespoke tailoring',
+    },
+    {
+      num: '02',
+      label: 'Shop Collections',
+      href: '/shop',
+      subtitle: 'Limited 480 GSM loopback cotton & creator apparel',
+      image: '/images/prod1-primary.jpg',
+      tagline: 'PERMANENT COLLECTION',
+      provenance: '480 GSM Loopback French Terry, Kojima raw selvedge',
+    },
+    {
+      num: '03',
+      label: 'Couture & Tailoring',
+      href: '/shop?category=Outerwear+%26+Jackets',
+      subtitle: 'Architectural outerwear & structured cuts',
+      image: '/images/hero-gentleman.jpg',
+      tagline: 'BESPOKE PATRON ATELIER',
+      provenance: 'Brutalist silhouette, zero synthetic blending',
+    },
+    {
+      num: '04',
+      label: 'Bolt ⚡ Try-On Salon',
+      href: '/shop?try_on=true',
+      subtitle: '45-minute white-glove doorstep private fitting',
+      image: '/images/auth-editorial.jpg',
+      tagline: 'DOORSTEP FITTING PROTOCOL',
+      provenance: 'Available in Bengaluru, Mumbai, Delhi NCR & Hyderabad',
+    },
+    {
+      num: '05',
+      label: 'About Us',
+      href: '/about',
+      subtitle: 'Wakayama loopwheel & Kojima shuttle looms',
+      image: '/images/prod3-macro.jpg',
+      tagline: 'HONEST TEXTILE MONOLITH',
+      provenance: 'Preserving vintage slow-spinning circular loom traditions',
+    },
+    {
+      num: '06',
+      label: 'Shopping Bag',
+      href: '/cart',
+      subtitle: `${itemCount} curated garment${itemCount === 1 ? '' : 's'} reserved in bag`,
+      badge: itemCount > 0 ? itemCount : undefined,
+      image: '/images/prod2-primary.jpg',
+      tagline: 'CLIENT FITTING MANIFEST',
+      provenance: 'Insured trial dispatch & instant courier hand-off',
+    },
+    ...(userName
+      ? [
+          {
+            num: '07',
+            label: 'Patron Orders',
+            href: '/orders',
+            subtitle: 'Live dispatch radar & salon settlements',
+            image: '/images/prod3-profile.jpg',
+            tagline: 'REAL-TIME COURIER RADAR',
+            provenance: 'Synchronized live with metropolitan fulfillment salons',
+          },
+        ]
+      : []),
   ]
+
+  const activeItem = navItems[hoveredNavIndex] || navItems[0]!
 
   return (
     <>
@@ -218,7 +317,7 @@ export function Navbar() {
               href="/about"
               className="navbar-link transition-colors cursor-pointer py-1 hover:text-[#B91C1C] dark:hover:text-red-400"
             >
-              Maison
+              About Us
             </Link>
           </nav>
 
@@ -313,163 +412,210 @@ export function Navbar() {
       </header>
 
       {/* ========================================================= */}
-      {/* BESPOKE GLASSMORPHISM NAVIGATION OVERLAY */}
+      {/* FULL-SCREEN HAUTE COUTURE ATELIER NAVIGATION OVERLAY      */}
       {/* ========================================================= */}
       <AnimatePresence>
         {menuOpen && (
-          <div className="fixed inset-0 z-50 flex justify-end">
-            {/* Backdrop Blur */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="fixed inset-0 bg-black/80 backdrop-blur-md"
-              onClick={() => setMenuOpen(false)}
-            />
-
-            {/* Dual-Pane Drawer Panel */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-              className="relative w-full max-w-2xl sm:max-w-3xl bg-[#1A1B1D]/95 backdrop-blur-2xl border-l border-white/10 text-white p-7 sm:p-12 flex flex-col justify-between shadow-2xl z-10 overflow-y-auto"
-            >
-              {/* Drawer Top Bar */}
-              <div className="flex items-center justify-between pb-6 border-b border-white/10">
-                <Link
-                  href="/"
-                  onClick={() => setMenuOpen(false)}
-                  className="font-script text-3xl sm:text-4xl text-white font-normal"
-                >
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 z-50 bg-[#FDFCF7] text-[#09090B] flex flex-col justify-between overflow-y-auto selection:bg-[#B91C1C] selection:text-white sovereign-fullscreen-menu"
+          >
+            {/* Top Bar: Quiet Editorial Authority */}
+            <div className="w-full px-6 sm:px-12 py-5 sm:py-6 border-b border-[#E8E4DA] flex items-center justify-between">
+              {/* Left Brand Marque */}
+              <Link
+                href="/"
+                onClick={() => setMenuOpen(false)}
+                className="group flex items-center gap-3 select-none cursor-pointer"
+                aria-label="The Grace Atelier Home"
+              >
+                <span className="font-script text-3xl sm:text-4xl text-[#09090B] font-normal leading-none">
                   Tg
-                </Link>
+                </span>
+                <div className="flex flex-col border-l border-[#E8E4DA] pl-3">
+                  <span className="font-sans font-extrabold text-[10px] sm:text-[11px] uppercase tracking-[0.28em] text-[#09090B] leading-tight">
+                    THE GRACE ATELIER
+                  </span>
+                  <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-[#71717A] leading-tight">
+                    MAISON HAUTE COUTURE
+                  </span>
+                </div>
+              </Link>
 
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setMenuOpen(false)}
-                    className="p-1.5 text-neutral-400 hover:text-white transition-colors cursor-pointer rounded-none hover:bg-white/5"
-                    aria-label="Close menu"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+              {/* Center Season Badge */}
+              <div className="hidden sm:inline-flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.25em] text-[#71717A] bg-[#FAF8F2] px-4 py-1.5 border border-[#E8E4DA]">
+                <span className="w-1.5 h-1.5 rounded-none bg-[#B91C1C]" />
+                <span>AUTUMN / WINTER 2026 • ATELIER ARCHIVE</span>
+              </div>
+
+              {/* Right: Minimal Close Trigger with ESC indicator */}
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                className="group flex items-center gap-2 py-1.5 px-3 bg-[#FAF8F2] hover:bg-[#F2EFE8] border border-[#E8E4DA] transition-all cursor-pointer rounded-none"
+                aria-label="Close Navigation"
+              >
+                <span className="text-[10px] font-mono uppercase tracking-widest text-[#71717A] group-hover:text-[#09090B] hidden sm:inline">
+                  ESC
+                </span>
+                <X className="w-4 h-4 text-[#09090B] transition-transform group-hover:rotate-90 duration-300" />
+              </button>
+            </div>
+
+            {/* Central Dual-Zone Grid */}
+            <div className="w-full max-w-7xl mx-auto px-6 sm:px-12 py-8 sm:py-12 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
+              {/* Zone A: Interactive Lookbook Visual Canvas (Desktop Left 5 cols) */}
+              <div className="hidden lg:flex lg:col-span-5 flex-col justify-center space-y-4">
+                <div className="relative aspect-[3/4] w-full max-w-md bg-[#FAF8F2] border border-[#E8E4DA] overflow-hidden shadow-sm">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeItem.image}
+                      initial={{ opacity: 0, scale: 1.05 }}
+                      animate={{ opacity: 1, scale: 1.0 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                      className="relative w-full h-full"
+                    >
+                      <Image
+                        src={activeItem.image}
+                        alt={activeItem.label}
+                        fill
+                        priority
+                        className="object-cover object-center filter grayscale contrast-110 brightness-95"
+                      />
+                      {/* Subtle Vignette Gradient */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+
+                      {/* Micro-Caption Box */}
+                      <div className="absolute bottom-4 left-4 right-4 text-white font-mono space-y-1">
+                        <span className="text-[9px] uppercase tracking-[0.25em] text-red-300 font-bold block">
+                          {activeItem.tagline}
+                        </span>
+                        <p className="text-[11px] font-sans font-light text-neutral-200 leading-snug">
+                          {activeItem.provenance}
+                        </p>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] font-mono text-[#71717A] uppercase tracking-wider px-1">
+                  <span>PERSPECTIVE INDEX // {activeItem.num}</span>
+                  <span className="flex items-center gap-1.5 text-[#047857] font-semibold">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                    LIVE CATALOGUE
+                  </span>
                 </div>
               </div>
 
-              {/* Main Content: Split Columns on Desktop */}
-              <div className="py-8 grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-                {/* Left Column: Editorial Heritage & Fleet Status */}
-                <div className="hidden md:flex md:col-span-5 flex-col justify-between space-y-8 pr-6 border-r border-white/10">
-                  <div className="space-y-3">
-                    <span className="text-[10px] uppercase tracking-[0.25em] font-mono text-[#B91C1C] font-bold block">
-                      ARCHIVE // DROP 01
-                    </span>
-                    <blockquote className="font-serif italic text-lg text-neutral-300 leading-snug">
-                      &ldquo;Form follows textile. Engineered with raw material integrity, deliberate proportions, and uncompromising permanence.&rdquo;
-                    </blockquote>
-                  </div>
+              {/* Zone B: Haute Couture Navigation Stack (Right 7 cols) */}
+              <nav className="lg:col-span-7 flex flex-col justify-center divide-y divide-[#E8E4DA]">
+                {navItems.map((item, idx) => {
+                  const isHovered = hoveredNavIndex === idx
 
-                  <div className="space-y-4 font-mono text-xs text-neutral-400">
-                    <div>
-                      <p className="text-white font-bold text-[11px] uppercase tracking-wider">Provenance</p>
-                      <p className="text-[10px] mt-0.5">Wakayama Loopwheel Mills &amp; Kojima Shuttle Looms</p>
-                    </div>
-
-                    <div className="pt-2">
-                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#262629] border border-white/10 rounded-none text-[10px] text-amber-300">
-                        <span className="w-1.5 h-1.5 rounded-none bg-emerald-400 animate-ping" />
-                        <span>FLEET: ACTIVE IN {boltCity ? boltCity.toUpperCase() : 'BENGALURU & MUMBAI'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column: Numbered Navigation Stack */}
-                <nav className="md:col-span-7 space-y-4">
-                  {navItems.map((item, idx) => (
+                  return (
                     <motion.div
                       key={item.href}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.05 * idx, duration: 0.3 }}
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.04 * idx, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                     >
                       <Link
                         href={item.href}
                         onClick={() => setMenuOpen(false)}
-                        className="group flex items-center justify-between py-2 border-b border-white/5 hover:border-white/20 transition-all cursor-pointer"
+                        onMouseEnter={() => setHoveredNavIndex(idx)}
+                        className="group flex items-center justify-between py-3.5 sm:py-4.5 transition-all cursor-pointer"
                       >
-                        <div className="flex items-baseline gap-3">
-                          <span className="font-mono text-xs font-bold text-[#B91C1C]">
+                        <div className="flex items-baseline gap-4 sm:gap-6">
+                          {/* Number */}
+                          <span className={`font-mono text-xs sm:text-sm font-bold transition-colors duration-200 ${
+                            isHovered ? 'text-[#B91C1C]' : 'text-[#71717A]'
+                          }`}>
                             {item.num}
                           </span>
-                          <div>
-                            <span className="font-display text-xl sm:text-2xl font-extrabold uppercase tracking-tight text-white group-hover:text-red-400 group-hover:translate-x-1.5 transition-all block">
+
+                          {/* Titles Stack */}
+                          <div className="space-y-0.5">
+                            <span className={`font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold uppercase tracking-tight transition-all duration-300 block ${
+                              isHovered
+                                ? 'text-[#B91C1C] translate-x-2'
+                                : 'text-[#09090B]'
+                            }`}>
                               {item.label}
                             </span>
-                            <span className="text-[10px] font-mono text-neutral-400 block mt-0.5">
+                            <span className="text-[10px] sm:text-[11px] font-mono text-[#71717A] uppercase tracking-wider block">
                               {item.subtitle}
                             </span>
                           </div>
                         </div>
 
-                        {item.badge ? (
-                          <span className="px-2 py-0.5 bg-[#B91C1C] text-white font-bold font-mono text-xs rounded-none">
-                            {item.badge}
-                          </span>
-                        ) : (
-                          <ArrowRight className="w-4 h-4 text-neutral-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-[#B91C1C]" />
-                        )}
+                        {/* Trailing Indicator */}
+                        <div className="flex items-center gap-2 pl-3">
+                          {item.badge ? (
+                            <span className="px-2.5 py-1 bg-[#09090B] text-white font-mono font-bold text-xs shadow-sm">
+                              {item.badge}
+                            </span>
+                          ) : (
+                            <ArrowRight className={`w-5 h-5 text-[#B91C1C] transition-all duration-300 ${
+                              isHovered ? 'opacity-100 translate-x-1' : 'opacity-0 -translate-x-2'
+                            }`} />
+                          )}
+                        </div>
                       </Link>
                     </motion.div>
-                  ))}
-                </nav>
-              </div>
+                  )
+                })}
+              </nav>
+            </div>
 
-              {/* Drawer Footer / Patron Session */}
-              <div className="pt-6 border-t border-white/10 text-xs text-neutral-400 font-sans flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                {userName ? (
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-none bg-[#262629] border border-white/10 text-white flex items-center justify-center font-bold text-xs">
-                        {userName.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-medium text-white">{userName}</p>
-                        {userEmail && (
-                          <p className="text-[11px] text-neutral-400 truncate max-w-[200px]">
-                            {userEmail}
-                          </p>
-                        )}
-                      </div>
+            {/* Bottom Bar: Patron Concierge Strip */}
+            <footer className="w-full max-w-7xl mx-auto px-6 sm:px-12 py-5 border-t border-[#E8E4DA] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs font-mono">
+              {userName ? (
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-[#FAF8F2] border border-[#E8E4DA] text-[#09090B] font-bold text-xs flex items-center justify-center">
+                      {userName.charAt(0).toUpperCase()}
                     </div>
+                    <div>
+                      <span className="font-bold uppercase text-[#09090B] tracking-wider">{userName}</span>
+                      {userEmail && (
+                        <span className="text-[11px] text-[#71717A] ml-2 hidden sm:inline">({userEmail})</span>
+                      )}
+                    </div>
+                    <span className="hidden md:inline-flex items-center gap-1.5 ml-4 px-2.5 py-0.5 bg-[#ECFDF5] border border-[#A7F3D0] text-[#065F46] text-[10px] font-semibold">
+                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                      SALON ACTIVE: {boltCity ? boltCity.toUpperCase() : 'BENGALURU'}
+                    </span>
+                  </div>
 
-                    <button
-                      onClick={handleSignOut}
-                      className="py-1.5 px-3 bg-[#262629] hover:bg-[#38393D] text-rose-400 hover:text-rose-300 flex items-center gap-2 transition-colors rounded-none border border-white/10 font-mono text-xs cursor-pointer"
-                    >
-                      <span>Sign Out</span>
-                      <LogOut className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-3">
-                    <p className="text-[11px] text-neutral-400 font-mono">
-                      Patron fitting reservations &amp; doorstep salon status.
-                    </p>
-                    <Link
-                      href="/login"
-                      onClick={() => setMenuOpen(false)}
-                      style={{ color: '#ffffff', backgroundColor: '#09090b' }}
-                      className="btn-dark py-2 px-6 hover:bg-[#27272A] dark:hover:bg-[#4A4B50] font-mono font-bold text-xs uppercase tracking-wider rounded-none border border-neutral-700 dark:border-white/15 transition-all shadow-md cursor-pointer"
-                    >
-                      <span style={{ color: '#ffffff' }}>Sign In to Account →</span>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
+                  <button
+                    onClick={handleSignOut}
+                    type="button"
+                    className="text-[#B91C1C] hover:text-[#991B1B] hover:underline uppercase tracking-wider font-bold text-xs flex items-center gap-1.5 cursor-pointer py-1"
+                  >
+                    <span>Sign Out</span>
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-3">
+                  <p className="text-[11px] text-[#71717A] font-mono">
+                    Private bespoke reservations &amp; 45-minute white-glove doorstep salon sessions.
+                  </p>
+                  <Link
+                    href="/login"
+                    onClick={() => setMenuOpen(false)}
+                    className="text-[#09090B] hover:text-[#B91C1C] hover:underline uppercase tracking-wider font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>Sign In to Patron Account →</span>
+                  </Link>
+                </div>
+              )}
+            </footer>
+          </motion.div>
         )}
       </AnimatePresence>
     </>

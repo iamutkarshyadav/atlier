@@ -39,12 +39,24 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const aliasMap: Record<string, string> = {
+      'BLR-ST01': 'STORE-BLR01',
+      'STORE-BLR01': 'BLR-ST01',
+      'BOM-ST01': 'STORE-MUM01',
+      'STORE-MUM01': 'BOM-ST01',
+      'BLR-WH01': 'ECOM-WH01',
+      'ECOM-WH01': 'BLR-WH01',
+    }
+
     // 1. Resolve Source Location
     let fromLoc = null
     if (fromLocationId) {
       fromLoc = await prisma.location.findUnique({ where: { id: fromLocationId } })
     } else if (fromLocationCode) {
       fromLoc = await prisma.location.findUnique({ where: { code: fromLocationCode } })
+      if (!fromLoc && aliasMap[fromLocationCode]) {
+        fromLoc = await prisma.location.findUnique({ where: { code: aliasMap[fromLocationCode] } })
+      }
     }
 
     if (!fromLoc) {
@@ -60,6 +72,9 @@ export async function POST(req: NextRequest) {
       toLoc = await prisma.location.findUnique({ where: { id: toLocationId } })
     } else if (toLocationCode) {
       toLoc = await prisma.location.findUnique({ where: { code: toLocationCode } })
+      if (!toLoc && aliasMap[toLocationCode]) {
+        toLoc = await prisma.location.findUnique({ where: { code: aliasMap[toLocationCode] } })
+      }
     }
 
     if (!toLoc) {

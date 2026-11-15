@@ -13,11 +13,20 @@ const config: Config = {
     extend: {
       colors: {
         chrome: {
-          950: '#09090B',
-          900: '#121215',
-          850: '#18181B',
-          800: '#27272A',
-          700: '#3F3F46',
+          950: 'rgb(var(--chrome-950) / <alpha-value>)',
+          900: 'rgb(var(--chrome-900) / <alpha-value>)',
+          850: 'rgb(var(--chrome-850) / <alpha-value>)',
+          800: 'rgb(var(--chrome-800) / <alpha-value>)',
+          750: 'rgb(var(--chrome-750) / <alpha-value>)',
+          700: 'rgb(var(--chrome-700) / <alpha-value>)',
+        },
+        terminal: {
+          bg: 'rgb(var(--chrome-950) / <alpha-value>)',
+          panel: 'rgb(var(--chrome-900) / <alpha-value>)',
+          surface: 'rgb(var(--chrome-900) / <alpha-value>)',
+          border: 'rgb(var(--chrome-800) / <alpha-value>)',
+          muted: 'rgb(var(--text-muted, 100 116 139) / <alpha-value>)',
+          accent: '#D4AF37',
         },
         status: {
           emerald: {

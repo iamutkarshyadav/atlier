@@ -110,7 +110,7 @@ export default function PosTerminalPage() {
   }, [boutiqueShelves])
 
   const floorShelfCoordinate = floorShelf?.coordinate || 'FLR-A-01-A1'
-  const floorShelfId = floorShelf?.id || 's1000000-0000-0000-0000-000000000002'
+  const floorShelfId = floorShelf?.id || 'f1000000-0000-0000-0000-000000000002'
 
   // Load Catalog & Shelves
   const loadPosData = useCallback(async () => {
@@ -395,7 +395,7 @@ export default function PosTerminalPage() {
       const supabase = createBrowserClient()
       const targetLocId =
         activeLocation === 'ALL'
-          ? (locations[0]?.id || 'l1000000-0000-0000-0000-000000000002')
+          ? (locations[0]?.id || 'd1000000-0000-0000-0000-000000000002')
           : activeLocation.id
 
       const res = await processPosCheckout(supabase, {
@@ -544,7 +544,7 @@ export default function PosTerminalPage() {
     const res = await processBorisReturn(supabase, {
       orderId: `ord-${orderNumber}`,
       orderItemId: `item-ret-1`,
-      locationId: targetLocId || 'l1000000-0000-0000-0000-000000000002',
+      locationId: targetLocId || 'd1000000-0000-0000-0000-000000000002',
       targetShelfId: floorShelfId,
       condition: qcCondition,
       refundMode,

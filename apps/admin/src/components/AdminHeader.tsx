@@ -15,9 +15,12 @@ import {
   Store,
   X,
   Type,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { createBrowserClient } from '@repo/supabase/browser'
 import { useLocation } from '@/context/LocationContext'
+import { useTheme } from '@/context/ThemeContext'
 import { useBarcodeScanner } from '@/lib/useBarcodeScanner'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 
@@ -48,6 +51,7 @@ const AVAILABLE_FONTS = [
 export function AdminHeader() {
   const router = useRouter()
   const { locations, activeLocation, setActiveLocation, activeLocationCode } = useLocation()
+  const { theme, toggleTheme, isLight } = useTheme()
 
   const [staffName, setStaffName] = useState('Staff Operator')
   const [staffEmail, setStaffEmail] = useState('operator@atelier.internal')
@@ -320,9 +324,9 @@ export function AdminHeader() {
         {/* Right: Staff Profile Chip & Session Actions */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-xs font-mono">
-            <div className="flex flex-col text-right leading-none hidden md:block">
-              <span className="text-zinc-200 font-semibold">{staffName}</span>
-              <span className="text-3xs text-zinc-500 mt-0.5 truncate max-w-[140px]">{staffEmail}</span>
+            <div className="hidden md:flex flex-col text-right leading-tight">
+              <span className="text-zinc-200 font-semibold truncate max-w-[150px]">{staffName}</span>
+              <span className="text-3xs text-zinc-500 truncate max-w-[150px]">{staffEmail}</span>
             </div>
             <StatusBadge variant={staffRole} className="font-mono">
               {formatRoleLabel(staffRole)}
@@ -366,6 +370,20 @@ export function AdminHeader() {
               </div>
             )}
           </div>
+
+          {/* Light / Dark Mode Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-chrome-900 transition-colors border border-transparent hover:border-chrome-800 rounded flex items-center gap-1"
+            title={isLight ? 'Switch to Dark Theme' : 'Switch to Light Theme'}
+            aria-label={isLight ? 'Switch to Dark Theme' : 'Switch to Light Theme'}
+          >
+            {isLight ? (
+              <Moon className="w-3.5 h-3.5 text-amber-500" />
+            ) : (
+              <Sun className="w-3.5 h-3.5 text-amber-400" />
+            )}
+          </button>
 
           <button
             onClick={handleSignOut}

@@ -53,7 +53,7 @@ export default async function RootLayout({
         />
         <ThemeInjector initialTokens={initialTokens} />
       </head>
-      <body className="min-h-screen flex flex-col bg-[var(--royal-canvas,#F8F8F6)] text-[var(--royal-foreground,#09090B)] antialiased selection:bg-[#B91C1C] selection:text-white transition-colors duration-200">
+      <body className="min-h-screen flex flex-col bg-[#FDFCF7] text-[#09090B] antialiased selection:bg-[#B91C1C] selection:text-white transition-colors duration-200">
         <BoltServiceabilityBanner />
         <Navbar />
         <main className="flex-1">{children}</main>

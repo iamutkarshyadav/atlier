@@ -140,30 +140,30 @@ export function SizeMatrixInput({
   const totalInventoryValue = totalUnits * (Number(basePrice) || 0)
 
   return (
-    <div className="space-y-6 bg-[#0E0E12] border border-[#23232A] p-5 sm:p-7 rounded-none">
+    <div className="space-y-6 bg-chrome-900 border border-chrome-800 p-5 sm:p-7 rounded-none">
       {/* Header & Presets */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#1F1F24]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-chrome-850">
         <div>
           <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-[#166534]" />
-            <h3 className="text-sm uppercase tracking-wider font-semibold text-white">
+            <Layers className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <h3 className="text-sm uppercase tracking-wider font-semibold text-zinc-100">
               Apparel Size Matrix & Inventory Allocation
             </h3>
           </div>
-          <p className="text-xs text-neutral-400 mt-1">
+          <p className="text-xs text-zinc-400 mt-1">
             Specify units manufactured per size. The storefront PDP adapts in real-time.
           </p>
         </div>
 
         {/* Preset Selector Buttons */}
-        <div className="flex items-center gap-1.5 p-1 bg-[#16161B] border border-[#23232A]">
+        <div className="flex items-center gap-1.5 p-1 bg-chrome-950 border border-chrome-800">
           <button
             type="button"
             onClick={() => handleApplyPreset('alpha')}
             className={`px-3 py-1.5 text-xs font-medium transition-all ${
               selectedPreset === 'alpha'
-                ? 'bg-[#166534] text-white font-semibold'
-                : 'text-neutral-400 hover:text-white'
+                ? 'bg-emerald-600 text-white font-semibold'
+                : 'text-zinc-400 hover:text-zinc-100'
             }`}
           >
             Streetwear (XS–XXL)
@@ -173,8 +173,8 @@ export function SizeMatrixInput({
             onClick={() => handleApplyPreset('waist')}
             className={`px-3 py-1.5 text-xs font-medium transition-all ${
               selectedPreset === 'waist'
-                ? 'bg-[#166534] text-white font-semibold'
-                : 'text-neutral-400 hover:text-white'
+                ? 'bg-emerald-600 text-white font-semibold'
+                : 'text-zinc-400 hover:text-zinc-100'
             }`}
           >
             Denim/Pants (28–36)
@@ -184,8 +184,8 @@ export function SizeMatrixInput({
             onClick={() => handleApplyPreset('one_size')}
             className={`px-3 py-1.5 text-xs font-medium transition-all ${
               selectedPreset === 'one_size'
-                ? 'bg-[#166534] text-white font-semibold'
-                : 'text-neutral-400 hover:text-white'
+                ? 'bg-emerald-600 text-white font-semibold'
+                : 'text-zinc-400 hover:text-zinc-100'
             }`}
           >
             One Size (OS)
@@ -194,29 +194,29 @@ export function SizeMatrixInput({
       </div>
 
       {/* Real-Time Total Units Metric Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-[#141418] border border-[#27272F]">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-chrome-950 border border-chrome-800">
         <div>
-          <span className="text-[10px] uppercase tracking-wider text-neutral-400 block">
+          <span className="text-3xs uppercase tracking-wider text-zinc-400 font-semibold block">
             Total Batch Units
           </span>
-          <span className="text-xl font-bold text-white flex items-center gap-2 mt-0.5">
+          <span className="text-xl font-bold text-zinc-100 flex items-center gap-2 mt-0.5 font-mono">
             {totalUnits.toLocaleString()}
-            <span className="text-xs font-normal text-[#166534] bg-[#166534]/15 px-2 py-0.5 border border-[#166534]/30">
+            <span className="text-xs font-normal text-emerald-600 dark:text-emerald-400 bg-emerald-950/20 px-2 py-0.5 border border-emerald-800/40">
               {variants.filter((v) => v.enabled).length} Sizes Active
             </span>
           </span>
         </div>
         <div>
-          <span className="text-[10px] uppercase tracking-wider text-neutral-400 block">
+          <span className="text-3xs uppercase tracking-wider text-zinc-400 font-semibold block">
             Batch Retail Value
           </span>
-          <span className="text-xl font-bold text-white mt-0.5 block">
+          <span className="text-xl font-bold text-zinc-100 mt-0.5 block font-mono">
             ${totalInventoryValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
         <div className="col-span-2 sm:col-span-1 flex items-center sm:justify-end">
-          <span className="text-xs text-neutral-400 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-[#166534]" />
+          <span className="text-xs text-zinc-400 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
             Auto-Syncs with PDP Island
           </span>
         </div>
@@ -224,7 +224,7 @@ export function SizeMatrixInput({
 
       {/* Sizing Matrix Grid */}
       <div className="space-y-3">
-        <div className="hidden sm:grid grid-cols-12 gap-3 px-3 text-[11px] uppercase tracking-wider text-neutral-400 font-medium">
+        <div className="hidden sm:grid grid-cols-12 gap-3 px-3 text-3xs uppercase tracking-wider text-zinc-400 font-semibold">
           <div className="col-span-1">Status</div>
           <div className="col-span-2">Size</div>
           <div className="col-span-4">Allocated Units</div>
@@ -238,8 +238,8 @@ export function SizeMatrixInput({
               key={v.size}
               className={`grid grid-cols-1 sm:grid-cols-12 gap-3 p-3.5 items-center border transition-all ${
                 v.enabled
-                  ? 'bg-[#121216] border-[#2A2A32] hover:border-neutral-600'
-                  : 'bg-[#0B0B0E] border-[#1C1C22] opacity-40'
+                  ? 'bg-chrome-950 border-chrome-800 hover:border-chrome-750'
+                  : 'bg-chrome-950/40 border-chrome-850 opacity-40'
               }`}
             >
               {/* Toggle Active */}
@@ -249,8 +249,8 @@ export function SizeMatrixInput({
                   onClick={() => handleToggleSize(idx)}
                   className={`w-5 h-5 flex items-center justify-center border transition-colors ${
                     v.enabled
-                      ? 'bg-[#166534] border-[#166534] text-white'
-                      : 'bg-transparent border-neutral-700 text-transparent'
+                      ? 'bg-emerald-600 border-emerald-600 text-white'
+                      : 'bg-transparent border-chrome-750 text-transparent'
                   }`}
                 >
                   <Check className="w-3.5 h-3.5 stroke-[3]" />
@@ -259,11 +259,11 @@ export function SizeMatrixInput({
 
               {/* Size Badge */}
               <div className="sm:col-span-2 flex items-center gap-2">
-                <span className="text-sm font-bold text-white px-2.5 py-1 bg-[#1A1A22] border border-[#30303C]">
+                <span className="text-sm font-bold text-zinc-100 px-2.5 py-1 bg-chrome-900 border border-chrome-800 font-mono">
                   {v.size}
                 </span>
                 {!v.enabled && (
-                  <span className="text-[10px] uppercase text-neutral-500 font-mono">
+                  <span className="text-3xs uppercase text-zinc-500 font-mono">
                     Excluded
                   </span>
                 )}
@@ -275,7 +275,7 @@ export function SizeMatrixInput({
                   type="button"
                   disabled={!v.enabled}
                   onClick={() => handleStockChange(idx, v.stock - 5)}
-                  className="w-8 h-8 flex items-center justify-center bg-[#1A1A22] hover:bg-neutral-800 disabled:opacity-30 border border-[#2E2E3A] text-neutral-300 text-xs font-bold"
+                  className="w-8 h-8 flex items-center justify-center bg-chrome-900 hover:bg-chrome-850 disabled:opacity-30 border border-chrome-800 text-zinc-300 text-xs font-bold"
                   title="-5 units"
                 >
                   -5
@@ -284,7 +284,7 @@ export function SizeMatrixInput({
                   type="button"
                   disabled={!v.enabled}
                   onClick={() => handleStockChange(idx, v.stock - 1)}
-                  className="w-8 h-8 flex items-center justify-center bg-[#1A1A22] hover:bg-neutral-800 disabled:opacity-30 border border-[#2E2E3A] text-neutral-300 text-xs"
+                  className="w-8 h-8 flex items-center justify-center bg-chrome-900 hover:bg-chrome-850 disabled:opacity-30 border border-chrome-800 text-zinc-300 text-xs"
                   title="-1 unit"
                 >
                   <Minus className="w-3.5 h-3.5" />
@@ -295,7 +295,7 @@ export function SizeMatrixInput({
                   disabled={!v.enabled}
                   value={v.stock}
                   onChange={(e) => handleStockChange(idx, parseInt(e.target.value) || 0)}
-                  className="w-20 h-8 text-center text-sm font-bold bg-[#181820] border border-[#3A3A48] text-white focus:outline-none focus:border-[#166534]"
+                  className="w-20 h-8 text-center text-sm font-bold bg-chrome-900 border border-chrome-750 text-zinc-100 focus:outline-none focus:border-emerald-500 font-mono"
                   min="0"
                 />
 
@@ -303,7 +303,7 @@ export function SizeMatrixInput({
                   type="button"
                   disabled={!v.enabled}
                   onClick={() => handleStockChange(idx, v.stock + 1)}
-                  className="w-8 h-8 flex items-center justify-center bg-[#1A1A22] hover:bg-neutral-800 disabled:opacity-30 border border-[#2E2E3A] text-neutral-300 text-xs"
+                  className="w-8 h-8 flex items-center justify-center bg-chrome-900 hover:bg-chrome-850 disabled:opacity-30 border border-chrome-800 text-zinc-300 text-xs"
                   title="+1 unit"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -312,7 +312,7 @@ export function SizeMatrixInput({
                   type="button"
                   disabled={!v.enabled}
                   onClick={() => handleStockChange(idx, v.stock + 10)}
-                  className="w-8 h-8 flex items-center justify-center bg-[#1A1A22] hover:bg-neutral-800 disabled:opacity-30 border border-[#2E2E3A] text-neutral-300 text-xs font-bold"
+                  className="w-8 h-8 flex items-center justify-center bg-chrome-900 hover:bg-chrome-850 disabled:opacity-30 border border-chrome-800 text-zinc-300 text-xs font-bold"
                   title="+10 units"
                 >
                   +10
@@ -326,22 +326,22 @@ export function SizeMatrixInput({
                   disabled={!v.enabled}
                   value={v.sku}
                   onChange={(e) => handleSkuChange(idx, e.target.value)}
-                  className="w-full h-8 px-2.5 text-xs font-mono bg-[#16161D] border border-[#2A2A35] text-neutral-300 uppercase focus:outline-none focus:border-neutral-500"
+                  className="w-full h-8 px-2.5 text-xs font-mono bg-chrome-900 border border-chrome-800 text-zinc-200 uppercase focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               {/* Stock Health */}
               <div className="sm:col-span-2 text-left sm:text-right">
                 {v.stock === 0 ? (
-                  <span className="inline-block text-[10px] uppercase font-bold text-rose-400 bg-rose-950/40 px-2 py-0.5 border border-rose-800/40">
+                  <span className="inline-block text-3xs uppercase font-bold text-rose-500 bg-rose-950/20 px-2 py-0.5 border border-rose-800/40">
                     Sold Out
                   </span>
                 ) : v.stock <= 5 ? (
-                  <span className="inline-block text-[10px] uppercase font-bold text-amber-400 bg-amber-950/40 px-2 py-0.5 border border-amber-800/40">
+                  <span className="inline-block text-3xs uppercase font-bold text-amber-500 bg-amber-950/20 px-2 py-0.5 border border-amber-800/40">
                     Low ({v.stock})
                   </span>
                 ) : (
-                  <span className="inline-block text-[10px] uppercase font-bold text-[#166534] bg-[#166534]/15 px-2 py-0.5 border border-[#166534]/30">
+                  <span className="inline-block text-3xs uppercase font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-950/20 px-2 py-0.5 border border-emerald-800/30">
                     Optimal ({v.stock})
                   </span>
                 )}
@@ -352,24 +352,24 @@ export function SizeMatrixInput({
       </div>
 
       {/* Add Custom Sizing Run */}
-      <div className="pt-4 border-t border-[#1F1F24] flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="pt-4 border-t border-chrome-850 flex flex-col sm:flex-row items-center justify-between gap-3">
         <form onSubmit={handleAddCustomSize} className="flex items-center gap-2 w-full sm:w-auto">
           <input
             type="text"
             placeholder="Add custom size (e.g. 3XL, Petite, 38)"
             value={customSizeInput}
             onChange={(e) => setCustomSizeInput(e.target.value)}
-            className="h-8 px-3 text-xs bg-[#16161B] border border-[#2A2A35] text-white placeholder-neutral-500 focus:outline-none focus:border-[#166534]"
+            className="h-8 px-3 text-xs bg-chrome-950 border border-chrome-800 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
           />
           <button
             type="submit"
-            className="h-8 px-3 bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-medium border border-neutral-700 flex items-center gap-1.5 shrink-0"
+            className="h-8 px-3 bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold flex items-center gap-1.5 shrink-0"
           >
             <Plus className="w-3.5 h-3.5" /> Add Size
           </button>
         </form>
 
-        <span className="text-[11px] text-neutral-500 font-mono">
+        <span className="text-3xs text-zinc-500 font-mono">
           Size variants dynamically generate distinct PDP checkout triggers.
         </span>
       </div>

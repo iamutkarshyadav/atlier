@@ -23,7 +23,7 @@ export function Footer() {
   }
 
   return (
-    <footer className="mt-24 border-t border-[#E4E4E0] bg-[#F2F2F0] text-[#09090B] pt-16 pb-12 px-6 sm:px-12 font-sans selection:bg-[#B91C1C] selection:text-white">
+    <footer className="mt-24 border-t border-[#E8E4DA] bg-[#FAF8F2] text-[#09090B] pt-16 pb-12 px-6 sm:px-12 font-sans selection:bg-[#B91C1C] selection:text-white">
       <div className="mx-auto max-w-7xl space-y-14">
         {/* Top: Atelier Brand Manifesto & Newsletter */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start">
@@ -51,25 +51,25 @@ export function Footer() {
             </div>
           </div>
 
-          <div className="lg:col-span-5 space-y-4 bg-white border border-[#E4E4E0] p-6 shadow-sm rounded-none">
+          <div className="lg:col-span-5 space-y-4 bg-[#FDFCF7] border border-[#E8E4DA] p-6 shadow-sm rounded-none">
             <div className="space-y-1">
               <span className="text-xs uppercase font-mono font-bold text-[#09090B] flex items-center gap-1.5 tracking-wider">
                 <Lock className="w-3.5 h-3.5 text-[#B91C1C]" />
                 Join the Atelier Private Access
               </span>
               <p className="text-[11px] text-[#71717A] font-normal leading-relaxed">
-                Receive private early access passes 1 hour before limited-run public drops and secret doorstep salon slot releases.
+                Receive private early access passes 1 hour before limited-run public collection releases and secret doorstep salon slot releases.
               </p>
             </div>
 
             {subscribed ? (
               <div className="p-3 bg-red-50 border border-red-200 text-[#B91C1C] text-xs font-mono flex items-center gap-2 rounded-none">
                 <Check className="w-4 h-4 text-[#B91C1C] shrink-0" />
-                <span>Access Granted. You are on the private drop manifest.</span>
+                <span>Access Granted. You are on the private atelier manifest.</span>
               </div>
             ) : (
               <form onSubmit={handleSubscribe} className="space-y-2">
-                <div className="flex items-center border border-[#D4D4D8] bg-[#F8F8F6] focus-within:border-[#09090B] transition-colors p-1 rounded-none">
+                <div className="flex items-center border border-[#E8E4DA] bg-[#FAF8F2] focus-within:border-[#09090B] transition-colors p-1 rounded-none">
                   <input
                     type="email"
                     value={email}
@@ -98,12 +98,12 @@ export function Footer() {
           {/* Col 1: Shop */}
           <div className="space-y-3">
             <h4 className="text-[10px] uppercase font-mono text-[#09090B] font-bold tracking-wider">
-              Shop Catalogue
+              Shop Collections
             </h4>
             <ul className="space-y-2 text-[#52525B]">
               <li>
                 <Link href="/shop" className="hover:text-[#09090B] transition-colors">
-                  All Drop 01 Pieces
+                  All Collection Pieces
                 </Link>
               </li>
               <li>
@@ -160,12 +160,12 @@ export function Footer() {
           {/* Col 3: About */}
           <div className="space-y-3">
             <h4 className="text-[10px] uppercase font-mono text-[#09090B] font-bold tracking-wider">
-              Atelier Archive
+              About Us
             </h4>
             <ul className="space-y-2 text-[#52525B]">
               <li>
                 <Link href="/about" className="hover:text-[#09090B] transition-colors">
-                  Our Brand Heritage
+                  About Us &amp; Heritage
                 </Link>
               </li>
               <li>

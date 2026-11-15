@@ -55,9 +55,9 @@ export default function LuxuryCartPage() {
 
   if (!isCartHydrated || !isBoltHydrated) {
     return (
-      <div className="min-h-screen bg-[#212121] flex flex-col items-center justify-center px-6 py-24 text-center">
-        <div className="w-8 h-8 border-2 border-white/20 border-t-[#B91C1C] rounded-full animate-spin mb-4" />
-        <span className="text-xs uppercase tracking-widest text-neutral-400 font-mono">
+      <div className="min-h-screen bg-[#FDFCF7] text-[#09090B] flex flex-col items-center justify-center px-6 py-24 text-center">
+        <div className="w-8 h-8 border-2 border-[#E8E4DA] border-t-[#B91C1C] rounded-full animate-spin mb-4" />
+        <span className="text-xs uppercase tracking-widest text-neutral-500 font-mono">
           Loading Bag Items...
         </span>
       </div>
@@ -65,13 +65,13 @@ export default function LuxuryCartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#212121] text-white">
+    <div className="min-h-screen bg-[#FDFCF7] text-[#09090B]">
       <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 py-10 sm:py-16 space-y-10 sm:space-y-12">
         {/* Editorial Header */}
-        <div className="border-b border-white/10 pb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+        <div className="border-b border-[#E8E4DA] pb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-[0.25em] text-neutral-400 font-mono font-semibold">
+              <span className="text-xs uppercase tracking-[0.25em] text-neutral-500 font-mono font-semibold">
                 COLLECTION 01
               </span>
               <span className="w-1.5 h-1.5 bg-[#B91C1C]" />
@@ -79,7 +79,7 @@ export default function LuxuryCartPage() {
                 BAG REVIEW
               </span>
             </div>
-            <h1 className="text-4xl sm:text-5xl font-extrabold uppercase tracking-tight text-white leading-tight font-display">
+            <h1 className="text-4xl sm:text-5xl font-extrabold uppercase tracking-tight text-[#09090B] leading-tight font-display">
               SHOPPING <span className="text-[#B91C1C]">BAG</span>
             </h1>
           </div>
@@ -88,14 +88,14 @@ export default function LuxuryCartPage() {
             {items.length > 0 && (
               <button
                 onClick={clearCart}
-                className="text-xs uppercase font-mono tracking-wider text-neutral-400 hover:text-red-400 transition-colors cursor-pointer"
+                className="text-xs uppercase font-mono tracking-wider text-neutral-500 hover:text-red-500 transition-colors cursor-pointer"
               >
                 Clear Entire Bag
               </button>
             )}
             <Link
               href="/#collection"
-              className="text-xs uppercase font-mono font-semibold tracking-wider text-neutral-300 hover:text-white transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+              className="text-xs uppercase font-mono font-semibold tracking-wider text-neutral-600 hover:text-[#09090B] transition-colors inline-flex items-center gap-1.5 cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5 text-[#B91C1C]" /> Continue Shopping
             </Link>
@@ -103,16 +103,16 @@ export default function LuxuryCartPage() {
         </div>
 
         {items.length === 0 ? (
-          <div className="min-h-[460px] flex items-center justify-center py-16 px-4 border border-white/10 bg-[#262629] rounded-none shadow-xl">
+          <div className="min-h-[460px] flex items-center justify-center py-16 px-4 border border-[#E8E4DA] bg-[#FAF8F2] rounded-none shadow-sm">
             <div className="max-w-md w-full text-center space-y-6">
-              <div className="w-16 h-16 mx-auto bg-[#1A1B1D] border border-white/10 rounded-none flex items-center justify-center text-white">
+              <div className="w-16 h-16 mx-auto bg-[#F2EFE8] border border-[#E8E4DA] rounded-none flex items-center justify-center text-[#09090B]">
                 <ShoppingBag className="w-8 h-8 stroke-1" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-bold uppercase tracking-tight text-white font-mono">
+                <h2 className="text-xl font-bold uppercase tracking-tight text-[#09090B] font-mono">
                   Your Bag is Currently Empty
                 </h2>
-                <p className="text-xs text-neutral-400 font-light leading-relaxed">
+                <p className="text-xs text-neutral-500 font-light leading-relaxed">
                   Explore our limited-run silhouettes, crafted from custom heavyweight French Terry and raw Japanese selvedge.
                 </p>
               </div>

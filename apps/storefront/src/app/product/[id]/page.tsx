@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     title: `${resolved.title} | Atelier Creator Apparel`,
     description: resolved.description || 'Creator apparel engineered from custom heavyweight textiles.',
     openGraph: {
-      title: `${resolved.title} — Drop 01`,
+      title: `${resolved.title} — Atelier Collection`,
       description: resolved.description || 'Creator apparel engineered from custom heavyweight textiles.',
       images: resolved.image_url ? [resolved.image_url] : [],
       type: 'website',
@@ -47,7 +47,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
     DEFAULT_PRODUCTS[0]!
 
   return (
-    <div className="min-h-screen bg-[#F8F8F6] text-[#09090B] selection:bg-[#B91C1C] selection:text-white pb-20">
+    <div className="min-h-screen bg-[#FDFCF7] text-[#09090B] selection:bg-[#B91C1C] selection:text-white pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 pt-8 pb-16 sm:pt-10 sm:pb-20">
         <ProductInteractiveIsland
           product={resolvedProduct}

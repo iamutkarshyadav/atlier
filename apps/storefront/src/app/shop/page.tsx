@@ -241,7 +241,7 @@ function ShopContent() {
       id: firstAvailable ? `${product.id}-${firstAvailable.id}` : product.id,
       productId: product.id,
       title: product.title,
-      category: product.category || 'Drop 01',
+      category: product.category || 'Atelier Collection',
       edition: product.edition || '100% Cotton',
       price: firstAvailable?.price_override ?? product.price,
       quantity: 1,
@@ -259,45 +259,32 @@ function ShopContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#212121] text-white selection:bg-[#B91C1C] selection:text-white pb-28">
+    <div className="min-h-screen bg-[#FDFCF7] text-[#09090B] selection:bg-[#B91C1C] selection:text-white pb-28">
       {/* Editorial Page Header */}
-      <div className="border-b border-white/10 bg-[#1A1B1D] px-6 sm:px-12 py-12">
-        <div className="max-w-7xl mx-auto space-y-4">
-          <div className="flex items-center gap-3 text-xs uppercase font-mono text-neutral-400 font-semibold tracking-[0.2em]">
-            <span>COLLECTION 01</span>
-            <span>•</span>
-            <span className="text-[#B91C1C] flex items-center gap-1 font-bold">
-              <Zap className="w-3.5 h-3.5 fill-[#B91C1C] text-[#B91C1C]" />
-              BOLT ⚡ DOORSTEP SALON AVAILABLE
-            </span>
+      <div className="border-b border-[#E8E4DA] bg-[#FAF8F2] px-6 sm:px-12 py-10 sm:py-12">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl sm:text-5xl font-extrabold uppercase tracking-tight text-[#09090B] font-display">
+              SHOP <span className="text-[#B91C1C] ml-2">COLLECTIONS</span>
+            </h1>
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-              <h1 className="text-3xl sm:text-5xl font-extrabold uppercase tracking-tight text-white font-display">
-                Apparel <span className="text-[#B91C1C] ml-2">Catalogue</span>
-              </h1>
-              <p className="max-w-xl text-xs sm:text-sm text-[#8E8E93] font-light mt-1.5 leading-relaxed font-sans">
-                480 GSM loopback cotton, 14oz Japanese raw selvedge, and architectural tailored cuts. Select up to 5 pieces for home fitting.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
               <button
                 onClick={() => setMobileFilterOpen(true)}
                 style={{ color: '#ffffff', backgroundColor: '#09090b' }}
-                className="btn-dark lg:hidden px-5 py-2.5 hover:bg-neutral-800 text-xs font-mono uppercase tracking-widest flex items-center gap-2 rounded-none border border-neutral-800 dark:border-white/15 transition-all shadow-md cursor-pointer"
+                className="btn-dark lg:hidden px-5 py-2.5 hover:bg-neutral-800 text-xs font-mono uppercase tracking-widest flex items-center gap-2 rounded-none border border-neutral-800 transition-all shadow-md cursor-pointer"
               >
                 <Filter style={{ color: '#ffffff' }} className="w-3.5 h-3.5" />
                 <span style={{ color: '#ffffff' }}>Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}</span>
               </button>
 
               <div className="flex items-center gap-2 text-xs font-mono">
-                <span className="text-neutral-400 hidden sm:inline uppercase tracking-widest">SORT:</span>
+                <span className="text-neutral-500 hidden sm:inline uppercase tracking-widest">SORT:</span>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as 'curated' | 'price-asc' | 'price-desc')}
-                  className="bg-[#18181A] border border-white/15 px-3.5 py-2 text-xs uppercase font-mono text-white focus:outline-none focus:border-red-600 rounded-none cursor-pointer"
+                  className="bg-[#FAF8F2] border border-[#E8E4DA] px-3.5 py-2 text-xs uppercase font-mono text-[#09090B] focus:outline-none focus:border-red-600 rounded-none cursor-pointer"
                 >
                   <option value="curated">Curated Index</option>
                   <option value="price-asc">Price: Low to High</option>
@@ -307,7 +294,6 @@ function ShopContent() {
             </div>
           </div>
         </div>
-      </div>
 
       {/* Main Catalog Layout: Sidebar + High-Density Grid */}
       <div className="max-w-7xl mx-auto px-6 sm:px-12 py-10">
@@ -315,16 +301,16 @@ function ShopContent() {
           {/* ========================================================= */}
           {/* DESKTOP SIDEBAR FILTERS (STICKY FREEZE ON SCROLL)        */}
           {/* ========================================================= */}
-          <aside className="hidden lg:block w-64 shrink-0 space-y-8 font-mono text-xs bg-[#1A1B1D] border border-white/10 p-5 rounded-none shadow-2xl sticky top-24 self-start z-30 max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain filter-card-scroll">
+          <aside className="hidden lg:block w-64 shrink-0 space-y-8 font-mono text-xs bg-[#FAF8F2] border border-[#E8E4DA] p-5 rounded-none shadow-sm sticky top-24 self-start z-30 max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain filter-card-scroll text-[#09090B]">
             {/* Active Filters Clear Bar */}
-            <div className="flex items-center justify-between pb-4 border-b border-white/10">
-              <span className="text-xs uppercase tracking-wider font-bold text-white">
+            <div className="flex items-center justify-between pb-4 border-b border-[#E8E4DA]">
+              <span className="text-xs uppercase tracking-wider font-bold text-[#09090B]">
                 Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
               </span>
               {activeFilterCount > 0 && (
                 <button
                   onClick={clearAllFilters}
-                  className="text-[11px] text-red-400 hover:text-white uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] text-[#B91C1C] hover:text-[#09090B] uppercase tracking-wider flex items-center gap-1 cursor-pointer"
                 >
                   <RotateCcw className="w-3 h-3" />
                   <span>Reset</span>
@@ -333,10 +319,10 @@ function ShopContent() {
             </div>
 
             {/* 1. Category Filter */}
-            <div className="space-y-3 pb-6 border-b border-white/10">
+            <div className="space-y-3 pb-6 border-b border-[#E8E4DA]">
               <button
                 onClick={() => toggleSection('categories')}
-                className="w-full flex items-center justify-between text-xs uppercase font-bold tracking-wider text-neutral-300 cursor-pointer"
+                className="w-full flex items-center justify-between text-xs uppercase font-bold tracking-wider text-[#09090B] cursor-pointer"
               >
                 <span>Category</span>
                 {openSections.categories ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -348,8 +334,8 @@ function ShopContent() {
                     onClick={() => setSelectedCategory('All')}
                     className={`w-full text-left py-2 px-3 transition-colors flex items-center justify-between rounded-none ${
                       selectedCategory === 'All'
-                        ? 'bg-[#2E2F33] text-white font-bold border-l-2 border-[#B91C1C]'
-                        : 'text-neutral-400 hover:text-white hover:bg-white/5'
+                        ? 'bg-[#09090B] text-white font-bold border-l-2 border-[#B91C1C]'
+                        : 'text-neutral-600 hover:text-[#09090B] hover:bg-[#F2EFE8]'
                     }`}
                   >
                     <span>All Silhouettes</span>
@@ -494,7 +480,7 @@ function ShopContent() {
                 Showing {sortedProducts.length} curated {sortedProducts.length === 1 ? 'silhouette' : 'silhouettes'}
                 {selectedCategory !== 'All' ? ` in ${selectedCategory}` : ''}
               </span>
-              <span className="hidden sm:inline">Limited Drop 01 Allocation</span>
+              <span className="hidden sm:inline">Limited Atelier Allocation</span>
             </div>
 
             {isLoading ? (
@@ -503,17 +489,17 @@ function ShopContent() {
                 <p className="uppercase tracking-widest">Loading Royal Garments...</p>
               </div>
             ) : sortedProducts.length === 0 ? (
-              <div className="py-24 text-center space-y-4 border border-white/10 bg-[#1A1B1D] p-8 shadow-xl">
-                <p className="text-xl font-light uppercase text-white font-sans">
+              <div className="py-24 text-center space-y-4 border border-[#E8E4DA] bg-[#FAF8F2] p-8 shadow-sm">
+                <p className="text-xl font-light uppercase text-[#09090B] font-sans">
                   No matching silhouettes found
                 </p>
-                <p className="text-xs text-[#8E8E93] font-mono max-w-sm mx-auto">
-                  Try adjusting or clearing your filters to view other available garments in the drop.
+                <p className="text-xs text-[#52525B] font-mono max-w-sm mx-auto">
+                  Try adjusting or clearing your filters to view other available garments in the collection.
                 </p>
                 <button
                   onClick={clearAllFilters}
                   style={{ color: '#ffffff', backgroundColor: '#09090b' }}
-                  className="btn-dark px-6 py-2.5 hover:bg-[#4A4B50] text-xs font-mono uppercase tracking-wider font-semibold rounded-full transition-colors cursor-pointer shadow-md"
+                  className="btn-dark px-6 py-2.5 hover:bg-neutral-800 text-xs font-mono uppercase tracking-wider font-semibold rounded-full transition-colors cursor-pointer shadow-md"
                 >
                   <span style={{ color: '#ffffff' }}>Reset All Filters</span>
                 </button>
@@ -530,7 +516,7 @@ function ShopContent() {
                   return (
                     <div
                       key={product.id}
-                      className="group flex flex-col justify-between bg-[#262629] border border-white/10 hover:border-white/30 transition-all duration-300 shadow-xl rounded-xl overflow-hidden relative"
+                      className="group flex flex-col justify-between bg-[#FAF8F2] border border-[#E8E4DA] hover:border-[#09090B] transition-all duration-300 shadow-sm rounded-none overflow-hidden relative"
                     >
                       {/* Product Image Container with Secondary Image Hover Fade */}
                       <Link
@@ -582,25 +568,25 @@ function ShopContent() {
                         <div className="space-y-1">
                           <div className="flex justify-between items-baseline text-[10px] text-neutral-400 uppercase tracking-wider">
                             <span>{product.category || 'Atelier Collection'}</span>
-                            <span className="truncate max-w-[90px]">{product.edition || 'Drop 01'}</span>
+                            <span className="truncate max-w-[90px]">{product.edition || 'Collection'}</span>
                           </div>
 
                           <Link
                             href={`/product/${product.id}`}
-                            className="block font-serif text-base sm:text-lg font-normal text-white group-hover:text-red-400 transition-colors truncate"
+                            className="block font-serif text-base sm:text-lg font-normal text-[#09090B] group-hover:text-[#B91C1C] transition-colors truncate"
                           >
                             {product.title}
                           </Link>
 
-                          <p className="text-xs text-[#8E8E93] font-sans font-light truncate">
+                          <p className="text-xs text-[#52525B] font-sans font-light truncate">
                             {product.material || 'Heavyweight Organic Loopwheel'}
                           </p>
                         </div>
 
-                        <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+                        <div className="pt-3 border-t border-[#E8E4DA] flex items-center justify-between">
                           <div>
-                            <p className="text-[9px] uppercase tracking-wider text-neutral-400">Price</p>
-                            <p className="text-sm sm:text-base font-bold text-white font-mono">
+                            <p className="text-[9px] uppercase tracking-wider text-neutral-500">Price</p>
+                            <p className="text-sm sm:text-base font-bold text-[#09090B] font-mono">
                               ₹{Number(product.price).toLocaleString('en-IN')}
                             </p>
                           </div>
@@ -609,7 +595,7 @@ function ShopContent() {
                           <button
                             type="button"
                             onClick={(e) => handleQuickAdd(e, product)}
-                            className="inline-flex items-center gap-1.5 font-mono text-xs uppercase font-bold text-neutral-300 group-hover:text-white transition-colors cursor-pointer hover:underline underline-offset-4"
+                            className="inline-flex items-center gap-1.5 font-mono text-xs uppercase font-bold text-[#09090B] group-hover:text-[#B91C1C] transition-colors cursor-pointer hover:underline underline-offset-4"
                           >
                             <span>BOOK FITTING</span>
                             <ArrowRight className="w-3.5 h-3.5 text-[#B91C1C] transition-transform group-hover:translate-x-1" />
@@ -618,12 +604,12 @@ function ShopContent() {
 
                         {/* Size Matrix Indicator Bar */}
                         {activeSizes.length > 0 && (
-                          <div className="pt-1 flex items-center gap-1 text-[9px] text-neutral-400">
+                          <div className="pt-1 flex items-center gap-1 text-[9px] text-neutral-500">
                             <span className="uppercase text-[8px] tracking-wider text-neutral-500 mr-1">SIZES:</span>
                             {activeSizes.map((s) => (
                               <span
                                 key={s}
-                                className="px-1.5 py-0.5 bg-[#1A1B1D] border border-white/10 text-neutral-300 rounded font-mono"
+                                className="px-1.5 py-0.5 bg-[#F2EFE8] border border-[#E8E4DA] text-[#09090B] rounded-none font-mono"
                               >
                                 {s}
                               </span>

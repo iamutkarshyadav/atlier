@@ -22,10 +22,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Scan,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { createBrowserClient } from '@repo/supabase/browser'
 import { useLocation } from '@/context/LocationContext'
 import { useBarcodeScanner } from '@/lib/useBarcodeScanner'
+import { useTheme } from '@/context/ThemeContext'
 
 interface NavGroup {
   label: string
@@ -79,6 +82,7 @@ export function AdminSidebar() {
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
   const { activeLocationCode } = useLocation()
+  const { theme, toggleTheme, isLight } = useTheme()
   const { isListening } = useBarcodeScanner({
     onScan: () => {},
   })
@@ -131,7 +135,7 @@ export function AdminSidebar() {
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="space-y-0.5">
               {!collapsed && (
-                <div className="px-2 pt-1 pb-1 text-3xs font-mono uppercase tracking-widest text-zinc-500 font-semibold">
+                <div className="px-2 pt-1 pb-1 text-3xs font-mono uppercase tracking-widest text-zinc-600 dark:text-zinc-500 font-bold">
                   {group.label}
                 </div>
               )}
@@ -147,12 +151,12 @@ export function AdminSidebar() {
                     href={item.href}
                     className={`flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-mono transition-colors group relative ${
                       isActive
-                        ? 'bg-chrome-850 text-white font-medium border-l-2 border-emerald-500'
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-chrome-900 border-l-2 border-transparent'
+                        ? 'bg-chrome-850 text-zinc-900 dark:text-white font-semibold border-l-2 border-emerald-500'
+                        : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-chrome-850 border-l-2 border-transparent'
                     }`}
                     title={collapsed ? item.label : undefined}
                   >
-                    <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-400' : 'text-zinc-400 group-hover:text-zinc-200'}`} />
+                    <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100'}`} />
                     {!collapsed && (
                       <span className="truncate">{item.label}</span>
                     )}
@@ -187,14 +191,25 @@ export function AdminSidebar() {
           </div>
         )}
 
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 w-full px-2.5 py-1.5 text-xs font-mono text-zinc-400 hover:text-rose-400 hover:bg-rose-950/20 transition-colors"
-          title={collapsed ? 'End Session' : undefined}
-        >
-          <LogOut className="w-3.5 h-3.5 shrink-0" />
-          {!collapsed && <span>End Session</span>}
-        </button>
+        <div className="flex items-center gap-1 pt-1 border-t border-chrome-800">
+          <button
+            onClick={toggleTheme}
+            className="flex items-center gap-2 flex-1 px-2 py-1 text-2xs font-mono text-zinc-400 hover:text-zinc-100 hover:bg-chrome-900 transition-colors rounded"
+            title={isLight ? 'Switch to Dark Theme' : 'Switch to Light Theme'}
+          >
+            {isLight ? <Moon className="w-3.5 h-3.5 text-amber-500" /> : <Sun className="w-3.5 h-3.5 text-amber-400" />}
+            {!collapsed && <span>{isLight ? 'Dark Mode' : 'Light Mode'}</span>}
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-2 py-1 text-2xs font-mono text-zinc-400 hover:text-rose-400 hover:bg-rose-950/20 transition-colors rounded"
+            title={collapsed ? 'End Session' : undefined}
+          >
+            <LogOut className="w-3.5 h-3.5 shrink-0" />
+            {!collapsed && <span>Sign Out</span>}
+          </button>
+        </div>
       </div>
     </aside>
   )

@@ -1121,7 +1121,7 @@ $$;
 INSERT INTO public.locations (id, code, name, type, gstin, state_code, address_line1, city, state, pincode, phone, email, online_fulfillment_priority, online_safety_buffer)
 VALUES
   (
-    'l1000000-0000-0000-0000-000000000001',
+    'd1000000-0000-0000-0000-000000000001',
     'BLR-WH01',
     'Atelier Central Mother Hub (Bengaluru)',
     'warehouse',
@@ -1137,7 +1137,7 @@ VALUES
     0
   ),
   (
-    'l1000000-0000-0000-0000-000000000002',
+    'd1000000-0000-0000-0000-000000000002',
     'BLR-ST01',
     'Indiranagar Flagship Boutique (Bengaluru)',
     'boutique',
@@ -1153,7 +1153,7 @@ VALUES
     1
   ),
   (
-    'l1000000-0000-0000-0000-000000000003',
+    'd1000000-0000-0000-0000-000000000003',
     'BOM-ST01',
     'Kala Ghoda Heritage Boutique (Mumbai)',
     'boutique',
@@ -1176,45 +1176,45 @@ ON CONFLICT (code) DO UPDATE SET
 -- 18.2 Seed Location Operational Zones
 INSERT INTO public.location_zones (id, location_id, code, name, type)
 VALUES
-  ('z1000000-0000-0000-0000-000000000001', 'l1000000-0000-0000-0000-000000000001', 'RCV', 'Receiving Dock 01', 'receiving_dock'),
-  ('z1000000-0000-0000-0000-000000000002', 'l1000000-0000-0000-0000-000000000001', 'BLK', 'Central Bulk Racks', 'bulk_storage'),
-  ('z1000000-0000-0000-0000-000000000003', 'l1000000-0000-0000-0000-000000000001', 'DSK', 'Outbound Dispatch Bay', 'dispatch_bay'),
-  ('z1000000-0000-0000-0000-000000000004', 'l1000000-0000-0000-0000-000000000002', 'FLR', 'Indiranagar Sales Floor', 'sales_floor'),
-  ('z1000000-0000-0000-0000-000000000005', 'l1000000-0000-0000-0000-000000000002', 'STK', 'Indiranagar Backroom Stock', 'backroom_stock'),
-  ('z1000000-0000-0000-0000-000000000006', 'l1000000-0000-0000-0000-000000000002', 'QRN', 'Indiranagar Fitting Quarantine', 'fitting_room_quarantine')
+  ('e1000000-0000-0000-0000-000000000001', 'd1000000-0000-0000-0000-000000000001', 'RCV', 'Receiving Dock 01', 'receiving_dock'),
+  ('e1000000-0000-0000-0000-000000000002', 'd1000000-0000-0000-0000-000000000001', 'BLK', 'Central Bulk Racks', 'bulk_storage'),
+  ('e1000000-0000-0000-0000-000000000003', 'd1000000-0000-0000-0000-000000000001', 'DSK', 'Outbound Dispatch Bay', 'dispatch_bay'),
+  ('e1000000-0000-0000-0000-000000000004', 'd1000000-0000-0000-0000-000000000002', 'FLR', 'Indiranagar Sales Floor', 'sales_floor'),
+  ('e1000000-0000-0000-0000-000000000005', 'd1000000-0000-0000-0000-000000000002', 'STK', 'Indiranagar Backroom Stock', 'backroom_stock'),
+  ('e1000000-0000-0000-0000-000000000006', 'd1000000-0000-0000-0000-000000000002', 'QRN', 'Indiranagar Fitting Quarantine', 'fitting_room_quarantine')
 ON CONFLICT (location_id, code) DO NOTHING;
 
 -- 18.3 Seed Default Warehouse & Boutique Shelves
 INSERT INTO public.shelves (id, location_id, zone_id, coordinate, barcode, max_unit_capacity)
 VALUES
   (
-    's1000000-0000-0000-0000-000000000001',
-    'l1000000-0000-0000-0000-000000000001',
-    'z1000000-0000-0000-0000-000000000002',
+    'f1000000-0000-0000-0000-000000000001',
+    'd1000000-0000-0000-0000-000000000001',
+    'e1000000-0000-0000-0000-000000000002',
     'BLK-A-01-A1',
     'LOC-BLR01-BLK-A-01-A1',
     500
   ),
   (
-    's1000000-0000-0000-0000-000000000002',
-    'l1000000-0000-0000-0000-000000000001',
-    'z1000000-0000-0000-0000-000000000002',
+    'f1000000-0000-0000-0000-000000000002',
+    'd1000000-0000-0000-0000-000000000001',
+    'e1000000-0000-0000-0000-000000000002',
     'BLK-A-01-A2',
     'LOC-BLR01-BLK-A-01-A2',
     500
   ),
   (
-    's1000000-0000-0000-0000-000000000003',
-    'l1000000-0000-0000-0000-000000000002',
-    'z1000000-0000-0000-0000-000000000004',
+    'f1000000-0000-0000-0000-000000000003',
+    'd1000000-0000-0000-0000-000000000002',
+    'e1000000-0000-0000-0000-000000000004',
     'FLR-RACK-01',
     'LOC-BLR02-FLR-RACK-01',
     100
   ),
   (
-    's1000000-0000-0000-0000-000000000004',
-    'l1000000-0000-0000-0000-000000000002',
-    'z1000000-0000-0000-0000-000000000006',
+    'f1000000-0000-0000-0000-000000000004',
+    'd1000000-0000-0000-0000-000000000002',
+    'e1000000-0000-0000-0000-000000000006',
     'QRN-BIN-01',
     'LOC-BLR02-QRN-BIN-01',
     50
@@ -1225,7 +1225,7 @@ ON CONFLICT (location_id, coordinate) DO NOTHING;
 INSERT INTO public.suppliers (id, vendor_code, name, gstin, contact_person, email, phone, address_line1, city, state, state_code, pincode, lead_time_days, payment_terms)
 VALUES
   (
-    'v1000000-0000-0000-0000-000000000001',
+    'a2000000-0000-0000-0000-000000000001',
     'SUP-SHIN-01',
     'Shingora Textiles & Knitting Mills',
     '03AAAAA1234A1Z1',
@@ -1241,7 +1241,7 @@ VALUES
     'Net 30'
   ),
   (
-    'v1000000-0000-0000-0000-000000000002',
+    'a2000000-0000-0000-0000-000000000002',
     'SUP-KURO-02',
     'Kuroki Denim Mills Co.',
     '27AAAAA5678A1Z9',
@@ -1281,7 +1281,7 @@ WHERE oi.variant_id IS NULL
 -- Copy all existing product_variants with stock > 0 into Central Warehouse BLR-WH01
 INSERT INTO public.shelf_inventory (shelf_id, variant_id, quantity, updated_at)
 SELECT
-  's1000000-0000-0000-0000-000000000001'::UUID,
+  'f1000000-0000-0000-0000-000000000001'::UUID,
   pv.id,
   pv.stock,
   now()
@@ -1293,7 +1293,7 @@ SET quantity = EXCLUDED.quantity;
 -- Populate Location Inventory Levels for BLR-WH01
 INSERT INTO public.inventory_levels (location_id, variant_id, on_hand, reserved, reorder_point, reorder_quantity, updated_at)
 SELECT
-  'l1000000-0000-0000-0000-000000000001'::UUID,
+  'd1000000-0000-0000-0000-000000000001'::UUID,
   pv.id,
   pv.stock,
   0,
@@ -1312,8 +1312,8 @@ INSERT INTO public.inventory_ledger (
 )
 SELECT
   pv.id,
-  'l1000000-0000-0000-0000-000000000001'::UUID,
-  's1000000-0000-0000-0000-000000000001'::UUID,
+  'd1000000-0000-0000-0000-000000000001'::UUID,
+  'f1000000-0000-0000-0000-000000000001'::UUID,
   'inbound_grn'::public.inventory_movement_type,
   pv.stock,
   pv.stock,

@@ -219,6 +219,7 @@ export default function LuxuryCheckoutPage() {
 
       // 3. Construct Order Payload
       const orderPayload = {
+        customer_email: formData.email,
         orderData: {
           user_id: currentUserId,
           order_number: generatedRef,
@@ -235,7 +236,7 @@ export default function LuxuryCheckoutPage() {
           original_total: subtotal,
           total: immediateTotal,
           status: 'pending',
-          shipping_address: fullAddress,
+          shipping_address: `${fullAddress} [Patron: ${formData.email} | Tel: ${formData.phone}]`,
           delivery_notes: formData.notes,
         },
         items: items.map((it) => ({
@@ -258,6 +259,18 @@ export default function LuxuryCheckoutPage() {
         activeRef = data.orderNumber || data.order.order_number || generatedRef
         activeInvoice = data.invoiceNumber || data.order.invoice_number || generatedInvoice
         activeTracking = data.trackingBarcode || data.order.tracking_barcode || generatedTracking
+
+        // Persist order reference for patron lookup & guest tracking
+        try {
+          if (typeof window !== 'undefined') {
+            const rawRecent = localStorage.getItem('patron_recent_orders')
+            const recentList: string[] = rawRecent ? JSON.parse(rawRecent) : []
+            if (!recentList.includes(activeRef)) {
+              recentList.unshift(activeRef)
+              localStorage.setItem('patron_recent_orders', JSON.stringify(recentList.slice(0, 10)))
+            }
+          }
+        } catch {}
 
         setOrderReference(activeRef)
         setInvoiceNumber(activeInvoice)
@@ -426,19 +439,19 @@ export default function LuxuryCheckoutPage() {
   // --- EMPTY CART GUARD ---
   if (isCartHydrated && items.length === 0) {
     return (
-      <div className="min-h-screen bg-[#212121] text-white flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#FDFCF7] text-[#09090B] flex items-center justify-center px-4">
         <div className="max-w-xl mx-auto py-28 text-center space-y-6">
-          <h1 className="text-3xl font-extrabold uppercase tracking-tight text-white font-display">
+          <h1 className="text-3xl font-extrabold uppercase tracking-tight text-[#09090B] font-display">
             YOUR BAG IS EMPTY
           </h1>
-          <p className="text-xs sm:text-sm text-neutral-400 font-light leading-relaxed">
+          <p className="text-xs sm:text-sm text-neutral-500 font-light leading-relaxed">
             Please add garments to your bag before initiating checkout.
           </p>
           <Link href="/#collection" className="inline-block pt-2">
             <Button
               size="lg"
               style={{ color: '#ffffff', backgroundColor: '#09090b' }}
-              className="btn-dark px-8 h-14 hover:bg-[#27272A] dark:hover:bg-[#4A4B50] font-mono font-bold text-xs uppercase tracking-wider rounded-none border border-neutral-800 dark:border-white/15 shadow-xl transition-all"
+              className="btn-dark px-8 h-14 hover:bg-neutral-800 font-mono font-bold text-xs uppercase tracking-wider rounded-none border border-neutral-800 shadow-xl transition-all"
             >
               <span style={{ color: '#ffffff' }}>EXPLORE COLLECTION →</span>
             </Button>
@@ -449,10 +462,10 @@ export default function LuxuryCheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#212121] text-white">
+    <div className="min-h-screen bg-[#FDFCF7] text-[#09090B]">
       <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 py-10 sm:py-16 space-y-10 sm:space-y-12">
         {/* Return to Bag Breadcrumb & Step Indicators */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/10 pb-6 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#E8E4DA] pb-6 gap-4">
           <Link
             href="/cart"
             className="inline-flex items-center gap-2 text-xs uppercase font-mono font-semibold tracking-wider text-neutral-400 hover:text-white transition-colors"

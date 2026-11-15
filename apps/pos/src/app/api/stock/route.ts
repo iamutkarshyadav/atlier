@@ -24,6 +24,20 @@ export async function GET(req: NextRequest) {
       store = await prisma.location.findUnique({ where: { id: storeId } })
     } else {
       store = await prisma.location.findUnique({ where: { code: storeCode } })
+      if (!store) {
+        const aliasMap: Record<string, string> = {
+          'BLR-ST01': 'STORE-BLR01',
+          'STORE-BLR01': 'BLR-ST01',
+          'BOM-ST01': 'STORE-MUM01',
+          'STORE-MUM01': 'BOM-ST01',
+          'BLR-WH01': 'ECOM-WH01',
+          'ECOM-WH01': 'BLR-WH01',
+        }
+        const alias = aliasMap[storeCode]
+        if (alias) {
+          store = await prisma.location.findUnique({ where: { code: alias } })
+        }
+      }
     }
 
     if (!store) {

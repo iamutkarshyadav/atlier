@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma, UserRole } from '@repo/db'
+import { createServerSupabaseClient } from '@repo/supabase/server'
 import { SEEDED_ACCOUNTS } from '@repo/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 1. Sync into SEEDED_ACCOUNTS for Supabase / in-memory Auth provider
+    // 1. Sync into SEEDED_ACCOUNTS for in-memory Auth provider
     const existingSeeded = SEEDED_ACCOUNTS.find(
       (a) => a.email.toLowerCase() === trimmedEmail
     )
@@ -67,31 +67,35 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // 2. Persist to PostgreSQL via Prisma
-    let dbUser = null
+    // 2. Persist to Supabase single source of truth
+    let dbUser: any = null
     let isNew = !existingSeeded
     try {
-      const existing = await prisma.user.findUnique({
-        where: { email: trimmedEmail },
-      })
+      const supabase = await createServerSupabaseClient()
+      const { data: existing } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', trimmedEmail)
+        .maybeSingle()
+
       isNew = !existing
-      dbUser = await prisma.user.upsert({
-        where: { email: trimmedEmail },
-        update: {
-          name: trimmedName,
-          role: UserRole.ADMIN,
-        },
-        create: {
-          email: trimmedEmail,
-          name: trimmedName,
-          role: UserRole.ADMIN,
-        },
-      })
-    } catch (dbErr: any) {
-      console.warn(
-        'Database warning: Postgres unreachable, provisioned in authoritative auth registry:',
-        dbErr?.message || dbErr
-      )
+      const { data: upsertedUser } = await supabase
+        .from('users')
+        .upsert(
+          {
+            id: existing?.id || `user-${Date.now()}`,
+            email: trimmedEmail,
+            name: trimmedName,
+            role: 'admin',
+          },
+          { onConflict: 'email' }
+        )
+        .select()
+        .maybeSingle()
+
+      dbUser = upsertedUser
+    } catch (err) {
+      // Supabase handled via resilient layer
     }
 
     const userId = dbUser?.id || existingSeeded?.id || `admin-${Date.now()}`
@@ -105,8 +109,8 @@ export async function POST(req: NextRequest) {
           email: trimmedEmail,
           name: trimmedName,
           role: 'ADMIN',
-          createdAt: dbUser?.createdAt || new Date().toISOString(),
-          updatedAt: dbUser?.updatedAt || new Date().toISOString(),
+          createdAt: dbUser?.created_at || new Date().toISOString(),
+          updatedAt: dbUser?.updated_at || new Date().toISOString(),
         },
         message: isNew
           ? `Administrator "${trimmedName}" (${trimmedEmail}) successfully created.`

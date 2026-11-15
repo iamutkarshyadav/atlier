@@ -49,11 +49,11 @@ export default function StorefrontCMSCommandCenter() {
   const [banners, setBanners] = useState<PromotionalBanner[]>([])
   const [isAddingBanner, setIsAddingBanner] = useState(false)
   const [newBanner, setNewBanner] = useState({
-    title: 'Drop 01 // Heavyweight French Terry & Selvedge Denim',
+    title: 'Atelier Collection // Heavyweight French Terry & Selvedge Denim',
     subtitle: 'Limited batch production with strict units allocated per size.',
-    badge_text: 'CREATOR DROP ACTIVE',
+    badge_text: 'COLLECTION ACTIVE',
     image_url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
-    cta_label: 'Shop Drop 01',
+    cta_label: 'Shop Collections',
     cta_link: '/shop',
     is_active: true,
   })

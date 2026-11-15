@@ -6,7 +6,7 @@ import { getLocations, type StoreLocation, type PosSession } from '@repo/supabas
 
 export const FALLBACK_LOCATIONS: StoreLocation[] = [
   {
-    id: 'l1000000-0000-0000-0000-000000000001',
+    id: 'd1000000-0000-0000-0000-000000000001',
     code: 'BLR-WH01',
     name: 'Atelier Central Mother Hub (Bengaluru)',
     type: 'warehouse',
@@ -26,7 +26,7 @@ export const FALLBACK_LOCATIONS: StoreLocation[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'l1000000-0000-0000-0000-000000000002',
+    id: 'd1000000-0000-0000-0000-000000000002',
     code: 'BLR-ST01',
     name: 'Indiranagar Flagship Boutique (Bengaluru)',
     type: 'boutique',
@@ -46,7 +46,7 @@ export const FALLBACK_LOCATIONS: StoreLocation[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'l1000000-0000-0000-0000-000000000003',
+    id: 'd1000000-0000-0000-0000-000000000003',
     code: 'BOM-ST01',
     name: 'Kala Ghoda Heritage Boutique (Mumbai)',
     type: 'boutique',
