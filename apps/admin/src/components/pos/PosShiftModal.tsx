@@ -144,7 +144,7 @@ export function PosShiftModal({
 
               <div className="space-y-1 pt-1 border-t border-chrome-800/80">
                 <label className="text-3xs uppercase font-semibold text-zinc-400 block font-sans">
-                  Mid-Day Cash Drop to Safe ($)
+                  Mid-Day Cash Drop to Safe (₹)
                 </label>
                 <input
                   type="number"

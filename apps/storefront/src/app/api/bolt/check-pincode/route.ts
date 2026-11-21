@@ -48,16 +48,23 @@ export async function GET(req: NextRequest) {
         .from('bolt_pincodes')
         .select('id, pincode, city, state, is_active')
         .eq('pincode', pin)
-        .eq('is_active', true)
         .maybeSingle()
 
-      if (!error && data && data.is_active) {
-        return NextResponse.json({
-          serviceable: true,
-          pincode: data.pincode,
-          city: data.city,
-          state: data.state,
-        })
+      if (!error && data) {
+        if (data.is_active) {
+          return NextResponse.json({
+            serviceable: true,
+            pincode: data.pincode,
+            city: data.city,
+            state: data.state,
+          })
+        } else {
+          return NextResponse.json({
+            serviceable: false,
+            pincode: data.pincode,
+            message: `Bolt Try-On service is temporarily paused for PIN ${pin}. Standard express delivery is available.`,
+          })
+        }
       }
     } catch {
       // Supabase network unreachable; smoothly fall back to local seed data
@@ -77,7 +84,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       serviceable: false,
       pincode: pin,
-      message: `Bolt ⚡ Try-On is not yet serviceable in PIN ${pin}. Standard delivery is available.`,
+      message: `Bolt Try-On is not yet serviceable in PIN ${pin}. Standard delivery is available.`,
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'

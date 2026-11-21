@@ -117,12 +117,17 @@ export default function ProcurementPage() {
     setIsLoading(true)
     try {
       const supabase = createBrowserClient()
-      const [pos, sups, locs, prods] = await Promise.all([
-        getPurchaseOrders(supabase),
-        getSuppliers(supabase),
-        getLocations(supabase),
+      const [poRes, supRes, locRes, prods] = await Promise.all([
+        fetch('/api/admin/purchase-orders').then((r) => r.json()).catch(() => ({ purchaseOrders: [] })),
+        fetch('/api/admin/suppliers').then((r) => r.json()).catch(() => ({ suppliers: [] })),
+        fetch('/api/admin/locations').then((r) => r.json()).catch(() => ({ locations: [] })),
         getAllProductsAdmin(supabase),
       ])
+
+      const pos: PurchaseOrder[] = Array.isArray(poRes?.purchaseOrders) ? poRes.purchaseOrders : []
+      const sups: Supplier[] = Array.isArray(supRes?.suppliers) ? supRes.suppliers : []
+      const locs: StoreLocation[] = Array.isArray(locRes?.locations) ? locRes.locations : []
+
       setPurchaseOrders(pos)
       setSuppliers(sups)
       setLocations(locs)
@@ -135,8 +140,12 @@ export default function ProcurementPage() {
       const shelfMap: Record<string, Shelf[]> = {}
       await Promise.all(
         locs.map(async (l) => {
-          const sh = await getLocationShelves(supabase, l.id)
-          shelfMap[l.id] = sh
+          try {
+            const shRes = await fetch(`/api/admin/shelves?locationId=${l.id}`).then((r) => r.json()).catch(() => ({ shelves: [] }))
+            shelfMap[l.id] = Array.isArray(shRes?.shelves) ? shRes.shelves : []
+          } catch {
+            shelfMap[l.id] = []
+          }
         })
       )
       setShelvesByLocation(shelfMap)
@@ -248,37 +257,42 @@ export default function ProcurementPage() {
     setCreatePoError(null)
 
     try {
-      const supabase = createBrowserClient()
       const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
       const randSeq = Math.floor(1000 + Math.random() * 9000)
       const poNumber = `PO-${today}-${randSeq}`
 
-      const res = await createPurchaseOrderWithItems(
-        supabase,
-        {
-          po_number: poNumber,
-          supplier_id: selectedSupplierId,
-          destination_location_id: destLocationId,
-          status: 'issued',
-          expected_delivery_date: expectedDate,
-          subtotal: poSubtotal,
-          tax_amount: poTaxAmount,
-          total_amount: poGrandTotal,
-          created_by: 'admin',
-        },
-        lineItems.map((it) => ({
-          variant_id: it.variantId,
-          hsn_code: it.hsn || '610910',
-          quantity_ordered: it.quantity,
-          unit_cost: it.unitCost,
-          tax_rate_percent: it.gstPercent,
-          tax_amount: it.quantity * it.unitCost * (it.gstPercent / 100),
-          line_total: it.quantity * it.unitCost * (1 + it.gstPercent / 100),
-          destination_location_id: it.destinationLocationId || destLocationId,
-        }))
-      )
+      const res = await fetch('/api/admin/purchase-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          poData: {
+            po_number: poNumber,
+            supplier_id: selectedSupplierId,
+            destination_location_id: destLocationId,
+            status: 'issued',
+            expected_delivery_date: expectedDate,
+            subtotal: poSubtotal,
+            tax_amount: poTaxAmount,
+            total_amount: poGrandTotal,
+            created_by: 'admin',
+          },
+          items: lineItems.map((it) => ({
+            variant_id: it.variantId,
+            hsn_code: it.hsn || '610910',
+            quantity_ordered: it.quantity,
+            unit_cost: it.unitCost,
+            tax_rate_percent: it.gstPercent,
+            tax_amount: it.quantity * it.unitCost * (it.gstPercent / 100),
+            line_total: it.quantity * it.unitCost * (1 + it.gstPercent / 100),
+            destination_location_id: it.destinationLocationId || destLocationId,
+          })),
+        }),
+      })
 
-      if (!res.success) throw new Error(res.error)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to create purchase order')
+      }
 
       setCreateDrawerOpen(false)
       loadData()
@@ -790,7 +804,7 @@ export default function ProcurementPage() {
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="text-3xs text-zinc-500 block">Cost ($)</label>
+                    <label className="text-3xs text-zinc-500 block">Cost (₹)</label>
                     <input
                       type="number"
                       min="1"

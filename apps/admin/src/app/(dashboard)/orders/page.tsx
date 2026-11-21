@@ -92,11 +92,19 @@ export default function LuxuryAdminOrdersPage() {
         }
       } catch {}
 
-      // 2. Fetch couriers and fallback orders
+      // 2. Fetch couriers via server route and fallback orders
+      let allCouriers: UserProfile[] = []
+      try {
+        const cRes = await fetch('/api/admin/users?role=delivery,delivery_partner')
+        const cData = await cRes.json()
+        if (Array.isArray(cData?.users)) {
+          allCouriers = cData.users
+        }
+      } catch {}
+
       const supabase = createBrowserClient()
-      const [dbOrders, allCouriers] = await Promise.all([
+      const [dbOrders] = await Promise.all([
         fetchedOrders.length === 0 ? getAllOrders(supabase) : Promise.resolve(fetchedOrders),
-        getDeliveryCouriers(supabase),
       ])
 
       const finalOrders = fetchedOrders.length > 0 ? fetchedOrders : dbOrders
@@ -104,7 +112,7 @@ export default function LuxuryAdminOrdersPage() {
       // Check if new orders arrived
       if (prevCountRef.current > 0 && finalOrders.length > prevCountRef.current) {
         const newest = finalOrders[0]
-        setNewOrderAlert(`New Order Received: ${newest?.order_number || 'ATL-ORD'} ($${newest?.total})`)
+        setNewOrderAlert(`New Order Received: ${newest?.order_number || 'ATL-ORD'} (₹${newest?.total})`)
         setTimeout(() => setNewOrderAlert(null), 5000)
       }
       prevCountRef.current = finalOrders.length
@@ -741,9 +749,9 @@ export default function LuxuryAdminOrdersPage() {
 
                                         <td className="p-2 text-right font-mono font-bold text-zinc-100 text-2xs tabular-nums">
                                           {isReturned ? (
-                                            <span className="text-zinc-500 line-through">$0.00</span>
+                                            <span className="text-zinc-500 line-through">₹0.00</span>
                                           ) : (
-                                            `$${(Number(item.unit_price) * (item.quantity || 1)).toFixed(2)}`
+                                            `₹${(Number(item.unit_price) * (item.quantity || 1)).toLocaleString("en-IN")}`
                                           )}
                                         </td>
                                       </tr>
@@ -770,7 +778,7 @@ export default function LuxuryAdminOrdersPage() {
                               <div className="p-2 bg-chrome-950 border border-chrome-800">
                                 <span className="text-3xs text-zinc-500 block uppercase">Logistics Fee</span>
                                 <span className="font-mono text-emerald-400 font-bold">
-                                  {Number(ord.shipping_fee) > 0 ? `$${Number(ord.shipping_fee).toFixed(2)}` : 'Complimentary'}
+                                  {Number(ord.shipping_fee) > 0 ? `₹${Number(ord.shipping_fee).toLocaleString("en-IN")}` : 'Complimentary'}
                                 </span>
                               </div>
                               <div className="p-2 bg-cyan-950/20 border border-cyan-900/40">

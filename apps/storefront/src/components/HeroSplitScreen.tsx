@@ -57,26 +57,27 @@ export const HERO_SLIDES: HeroSlide[] = [
   },
 ]
 
-export function HeroSplitScreen() {
+export function HeroSplitScreen({ slides = HERO_SLIDES }: { slides?: HeroSlide[] }) {
+  const activeSlides = slides && slides.length > 0 ? slides : HERO_SLIDES
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
 
   // Auto-advance hero carousel every 6.5 seconds
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentSlideIndex((prev) => (prev + 1) % HERO_SLIDES.length)
+      setCurrentSlideIndex((prev) => (prev + 1) % activeSlides.length)
     }, 6500)
     return () => clearInterval(timer)
-  }, [])
+  }, [activeSlides.length])
 
   const nextSlide = () => {
-    setCurrentSlideIndex((prev) => (prev + 1) % HERO_SLIDES.length)
+    setCurrentSlideIndex((prev) => (prev + 1) % activeSlides.length)
   }
 
   const prevSlide = () => {
-    setCurrentSlideIndex((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)
+    setCurrentSlideIndex((prev) => (prev - 1 + activeSlides.length) % activeSlides.length)
   }
 
-  const activeSlide = HERO_SLIDES[currentSlideIndex]!
+  const activeSlide = activeSlides[currentSlideIndex] || activeSlides[0]!
 
   return (
     <section className="bg-white text-[#14293a] font-sans">
@@ -161,7 +162,7 @@ export function HeroSplitScreen() {
 
             {/* Slide Pagination Dots */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20">
-              {HERO_SLIDES.map((slide, idx) => (
+              {activeSlides.map((slide, idx) => (
                 <button
                   key={slide.id}
                   onClick={() => setCurrentSlideIndex(idx)}

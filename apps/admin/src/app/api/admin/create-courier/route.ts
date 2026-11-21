@@ -69,10 +69,10 @@ export async function POST(req: NextRequest) {
         email_confirm: true,
         user_metadata: {
           name: name.trim(),
-          role: 'delivery',
+          role: 'delivery_partner',
         },
         app_metadata: {
-          role: 'delivery',
+          role: 'delivery_partner',
         },
       })
 
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
           id: courierId,
           email: email.trim(),
           name: name.trim(),
-          role: 'delivery',
+          role: 'delivery_partner',
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'id' }
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Courier "${name.trim()}" successfully provisioned with role "delivery".`,
+      message: `Courier "${name.trim()}" successfully provisioned with role "delivery_partner".`,
       userId: courierId,
     })
   } catch (err: any) {

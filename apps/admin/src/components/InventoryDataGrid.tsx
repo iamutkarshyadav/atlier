@@ -67,6 +67,40 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
   >({})
   const [loadingShelvesVariantId, setLoadingShelvesVariantId] = useState<string | null>(null)
 
+  // Real inventory levels indexed by variantId -> locationCode -> available stock
+  const [inventoryLevels, setInventoryLevels] = useState<Record<string, Record<string, number>>>({})
+
+  useEffect(() => {
+    const fetchLevels = async () => {
+      try {
+        const supabase = createBrowserClient()
+        const levels = await getInventoryLevels(supabase)
+        const map: Record<string, Record<string, number>> = {}
+        levels.forEach((lvl: any) => {
+          const locCode = lvl.location?.code || lvl.location_id
+          if (!map[lvl.variant_id]) map[lvl.variant_id] = {}
+          map[lvl.variant_id][locCode] = (lvl.available ?? lvl.on_hand) || 0
+        })
+        setInventoryLevels(map)
+      } catch (err) {
+        console.warn('Failed to load live inventory levels:', err)
+      }
+    }
+    fetchLevels()
+  }, [])
+
+  const getProductLocationStock = (product: CompleteInventoryProduct, locationCode: string) => {
+    let total = 0
+    let found = false
+    for (const v of product.variants) {
+      if (inventoryLevels[v.id]?.[locationCode] !== undefined) {
+        total += inventoryLevels[v.id][locationCode]
+        found = true
+      }
+    }
+    return found ? total : 0
+  }
+
   // Drawer: Relocate Shelf Stock
   const [relocateModalOpen, setRelocateModalOpen] = useState(false)
   const [selectedVariantForMove, setSelectedVariantForMove] = useState<{
@@ -484,17 +518,17 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
 
                     {/* BLR-WH01 Warehouse stock */}
                     <td className="py-2 px-3 text-center tabular-nums text-2xs text-zinc-300">
-                      {Math.max(0, product.stock - 2)}
+                      {getProductLocationStock(product, 'BLR-WH01')}
                     </td>
 
                     {/* BLR-ST01 Indiranagar boutique stock */}
                     <td className="py-2 px-3 text-center tabular-nums text-2xs text-zinc-400">
-                      {product.stock > 0 ? 1 : 0}
+                      {getProductLocationStock(product, 'BLR-ST01')}
                     </td>
 
                     {/* BOM-ST01 Kala Ghoda boutique stock */}
                     <td className="py-2 px-3 text-center tabular-nums text-2xs text-zinc-400">
-                      {product.stock > 1 ? 1 : 0}
+                      {getProductLocationStock(product, 'BOM-ST01')}
                     </td>
 
                     {/* Stock Status */}
@@ -578,7 +612,7 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
 
                           {/* Price Override */}
                           <td className="py-1.5 px-3 text-right text-3xs text-zinc-500 tabular-nums">
-                            {variant.price_override ? `$${variant.price_override.toFixed(2)}` : '—'}
+                            {variant.price_override ? `₹${variant.price_override.toLocaleString("en-IN")}` : '—'}
                           </td>
 
                           {/* Stock Count & Inline Atomic Adjuster */}

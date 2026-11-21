@@ -31,9 +31,9 @@ export default function LuxuryCustomersPage() {
   const loadUsers = async () => {
     setIsLoading(true)
     try {
-      const supabase = createBrowserClient()
-      const data = await getAllUsers(supabase)
-      setUsers(data)
+      const res = await fetch('/api/admin/users')
+      const data = await res.json().catch(() => ({}))
+      setUsers(Array.isArray(data?.users) ? data.users : [])
     } finally {
       setIsLoading(false)
     }
@@ -47,24 +47,36 @@ export default function LuxuryCustomersPage() {
     setUpdatingUserId(userId)
     setNotification(null)
 
-    const supabase = createBrowserClient()
-    const { success, error } = await assignUserRole(supabase, userId, newRole)
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, role: newRole }),
+      })
+      const data = await res.json().catch(() => ({}))
 
-    if (!success) {
+      if (!res.ok || !data.success) {
+        setNotification({
+          type: 'error',
+          message: `Failed to assign role: ${data?.error || 'Permission error'}`,
+        })
+      } else {
+        setUsers((prev) =>
+          prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
+        )
+        setNotification({
+          type: 'success',
+          message: `Updated ${targetName} to role "${newRole.toUpperCase()}". They can now access the ${newRole === 'delivery' || newRole === 'delivery_partner' ? 'Courier Dispatch portal' : newRole === 'admin' ? 'Studio Admin' : 'Storefront'}.`,
+        })
+      }
+    } catch (err: any) {
       setNotification({
         type: 'error',
-        message: `Failed to assign role: ${error || 'Permission error'}`,
+        message: `Failed to assign role: ${err?.message || 'Server error'}`,
       })
-    } else {
-      setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
-      )
-      setNotification({
-        type: 'success',
-        message: `Updated ${targetName} to role "${newRole.toUpperCase()}". They can now access the ${newRole === 'delivery' ? 'Courier Dispatch portal' : newRole === 'admin' ? 'Studio Admin' : 'Storefront'}.`,
-      })
+    } finally {
+      setUpdatingUserId(null)
     }
-    setUpdatingUserId(null)
   }
 
   const handleCreateNewUser = async (e: React.FormEvent) => {
@@ -117,6 +129,7 @@ export default function LuxuryCustomersPage() {
           </span>
         )
       case 'delivery':
+      case 'delivery_partner':
         return (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-3xs font-mono uppercase bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-800/60 font-semibold">
             <Truck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Logistics Courier
@@ -253,7 +266,7 @@ export default function LuxuryCustomersPage() {
                 className="w-full h-9 bg-chrome-950 border border-chrome-800 px-3 text-xs text-zinc-100 focus:border-amber-400 focus:outline-none"
               >
                 <option value="admin">Studio Admin (Port 3001)</option>
-                <option value="delivery">Logistics Courier (Port 3002)</option>
+                <option value="delivery_partner">Logistics Courier (Port 3002)</option>
                 <option value="customer">Private Patron (Port 3000)</option>
               </select>
             </div>
@@ -312,7 +325,8 @@ export default function LuxuryCustomersPage() {
                       className="bg-chrome-950 border border-chrome-750 text-xs text-zinc-100 px-2.5 py-1 focus:border-amber-400 focus:outline-none"
                     >
                       <option value="customer">Customer (Patron)</option>
-                      <option value="delivery">Delivery Partner (Courier)</option>
+                      <option value="delivery_partner">Delivery Partner (Courier)</option>
+                      <option value="delivery">Delivery Partner (Legacy Alias)</option>
                       <option value="admin">Studio Admin (Owner)</option>
                     </select>
 

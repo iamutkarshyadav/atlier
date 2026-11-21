@@ -99,13 +99,12 @@ export default function LocationsWmsPage() {
     setFormSuccess(null)
 
     try {
-      const supabase = createBrowserClient()
       const cleanCode = code.trim().toUpperCase()
 
-      // 1. Insert Location
-      const { data: newLoc, error: locErr } = await supabase
-        .from('locations')
-        .insert({
+      const res = await fetch('/api/admin/locations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           code: cleanCode,
           name: name.trim(),
           type,
@@ -119,24 +118,12 @@ export default function LocationsWmsPage() {
           is_active: true,
           online_fulfillment_priority: 20,
           online_safety_buffer: 1,
-        })
-        .select()
-        .single()
+        }),
+      })
 
-      if (locErr) {
-        throw new Error(locErr.message)
-      }
-
-      // 2. Automatically generate default zones for this location
-      if (newLoc?.id) {
-        const zoneInserts = DEFAULT_ZONES.map((z) => ({
-          location_id: newLoc.id,
-          code: z.code,
-          name: z.name,
-          type: z.type,
-        }))
-
-        await supabase.from('location_zones').insert(zoneInserts)
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || 'Failed to create location')
       }
 
       setFormSuccess(`Location ${cleanCode} and default WMS zones created successfully.`)
@@ -151,7 +138,7 @@ export default function LocationsWmsPage() {
         setGstin('')
         setFormSuccess(null)
         loadLocations()
-      }, 1000)
+      }, 600)
     } catch (err: any) {
       setFormError(err?.message || 'Failed to create location')
     } finally {

@@ -19,6 +19,7 @@ import {
   Users,
   Layers,
   LogOut,
+  Zap,
   ChevronLeft,
   ChevronRight,
   Scan,
@@ -48,6 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/pos', label: 'POS Terminal', icon: Store },
       { href: '/orders', label: 'Orders', icon: ShoppingBag },
       { href: '/dispatch', label: 'Outbound Dispatch', icon: Truck },
+      { href: '/bolt', label: 'Bolt Try-On Engine', icon: Zap },
     ],
   },
   {

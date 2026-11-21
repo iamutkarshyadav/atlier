@@ -9,6 +9,7 @@ export type Json =
 export type UserRole =
   | 'admin'
   | 'customer'
+  | 'delivery_partner'
   | 'delivery'
   | 'warehouse_manager'
   | 'store_manager'
@@ -1476,6 +1477,8 @@ export interface Database {
           city: string
           state: string
           is_active: boolean
+          hub_location_id?: string | null
+          max_daily_orders?: number
           created_at: string
           updated_at: string
         }
@@ -1485,6 +1488,8 @@ export interface Database {
           city: string
           state?: string
           is_active?: boolean
+          hub_location_id?: string | null
+          max_daily_orders?: number
           created_at?: string
           updated_at?: string
         }
@@ -1494,6 +1499,8 @@ export interface Database {
           city?: string
           state?: string
           is_active?: boolean
+          hub_location_id?: string | null
+          max_daily_orders?: number
           created_at?: string
           updated_at?: string
         }

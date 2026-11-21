@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
 
         const profile = data as { role?: string } | null
         const userRole = profile?.role || user.user_metadata?.role
-        if (userRole === 'delivery' || userRole === 'admin') {
+        if (userRole === 'delivery_partner' || userRole === 'delivery' || userRole === 'admin') {
           const manifestUrl = request.nextUrl.clone()
           manifestUrl.pathname = '/manifest'
           return NextResponse.redirect(manifestUrl)
@@ -64,7 +64,8 @@ export async function middleware(request: NextRequest) {
 
     const profile = data as { role?: string } | null
     const userRole = profile?.role || user.user_metadata?.role
-    const isCourier = userRole === 'delivery' || userRole === 'admin'
+    const isCourier =
+      userRole === 'delivery_partner' || userRole === 'delivery' || userRole === 'admin'
 
     if (!isCourier) {
       const loginUrl = request.nextUrl.clone()

@@ -43,9 +43,16 @@ function formatNameFromEmail(email: string): string {
 
 export interface NavbarProps {
   initialCategories?: Category[]
+  announcement?: {
+    is_active?: boolean
+    badge?: string
+    message?: string
+    link_text?: string
+    link_url?: string | null
+  }
 }
 
-export function Navbar({ initialCategories = DEFAULT_CATEGORIES }: NavbarProps) {
+export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }: NavbarProps) {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -289,24 +296,26 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES }: NavbarProps) 
       {/* ========================================================= */}
       {/* TIER 1: E-COMMERCE ANNOUNCEMENT STRIP                    */}
       {/* ========================================================= */}
-      <div className="bg-[#f8f8f8] border-b border-[#e5e7eb] py-1.5 px-4 text-center text-xs tracking-wider font-sans font-medium text-[#14293a] flex flex-wrap items-center justify-center gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[#b91c1c] font-semibold">
-          <Zap className="w-3 h-3 fill-[#b91c1c] text-[#b91c1c]" />
-          BOLT 45-MIN DOORSTEP TRY-ON
-        </span>
-        <span className="text-[#6c7079] hidden sm:inline">|</span>
-        <span className="text-[#6c7079] hidden sm:inline">
-          Try up to 5 pieces at home before buying • Free express delivery on orders over ₹1,999
-        </span>
-        <button
-          type="button"
-          onClick={() => setIsPincodeModalOpen(true)}
-          className="inline-flex items-center gap-1 text-[11px] bg-white border border-[#d3d6db] hover:border-[#14293a] px-2 py-0.5 rounded-full text-[#14293a] transition-colors cursor-pointer"
-        >
-          <MapPin className="w-2.5 h-2.5 text-[#b91c1c]" />
-          <span>{pincode ? `Deliver to: ${pincode}${boltCity ? ` (${boltCity})` : ''}` : 'Select Delivery PIN'}</span>
-        </button>
-      </div>
+      {announcement?.is_active !== false && (
+        <div className="bg-[#f8f8f8] border-b border-[#e5e7eb] py-1.5 px-4 text-center text-xs tracking-wider font-sans font-medium text-[#14293a] flex flex-wrap items-center justify-center gap-2">
+          <span className="inline-flex items-center gap-1.5 text-[#b91c1c] font-semibold">
+            <Zap className="w-3 h-3 fill-[#b91c1c] text-[#b91c1c]" />
+            {announcement?.badge || 'BOLT 45-MIN DOORSTEP TRY-ON'}
+          </span>
+          <span className="text-[#6c7079] hidden sm:inline">|</span>
+          <span className="text-[#6c7079] hidden sm:inline">
+            {announcement?.message || 'Try up to 5 pieces at home before buying • Free express delivery on orders over ₹1,999'}
+          </span>
+          <button
+            type="button"
+            onClick={() => setIsPincodeModalOpen(true)}
+            className="inline-flex items-center gap-1 text-[11px] bg-white border border-[#d3d6db] hover:border-[#14293a] px-2 py-0.5 rounded-full text-[#14293a] transition-colors cursor-pointer"
+          >
+            <MapPin className="w-2.5 h-2.5 text-[#b91c1c]" />
+            <span>{pincode ? `Deliver to: ${pincode}${boltCity ? ` (${boltCity})` : ''}` : (announcement?.link_text || 'Select Delivery PIN')}</span>
+          </button>
+        </div>
+      )}
 
       {/* ========================================================= */}
       {/* TIER 2: PRIMARY HEADER (LOGO, CENTERED SEARCH, ACTIONS)   */}

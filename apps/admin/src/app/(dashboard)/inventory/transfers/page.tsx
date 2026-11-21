@@ -41,11 +41,13 @@ export default function StockTransfersPage() {
   const loadData = async () => {
     setIsLoading(true)
     try {
-      const supabase = createBrowserClient()
-      const [tList, locs] = await Promise.all([
-        getStockTransfers(supabase),
-        getLocations(supabase),
+      const [tRes, locRes] = await Promise.all([
+        fetch('/api/admin/transfers').then((r) => r.json()).catch(() => ({ transfers: [] })),
+        fetch('/api/admin/locations').then((r) => r.json()).catch(() => ({ locations: [] })),
       ])
+      const tList: StockTransfer[] = Array.isArray(tRes?.transfers) ? tRes.transfers : []
+      const locs: StoreLocation[] = Array.isArray(locRes?.locations) ? locRes.locations : []
+
       setTransfers(tList)
       setLocations(locs)
       if (locs.length >= 2) {
@@ -76,29 +78,33 @@ export default function StockTransfersPage() {
     setFormError(null)
 
     try {
-      const supabase = createBrowserClient()
       const today = new Date()
       const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '')
       const randSeq = Math.floor(1000 + Math.random() * 9000)
       const transferNumber = `TRF-${dateStr}-${randSeq}`
 
-      const { error: trfErr } = await supabase
-        .from('stock_transfers')
-        .insert({
+      const res = await fetch('/api/admin/transfers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           transfer_number: transferNumber,
           source_location_id: sourceLocationId,
           destination_location_id: destLocationId,
           status: 'draft',
           eway_bill_number: ewayBill.trim() || null,
-        })
+        }),
+      })
 
-      if (trfErr) throw trfErr
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.success) {
+        throw new Error(data?.error || 'Failed to create transfer')
+      }
 
       setDrawerOpen(false)
       setEwayBill('')
       loadData()
     } catch (err: any) {
-      setFormError(err?.message || 'Failed to create stock transfer')
+      setFormError(err?.message || 'Failed to initiate transfer')
     } finally {
       setIsSubmitting(false)
     }

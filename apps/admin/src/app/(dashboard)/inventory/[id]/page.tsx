@@ -242,7 +242,7 @@ export default function GarmentEditStudioPage() {
           <div class="meta">
             <span>SIZE: <strong>${variant.size}</strong></span>
             <span>SKU: ${variant.sku}</span>
-            <span>$${price.toFixed(2)}</span>
+            <span>₹${price.toLocaleString("en-IN")}</span>
           </div>
           <img class="barcode-img" src="${barcodeSvg}" alt="${barcodeVal}" />
         </body>
@@ -367,7 +367,7 @@ export default function GarmentEditStudioPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase text-neutral-400 mb-1">Retail Price (USD)</label>
+                  <label className="block text-[10px] uppercase text-neutral-400 mb-1">Retail Price (INR)</label>
                   <input
                     type="number"
                     step="0.01"

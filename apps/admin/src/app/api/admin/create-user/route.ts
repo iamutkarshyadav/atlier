@@ -47,8 +47,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const validRoles: UserRole[] = ['admin', 'delivery', 'customer']
-    const assignedRole: UserRole = validRoles.includes(role) ? role : 'customer'
+    const validRoles: UserRole[] = ['admin', 'delivery_partner', 'delivery', 'customer']
+    const assignedRole: UserRole = validRoles.includes(role)
+      ? (role === 'delivery' ? 'delivery_partner' : role)
+      : 'customer'
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/"/g, '')
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.replace(/"/g, '')

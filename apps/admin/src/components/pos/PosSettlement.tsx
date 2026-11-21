@@ -286,7 +286,7 @@ export function PosSettlement({
             <div className="grid grid-cols-2 gap-2 pt-1">
               <div>
                 <label className="text-3xs uppercase text-zinc-400 block font-sans font-semibold mb-0.5">
-                  Cash Tendered ($)
+                  Cash Tendered (₹)
                 </label>
                 <input
                   type="number"
@@ -300,7 +300,7 @@ export function PosSettlement({
 
               <div>
                 <label className="text-3xs uppercase text-zinc-400 block font-sans font-semibold mb-0.5">
-                  Change Due ($)
+                  Change Due (₹)
                 </label>
                 <div className="w-full bg-chrome-900 border border-chrome-800 rounded px-2.5 py-1.5 text-sm font-mono font-bold text-emerald-400 tabular-nums">
                   ${changeDue.toFixed(2)}

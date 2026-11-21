@@ -377,7 +377,7 @@ export function LuxuryInvoiceDocument({ order }: { order: OrderWithItems }) {
 
                 <View style={styles.colTotal}>
                   <Text style={{ fontFamily: 'Helvetica-Bold' }}>
-                    {isReturned ? '$0.00' : `$${lineSubtotal.toFixed(2)}`}
+                    {isReturned ? '₹0.00' : `₹${lineSubtotal.toFixed(2)}`}
                   </Text>
                 </View>
               </View>
@@ -415,14 +415,14 @@ export function LuxuryInvoiceDocument({ order }: { order: OrderWithItems }) {
               <Text style={styles.totalsLabel}>White-Glove Courier Logistics:</Text>
               <Text style={[styles.totalsValue, { color: '#059669' }]}>
                 {Number(order.shipping_fee) > 0
-                  ? `$${Number(order.shipping_fee).toFixed(2)}`
+                  ? `₹${Number(order.shipping_fee).toFixed(2)}`
                   : 'Complimentary'}
               </Text>
             </View>
 
             <View style={styles.grandTotalRow}>
               <Text style={styles.grandTotalLabel}>Net Realized Total:</Text>
-              <Text style={styles.grandTotalValue}>${Number(order.total).toFixed(2)} USD</Text>
+              <Text style={styles.grandTotalValue}>₹${Number(order.total).toFixed(2)} INR</Text>
             </View>
           </View>
         </View>

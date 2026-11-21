@@ -6,6 +6,7 @@ import {
   Plus,
   RefreshCw,
   Edit2,
+  Trash2,
   CheckCircle2,
   AlertCircle,
   Clock,
@@ -52,11 +53,13 @@ export default function SuppliersPage() {
   const loadSuppliers = async () => {
     setIsLoading(true)
     try {
-      const supabase = createBrowserClient()
-      const [sups, pos] = await Promise.all([
-        getSuppliers(supabase),
-        getPurchaseOrders(supabase),
+      const [supRes, poRes] = await Promise.all([
+        fetch('/api/admin/suppliers').then((r) => r.json()).catch(() => ({ suppliers: [] })),
+        fetch('/api/admin/purchase-orders').then((r) => r.json()).catch(() => ({ purchaseOrders: [] })),
       ])
+
+      const sups: Supplier[] = Array.isArray(supRes?.suppliers) ? supRes.suppliers : []
+      const pos: any[] = Array.isArray(poRes?.purchaseOrders) ? poRes.purchaseOrders : []
 
       const detailed: SupplierWithStats[] = sups.map((s) => {
         const active = pos.filter((p) => p.supplier_id === s.id && p.status !== 'cancelled').length
@@ -66,6 +69,25 @@ export default function SuppliersPage() {
       setSuppliers(detailed)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleDeleteSupplier = async (id: string, supName: string) => {
+    if (!confirm(`Are you sure you want to delete supplier "${supName}"? This action cannot be undone.`)) {
+      return
+    }
+    try {
+      const res = await fetch(`/api/admin/suppliers?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        alert(data.error || 'Failed to delete supplier')
+        return
+      }
+      setSuppliers((prev) => prev.filter((s) => s.id !== id))
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete supplier')
     }
   }
 
@@ -162,14 +184,22 @@ export default function SuppliersPage() {
 
       if (editingSupplier) {
         setFormSuccess('Supplier record updated successfully.')
+        if (result.supplier) {
+          setSuppliers((prev) =>
+            prev.map((s) => (s.id === result.supplier.id ? { ...s, ...result.supplier } : s))
+          )
+        }
       } else {
         setFormSuccess('New supplier registered successfully.')
+        if (result.supplier) {
+          setSuppliers((prev) => [{ ...result.supplier, activePoCount: 0 }, ...prev])
+        }
       }
 
       setTimeout(() => {
         setDrawerOpen(false)
         loadSuppliers()
-      }, 800)
+      }, 500)
     } catch (err: any) {
       setFormError(err?.message || 'Failed to save supplier')
     } finally {
@@ -291,13 +321,22 @@ export default function SuppliersPage() {
                   </span>
                 </td>
                 <td className="py-2.5 px-3 text-right">
-                  <button
-                    onClick={() => openEditDrawer(sup)}
-                    className="p-1 text-zinc-400 hover:text-zinc-100 hover:bg-chrome-800 transition-colors"
-                    title="Edit Supplier Record"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      onClick={() => openEditDrawer(sup)}
+                      className="p-1 text-zinc-400 hover:text-zinc-100 hover:bg-chrome-800 transition-colors"
+                      title="Edit Supplier Record"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSupplier(sup.id, sup.name)}
+                      className="p-1 text-zinc-500 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
+                      title="Delete Supplier"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

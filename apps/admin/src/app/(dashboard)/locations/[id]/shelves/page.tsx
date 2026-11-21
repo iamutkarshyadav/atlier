@@ -79,32 +79,22 @@ export default function LocationShelvesWmsPage() {
     if (!locationId) return
     setIsLoading(true)
     try {
-      const supabase = createBrowserClient()
-      const [loc, zList, sList] = await Promise.all([
-        getLocationById(supabase, locationId),
-        getLocationZones(supabase, locationId),
-        getLocationShelves(supabase, locationId),
+      const [locRes, shRes] = await Promise.all([
+        fetch(`/api/admin/locations?id=${encodeURIComponent(locationId)}`).then((r) => r.json()).catch(() => ({})),
+        fetch(`/api/admin/shelves?locationId=${encodeURIComponent(locationId)}`).then((r) => r.json()).catch(() => ({ shelves: [] })),
       ])
 
-      setLocation(loc)
-      setZones(zList)
-      if (zList.length > 0 && !shelfZoneId) {
-        setShelfZoneId(zList[0]?.id || '')
+      if (locRes?.location) {
+        setLocation(locRes.location)
+      }
+      if (Array.isArray(locRes?.zones)) {
+        setZones(locRes.zones)
+        if (locRes.zones.length > 0 && !shelfZoneId) {
+          setShelfZoneId(locRes.zones[0]?.id || '')
+        }
       }
 
-      // Fetch shelf inventory counts for each shelf
-      const detailedShelves: ShelfWithInventory[] = await Promise.all(
-        sList.map(async (sh) => {
-          try {
-            const items = await getShelfInventory(supabase, sh.id)
-            const total = items.reduce((sum, it) => sum + it.quantity, 0)
-            return { ...sh, items, totalItems: total }
-          } catch {
-            return { ...sh, items: [], totalItems: 0 }
-          }
-        })
-      )
-
+      const detailedShelves = Array.isArray(shRes?.shelves) ? shRes.shelves : []
       setShelves(detailedShelves)
     } finally {
       setIsLoading(false)
@@ -130,19 +120,25 @@ export default function LocationShelvesWmsPage() {
     setAddShelfError(null)
 
     try {
-      const supabase = createBrowserClient()
       const cap = parseInt(maxCapacity, 10) || 100
 
-      const { error } = await supabase.from('shelves').insert({
-        location_id: locationId,
-        zone_id: shelfZoneId,
-        coordinate: computedShelfCoordinate,
-        barcode: computedShelfCoordinate,
-        max_unit_capacity: cap,
-        is_active: true,
+      const res = await fetch('/api/admin/shelves', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location_id: locationId,
+          zone_id: shelfZoneId,
+          coordinate: computedShelfCoordinate,
+          barcode: computedShelfCoordinate,
+          max_unit_capacity: cap,
+          is_active: true,
+        }),
       })
 
-      if (error) throw error
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.success) {
+        throw new Error(data?.error || 'Failed to create shelf')
+      }
 
       setAddShelfOpen(false)
       loadLocationData()

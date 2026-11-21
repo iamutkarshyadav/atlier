@@ -29,7 +29,9 @@ import type {
   OrderItemWithProduct,
   OrderWithItems,
   BoltTimeslot,
+  BoltTimeslotInsert,
   BoltPincode,
+  BoltPincodeInsert,
   StoreLocation,
   LocationZone,
   Shelf,
@@ -1604,6 +1606,23 @@ export const DEFAULT_ETHOS_CONFIG = {
   subtext: 'Every piece is engineered from the yarn up with zero synthetic polyester blending.',
 }
 
+export const DEFAULT_ANNOUNCEMENT_BAR = {
+  is_active: true,
+  badge: 'BOLT 45-MIN DOORSTEP TRY-ON',
+  message: 'Try up to 5 pieces at home before buying • Free express delivery on orders over ₹1,999',
+  link_text: 'Select Delivery PIN',
+  link_url: null,
+}
+
+export const DEFAULT_HOMEPAGE_SECTIONS = [
+  { id: 'hero_carousel', name: 'Hero Carousel', is_active: true, order: 1 },
+  { id: 'trust_strip', name: 'Value & Trust Badges', is_active: true, order: 2 },
+  { id: 'marquee', name: 'Fabric & Craft Marquee', is_active: true, order: 3 },
+  { id: 'product_showcase', name: 'Category Strip & New Arrivals', is_active: true, order: 4 },
+  { id: 'spotlight_grid', name: 'Featured Collections', is_active: true, order: 5 },
+  { id: 'newsletter', name: 'Newsletter', is_active: true, order: 6 },
+]
+
 /**
  * Fetch product variants by product ID with resilient fallbacks.
  */
@@ -1816,8 +1835,10 @@ export async function updateProductWithVariantsAndMedia(
       }
     }
 
-    // Sync media items if supplied
+    // Sync media items if supplied: purge existing media to avoid duplicate row bloat
     if (payload.media && payload.media.length > 0) {
+      await supabase.from('product_media').delete().eq('product_id', productId)
+
       for (const m of payload.media) {
         await supabase.from('product_media').insert({
           product_id: productId,
@@ -1910,11 +1931,15 @@ export async function getStorefrontConfig(
       return {
         hero: DEFAULT_HERO_CONFIG,
         ethos: DEFAULT_ETHOS_CONFIG,
+        announcement_bar: DEFAULT_ANNOUNCEMENT_BAR,
+        homepage_sections: DEFAULT_HOMEPAGE_SECTIONS,
       }
     }
     const configMap: Record<string, any> = {
       hero: DEFAULT_HERO_CONFIG,
       ethos: DEFAULT_ETHOS_CONFIG,
+      announcement_bar: DEFAULT_ANNOUNCEMENT_BAR,
+      homepage_sections: DEFAULT_HOMEPAGE_SECTIONS,
     }
     data.forEach((row) => {
       configMap[row.key] = row.value
@@ -1924,6 +1949,8 @@ export async function getStorefrontConfig(
     return {
       hero: DEFAULT_HERO_CONFIG,
       ethos: DEFAULT_ETHOS_CONFIG,
+      announcement_bar: DEFAULT_ANNOUNCEMENT_BAR,
+      homepage_sections: DEFAULT_HOMEPAGE_SECTIONS,
     }
   }
 }
@@ -2034,6 +2061,136 @@ export async function deletePromotionalBanner(
   if (error) {
     return { success: false, error: error.message }
   }
+  return { success: true }
+}
+
+/**
+ * Fetch all serviceable pincodes for Bolt try-on.
+ */
+export async function getBoltPincodes(
+  supabase: SupabaseClient<Database>
+): Promise<Array<BoltPincode & { location?: StoreLocation }>> {
+  try {
+    const { data, error } = await supabase
+      .from('bolt_pincodes')
+      .select('*, location:locations(*)')
+      .order('pincode', { ascending: true })
+
+    if (error || !data) return []
+    return data as any
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Create a new serviceable pincode.
+ */
+export async function createBoltPincode(
+  supabase: SupabaseClient<Database>,
+  payload: BoltPincodeInsert
+): Promise<{ data: BoltPincode | null; error?: string }> {
+  const { data, error } = await supabase
+    .from('bolt_pincodes')
+    .insert(payload)
+    .select()
+    .single()
+
+  if (error) return { data: null, error: error.message }
+  return { data }
+}
+
+/**
+ * Update an existing serviceable pincode.
+ */
+export async function updateBoltPincode(
+  supabase: SupabaseClient<Database>,
+  id: string,
+  updates: Partial<BoltPincodeInsert>
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from('bolt_pincodes')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}
+
+/**
+ * Delete a serviceable pincode.
+ */
+export async function deleteBoltPincode(
+  supabase: SupabaseClient<Database>,
+  id: string
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase.from('bolt_pincodes').delete().eq('id', id)
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}
+
+/**
+ * Fetch all delivery timeslots.
+ */
+export async function getBoltTimeslots(
+  supabase: SupabaseClient<Database>
+): Promise<BoltTimeslot[]> {
+  try {
+    const { data, error } = await supabase
+      .from('bolt_timeslots')
+      .select('*')
+      .order('slot_start', { ascending: true })
+
+    if (error || !data || data.length === 0) return DEFAULT_BOLT_TIMESLOTS
+    return data
+  } catch {
+    return DEFAULT_BOLT_TIMESLOTS
+  }
+}
+
+/**
+ * Create a delivery timeslot.
+ */
+export async function createBoltTimeslot(
+  supabase: SupabaseClient<Database>,
+  payload: BoltTimeslotInsert
+): Promise<{ data: BoltTimeslot | null; error?: string }> {
+  const { data, error } = await supabase
+    .from('bolt_timeslots')
+    .insert(payload)
+    .select()
+    .single()
+
+  if (error) return { data: null, error: error.message }
+  return { data }
+}
+
+/**
+ * Update a delivery timeslot.
+ */
+export async function updateBoltTimeslot(
+  supabase: SupabaseClient<Database>,
+  id: string,
+  updates: Partial<BoltTimeslotInsert>
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from('bolt_timeslots')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}
+
+/**
+ * Delete a delivery timeslot.
+ */
+export async function deleteBoltTimeslot(
+  supabase: SupabaseClient<Database>,
+  id: string
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase.from('bolt_timeslots').delete().eq('id', id)
+  if (error) return { success: false, error: error.message }
   return { success: true }
 }
 

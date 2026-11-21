@@ -299,10 +299,10 @@ export default function CreatorApparelProductStudio() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-xs uppercase text-neutral-300 font-medium block">
-                Retail Price (USD) <span className="text-[#166534]">*</span>
+                Retail Price (INR) <span className="text-[#166534]">*</span>
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-2.5 text-xs text-neutral-500 font-mono">$</span>
+                <span className="absolute left-3 top-2.5 text-xs text-neutral-500 font-mono">₹</span>
                 <Input
                   type="number"
                   step="0.01"

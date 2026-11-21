@@ -154,7 +154,7 @@ export default function LuxuryInvoicePage({ params }: InvoicePageProps) {
             </span>
             <p className="text-sm font-bold text-black font-serif">{recipientName}</p>
             <p className="text-neutral-700 leading-relaxed">
-              {order.shipping_address || '742 Evergreen Terrace, Studio 4B, San Francisco, CA 94107'}
+              {order.shipping_address || (order.user?.street_address ? `${order.user.street_address}, ${order.user.city || ''} ${order.user.postal_code || ''}` : 'Address not specified at checkout')}
             </p>
             <p className="text-neutral-600 font-mono text-[11px]">Contact: {recipientPhone}</p>
           </div>
@@ -270,9 +270,9 @@ export default function LuxuryInvoicePage({ params }: InvoicePageProps) {
 
                     <td className="p-3 text-right font-mono font-bold text-black text-sm">
                       {isReturned ? (
-                        <span className="text-neutral-400 line-through">$0.00</span>
+                        <span className="text-neutral-400 line-through">₹0</span>
                       ) : (
-                        `$${lineTotal.toFixed(2)}`
+                        `₹${lineTotal.toLocaleString("en-IN")}`
                       )}
                     </td>
                   </tr>
@@ -307,13 +307,13 @@ export default function LuxuryInvoicePage({ params }: InvoicePageProps) {
             <div className="flex justify-between text-neutral-600">
               <span>White-Glove Courier Logistics:</span>
               <span className="font-bold text-emerald-700">
-                {Number(order.shipping_fee) > 0 ? `$${Number(order.shipping_fee).toFixed(2)}` : 'Complimentary'}
+                {Number(order.shipping_fee) > 0 ? `₹${Number(order.shipping_fee).toLocaleString("en-IN")}` : 'Complimentary'}
               </span>
             </div>
 
             <div className="flex justify-between border-t-2 border-black pt-3 text-sm font-black text-black">
               <span className="uppercase">Net Realized Total:</span>
-              <span className="text-base">${Number(order.total).toFixed(2)} USD</span>
+              <span className="text-base">₹${Number(order.total).toLocaleString("en-IN")} INR</span>
             </div>
           </div>
         </div>

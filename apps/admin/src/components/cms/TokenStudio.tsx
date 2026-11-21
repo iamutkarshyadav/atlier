@@ -303,7 +303,7 @@ export function TokenStudio() {
                 Crafted from custom-milled French Terry loopback cotton.
               </p>
               <div className="flex justify-between items-center pt-2 font-mono text-xs">
-                <strong className="font-bold tabular-nums">$165.00</strong>
+                <strong className="font-bold tabular-nums">₹12,500</strong>
                 <span
                   className="text-[9px] font-bold uppercase"
                   style={{ color: tokens['--accent-green'] || '#166534' }}

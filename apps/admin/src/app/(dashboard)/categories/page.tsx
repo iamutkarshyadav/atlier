@@ -22,6 +22,7 @@ import {
   deleteCategory,
   type Category,
 } from '@repo/supabase/utils'
+import { triggerStorefrontRevalidation } from '@/lib/revalidate'
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -53,33 +54,77 @@ export default function AdminCategoriesPage() {
     loadData()
   }, [])
 
-  const handleCreateCategory = async (e: React.FormEvent) => {
+  const startEditCategory = (cat: Category) => {
+    setEditingId(cat.id)
+    setName(cat.name)
+    setSlug(cat.slug)
+    setParentId(cat.parent_id || '')
+    setDescription(cat.description || '')
+    setImageUrl(cat.image_url || '')
+    setDisplayOrder(String(cat.display_order || 1))
+    setIsAdding(true)
+  }
+
+  const cancelForm = () => {
+    setIsAdding(false)
+    setEditingId(null)
+    setName('')
+    setSlug('')
+    setParentId('')
+    setDescription('')
+    setImageUrl('')
+    setDisplayOrder('1')
+  }
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
 
     const supabase = createBrowserClient()
     const generatedSlug = slug.trim() || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
-    const { data, error } = await createCategory(supabase, {
-      name: name.trim(),
-      slug: generatedSlug,
-      parent_id: parentId.trim() || null,
-      description: description.trim() || null,
-      image_url: imageUrl.trim() || null,
-      display_order: parseInt(displayOrder, 10) || categories.length + 1,
-    })
+    // Guard: category cannot be its own parent
+    if (editingId && parentId && parentId === editingId) {
+      setFeedback({ type: 'error', message: 'A category cannot be its own parent category.' })
+      return
+    }
 
-    if (error) {
-      setFeedback({ type: 'error', message: error })
+    if (editingId) {
+      const { success, error } = await updateCategory(supabase, editingId, {
+        name: name.trim(),
+        slug: generatedSlug,
+        parent_id: parentId.trim() || null,
+        description: description.trim() || null,
+        image_url: imageUrl.trim() || null,
+        display_order: parseInt(displayOrder, 10) || 1,
+      })
+
+      if (!success || error) {
+        setFeedback({ type: 'error', message: error || 'Failed to update category' })
+      } else {
+        await triggerStorefrontRevalidation({ path: '/' })
+        setFeedback({ type: 'success', message: `Category "${name}" updated and pushed to Storefront!` })
+        cancelForm()
+        loadData()
+      }
     } else {
-      setFeedback({ type: 'success', message: `Category "${name}" created. Now active on Storefront navigation!` })
-      setName('')
-      setSlug('')
-      setParentId('')
-      setDescription('')
-      setImageUrl('')
-      setIsAdding(false)
-      loadData()
+      const { data, error } = await createCategory(supabase, {
+        name: name.trim(),
+        slug: generatedSlug,
+        parent_id: parentId.trim() || null,
+        description: description.trim() || null,
+        image_url: imageUrl.trim() || null,
+        display_order: parseInt(displayOrder, 10) || categories.length + 1,
+      })
+
+      if (error) {
+        setFeedback({ type: 'error', message: error })
+      } else {
+        await triggerStorefrontRevalidation({ path: '/' })
+        setFeedback({ type: 'success', message: `Category "${name}" created. Now active on Storefront navigation!` })
+        cancelForm()
+        loadData()
+      }
     }
   }
 
@@ -92,7 +137,8 @@ export default function AdminCategoriesPage() {
     if (!success) {
       setFeedback({ type: 'error', message: error || 'Failed to delete category' })
     } else {
-      setFeedback({ type: 'success', message: `Category "${catName}" removed.` })
+      await triggerStorefrontRevalidation({ path: '/' })
+      setFeedback({ type: 'success', message: `Category "${catName}" removed from database and Storefront.` })
       setCategories((prev) => prev.filter((c) => c.id !== id))
     }
   }
@@ -127,7 +173,14 @@ export default function AdminCategoriesPage() {
           <Button
             variant="default"
             size="sm"
-            onClick={() => setIsAdding(!isAdding)}
+            onClick={() => {
+              if (isAdding) {
+                cancelForm()
+              } else {
+                cancelForm()
+                setIsAdding(true)
+              }
+            }}
             className="bg-zinc-100 hover:bg-white text-zinc-950 font-semibold flex items-center gap-1.5 rounded-none"
           >
             {isAdding ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
@@ -157,12 +210,12 @@ export default function AdminCategoriesPage() {
         <div className="p-6 bg-chrome-900 border border-chrome-800 space-y-5 animate-in fade-in duration-300">
           <div className="flex items-center justify-between border-b border-chrome-800 pb-3">
             <span className="text-xs uppercase tracking-wider text-amber-500 dark:text-amber-400 font-semibold flex items-center gap-2">
-              <FolderTree className="w-4 h-4" /> Provision New Parent Category
+              <FolderTree className="w-4 h-4" /> {editingId ? `Edit Category: ${name || 'Untitled'}` : 'Provision New Parent Category'}
             </span>
             <span className="text-3xs text-zinc-500 font-mono">Auto-propagates to Storefront</span>
           </div>
 
-          <form onSubmit={handleCreateCategory} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <form onSubmit={handleSaveCategory} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-1">
               <label className="text-3xs uppercase tracking-wider text-zinc-400 font-semibold">Category Name *</label>
               <input
@@ -211,7 +264,7 @@ export default function AdminCategoriesPage() {
               >
                 <option value="">-- None (Top-Level Parent Category) --</option>
                 {categories
-                  .filter((c) => !c.parent_id)
+                  .filter((c) => !c.parent_id && (!editingId || c.id !== editingId))
                   .map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -243,11 +296,11 @@ export default function AdminCategoriesPage() {
             </div>
 
             <div className="sm:col-span-2 lg:col-span-3 pt-2 flex justify-end gap-2">
-              <Button type="button" variant="terminal" size="sm" onClick={() => setIsAdding(false)}>
+              <Button type="button" variant="terminal" size="sm" onClick={cancelForm}>
                 Cancel
               </Button>
               <Button type="submit" variant="default" size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-none">
-                Publish Category
+                {editingId ? 'Save & Push to Storefront' : 'Publish Category'}
               </Button>
             </div>
           </form>
@@ -303,13 +356,22 @@ export default function AdminCategoriesPage() {
                   {cat.description || 'No curatorial note provided.'}
                 </TableCell>
                 <TableCell className="text-right">
-                  <button
-                    onClick={() => handleDeleteCategory(cat.id, cat.name)}
-                    className="p-1.5 text-zinc-400 hover:text-rose-400 transition-colors"
-                    title="Delete Category"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center justify-end gap-1.5">
+                    <button
+                      onClick={() => startEditCategory(cat)}
+                      className="p-1.5 text-zinc-400 hover:text-cyan-400 transition-colors"
+                      title="Edit Category Details"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                      className="p-1.5 text-zinc-400 hover:text-rose-400 transition-colors"
+                      title="Delete Category"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

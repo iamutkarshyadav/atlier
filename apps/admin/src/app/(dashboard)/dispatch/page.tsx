@@ -119,20 +119,18 @@ export default function OutboundDispatchPage() {
         }
       } catch {}
 
-      const supabase = createBrowserClient()
-      const [allOrders, fetchedLocations] = await Promise.all([
-        fetchedOrders.length > 0 ? Promise.resolve(fetchedOrders) : getAllOrders(supabase),
-        getLocations(supabase),
-      ])
+      const locRes = await fetch('/api/admin/locations').then((r) => r.json()).catch(() => ({ locations: [] }))
+      const fetchedLocations: StoreLocation[] = Array.isArray(locRes?.locations) ? locRes.locations : []
 
-      setOrders(allOrders)
+      setOrders(fetchedOrders)
 
       // Find current location UUID
       const matchedLoc =
         fetchedLocations.find((l) => l.code === activeLocationCode) ||
         fetchedLocations[0] || { id: activeLocationId || 'd1000000-0000-0000-0000-000000000001' }
 
-      const fetchedShelves = await getLocationShelves(supabase, matchedLoc.id)
+      const shRes = await fetch(`/api/admin/shelves?locationId=${matchedLoc.id}`).then((r) => r.json()).catch(() => ({ shelves: [] }))
+      const fetchedShelves: Shelf[] = Array.isArray(shRes?.shelves) ? shRes.shelves : []
       setShelves(fetchedShelves)
 
       // 1. Build Pick Tasks from Pending / Processing Orders
