@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, ArrowLeft, Trash2, ShoppingBag, Truck, Zap, AlertCircle, Sparkles } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Trash2, ShoppingBag, Truck, Zap, AlertCircle, Sparkles, ChevronRight } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { createBrowserClient } from '@repo/supabase/browser'
 import { useHydratedCart } from '../../store/useCartStore'
@@ -55,9 +55,9 @@ export default function LuxuryCartPage() {
 
   if (!isCartHydrated || !isBoltHydrated) {
     return (
-      <div className="min-h-screen bg-[#FDFCF7] text-[#09090B] flex flex-col items-center justify-center px-6 py-24 text-center">
-        <div className="w-8 h-8 border-2 border-[#E8E4DA] border-t-[#B91C1C] rounded-full animate-spin mb-4" />
-        <span className="text-xs uppercase tracking-widest text-neutral-500 font-mono">
+      <div className="min-h-screen bg-white text-[#14293a] flex flex-col items-center justify-center px-6 py-24 text-center font-sans">
+        <div className="w-8 h-8 border-2 border-[#d3d6db] border-t-[#b91c1c] rounded-full animate-spin mb-4" />
+        <span className="text-xs uppercase tracking-wider text-[#6c7079] font-medium">
           Loading Bag Items...
         </span>
       </div>
@@ -65,158 +65,166 @@ export default function LuxuryCartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFCF7] text-[#09090B]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 py-10 sm:py-16 space-y-10 sm:space-y-12">
-        {/* Editorial Header */}
-        <div className="border-b border-[#E8E4DA] pb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-[0.25em] text-neutral-500 font-mono font-semibold">
-                COLLECTION 01
+    <div className="min-h-screen bg-white text-[#14293a] font-sans pb-24">
+      <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12 space-y-6">
+        {/* Row 1: Breadcrumb */}
+        <nav className="text-xs text-[#6c7079] mb-2 font-sans" aria-label="Breadcrumb">
+          <Link href="/" className="hover:text-[#14293a] transition-colors">Home</Link>
+          <span> / </span>
+          <span className="text-[#14293a]">Shopping Bag</span>
+        </nav>
+
+        {/* Row 2: Single Flex Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#e5e7eb] pb-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-[#14293a] tracking-tight flex items-baseline">
+              Shopping Bag
+              <span className="text-sm font-normal text-[#6c7079] ml-2">
+                ({itemCount} {itemCount === 1 ? 'item' : 'items'})
               </span>
-              <span className="w-1.5 h-1.5 bg-[#B91C1C]" />
-              <span className="text-xs uppercase tracking-[0.2em] text-[#B91C1C] font-mono font-semibold">
-                BAG REVIEW
-              </span>
-            </div>
-            <h1 className="text-4xl sm:text-5xl font-extrabold uppercase tracking-tight text-[#09090B] leading-tight font-display">
-              SHOPPING <span className="text-[#B91C1C]">BAG</span>
             </h1>
+            <div className="text-xs text-[#6c7079] mt-1 flex items-center gap-2">
+              <span>Standard delivery &amp; 45-min doorstep try-on available</span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 text-xs">
             {items.length > 0 && (
               <button
                 onClick={clearCart}
-                className="text-xs uppercase font-mono tracking-wider text-neutral-500 hover:text-red-500 transition-colors cursor-pointer"
+                className="text-[#6c7079] hover:text-[#b91c1c] transition-colors cursor-pointer underline underline-offset-2"
               >
-                Clear Entire Bag
+                Clear Bag
               </button>
             )}
             <Link
-              href="/#collection"
-              className="text-xs uppercase font-mono font-semibold tracking-wider text-neutral-600 hover:text-[#09090B] transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+              href="/shop"
+              className="text-[#14293a] hover:text-[#b91c1c] font-medium transition-colors inline-flex items-center gap-1 cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5 text-[#B91C1C]" /> Continue Shopping
+              Continue Shopping &rarr;
             </Link>
           </div>
         </div>
 
         {items.length === 0 ? (
-          <div className="min-h-[460px] flex items-center justify-center py-16 px-4 border border-[#E8E4DA] bg-[#FAF8F2] rounded-none shadow-sm">
-            <div className="max-w-md w-full text-center space-y-6">
-              <div className="w-16 h-16 mx-auto bg-[#F2EFE8] border border-[#E8E4DA] rounded-none flex items-center justify-center text-[#09090B]">
-                <ShoppingBag className="w-8 h-8 stroke-1" />
+          <div className="min-h-[380px] flex items-center justify-center py-16 px-4 border border-[#d3d6db] bg-[#f8f8f8] rounded-sm shadow-xs">
+            <div className="max-w-md w-full text-center space-y-4">
+              <div className="w-16 h-16 mx-auto bg-white border border-[#d3d6db] rounded-full flex items-center justify-center text-[#14293a]">
+                <ShoppingBag className="w-7 h-7" />
               </div>
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold uppercase tracking-tight text-[#09090B] font-mono">
+              <div className="space-y-1">
+                <h2 className="text-lg font-bold text-[#14293a]">
                   Your Bag is Currently Empty
                 </h2>
-                <p className="text-xs text-neutral-500 font-light leading-relaxed">
-                  Explore our limited-run silhouettes, crafted from custom heavyweight French Terry and raw Japanese selvedge.
+                <p className="text-xs text-[#6c7079] leading-relaxed">
+                  Discover our permanent collection crafted from heavyweight Japanese raw selvedge denim and 480 GSM French Terry.
                 </p>
               </div>
-              <Link href="/#collection" className="inline-block pt-2">
+              <Link href="/shop" className="inline-block pt-2">
                 <Button
                   size="lg"
-                  style={{ color: '#ffffff', backgroundColor: '#09090b' }}
-                  className="btn-dark px-8 h-12 hover:bg-[#27272A] dark:hover:bg-[#4A4B50] font-mono font-bold text-xs uppercase tracking-wider rounded-none border border-neutral-800 dark:border-white/15 cursor-pointer shadow-lg transition-all"
+                  className="px-6 py-2.5 bg-[#14293a] hover:bg-[#b91c1c] text-white text-xs font-bold uppercase tracking-wider rounded-sm transition-colors shadow-sm"
                 >
-                  <span style={{ color: '#ffffff' }}>EXPLORE COLLECTION →</span>
+                  <span>Explore Collections →</span>
                 </Button>
               </Link>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
-            {/* Left Column: Bag Line Items & Shipping Mode Toggle */}
-            <div className="lg:col-span-7 space-y-6">
-              {/* Limit Warning when over 5 items in Bolt */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Left Column: Bag Items & Delivery Selection */}
+            <div className="lg:col-span-8 space-y-6">
+              {/* Bolt Limit Alert */}
               {isOverBoltLimit && (
-                <div className="p-4 bg-red-950/40 border border-[#B91C1C]/40 text-red-200 text-xs font-mono flex items-start gap-3 rounded-none">
-                  <AlertCircle className="w-5 h-5 text-[#B91C1C] shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <strong className="block font-bold uppercase tracking-wider text-white">
-                      Bolt ⚡ Try-On Limit Exceeded ({itemCount} / 5 pieces)
+                <div className="p-4 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] text-xs flex items-start gap-3 rounded-sm">
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <strong className="block font-bold">
+                      Bolt Try-On Limit Exceeded ({itemCount} / 5 pieces)
                     </strong>
-                    <p className="text-[11px] leading-relaxed text-neutral-300">
-                      Doorstep Salon is limited to a maximum of 5 garments per appointment. Please reduce quantities to proceed with Bolt ⚡, or select Standard Insured Delivery below.
+                    <p className="text-[11px] leading-relaxed text-[#991b1b]">
+                      Doorstep Salon is limited to a maximum of 5 garments per appointment. Please reduce quantities to proceed with Bolt, or select Standard Insured Delivery below.
                     </p>
                   </div>
                 </div>
               )}
 
-              {items.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-5 border border-white/10 bg-[#262629] rounded-none flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 transition-colors hover:border-white/20"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="relative h-20 w-16 overflow-hidden bg-[#1A1B1D] shrink-0 border border-white/10 rounded-none">
-                      <Image
-                        src={item.image}
-                        alt={item.title}
-                        fill
-                        className="object-cover object-center"
-                      />
+              {/* Items List */}
+              <div className="border border-[#d3d6db] rounded-sm bg-white divide-y divide-[#e5e7eb] shadow-xs">
+                {items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="relative h-20 w-16 overflow-hidden bg-[#f8f8f8] shrink-0 border border-[#d3d6db] rounded-sm">
+                        <Image
+                          src={item.image}
+                          alt={item.title}
+                          fill
+                          className="object-cover object-center"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-[#b91c1c] tracking-wider block">
+                          {item.category || 'Atelier Garment'}
+                        </span>
+                        <h3 className="text-sm font-bold text-[#14293a]">
+                          {item.title}
+                        </h3>
+                        <p className="text-xs text-[#6c7079]">
+                          {item.size ? `Size: ${item.size}` : 'Standard Edition'}
+                        </p>
+                        <span className="text-xs font-bold text-[#14293a] block">
+                          ₹{Number(item.price).toLocaleString('en-IN')}
+                        </span>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-bold uppercase text-white font-mono">
-                        {item.title}
-                      </h3>
-                      <p className="text-xs font-mono text-neutral-400">
-                        {item.size ? `Size: ${item.size}` : 'Standard Edition'}
-                      </p>
-                      <span className="font-mono text-xs font-bold text-[#B91C1C] block">
-                        ₹{Number(item.price).toLocaleString('en-IN')} INR
+
+                    <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-6 border-t sm:border-t-0 pt-3 sm:pt-0 border-[#e5e7eb]">
+                      {/* Quantity Stepper */}
+                      <div className="flex items-center border border-[#d3d6db] bg-[#f8f8f8] text-xs rounded-sm overflow-hidden">
+                        <button
+                          onClick={() => updateQuantity(item.id, -1)}
+                          className="px-3 py-1.5 hover:bg-[#e5e7eb] text-[#14293a] transition-colors font-bold cursor-pointer"
+                          title="Decrease quantity"
+                        >
+                          -
+                        </button>
+                        <span className="px-3 py-1.5 font-bold min-w-[28px] text-center text-[#14293a]">
+                          {item.quantity}
+                        </span>
+                        <button
+                          onClick={() => updateQuantity(item.id, 1)}
+                          className="px-3 py-1.5 hover:bg-[#e5e7eb] text-[#14293a] transition-colors font-bold cursor-pointer"
+                          title="Increase quantity"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <span className="text-sm font-bold text-[#14293a] min-w-[90px] text-right">
+                        ₹{(item.price * item.quantity).toLocaleString('en-IN')}
                       </span>
+
+                      <button
+                        onClick={() => removeItem(item.id)}
+                        className="p-1.5 text-[#8a909a] hover:text-[#b91c1c] transition-colors cursor-pointer"
+                        title="Remove item"
+                        aria-label="Remove item"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
+                ))}
+              </div>
 
-                  <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-6 border-t sm:border-t-0 pt-4 sm:pt-0 border-white/10">
-                    <div className="flex items-center border border-white/15 bg-[#1A1B1D] text-xs font-mono rounded-none overflow-hidden">
-                      <button
-                        onClick={() => updateQuantity(item.id, -1)}
-                        className="px-3 py-1.5 hover:bg-[#38393D] text-neutral-300 hover:text-white transition-colors font-bold cursor-pointer"
-                        title="Decrease quantity"
-                      >
-                        -
-                      </button>
-                      <span className="px-3 py-1.5 font-bold min-w-[28px] text-center text-white">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() => updateQuantity(item.id, 1)}
-                        className="px-3 py-1.5 hover:bg-[#38393D] text-neutral-300 hover:text-white transition-colors font-bold cursor-pointer"
-                        title="Increase quantity"
-                      >
-                        +
-                      </button>
-                    </div>
-
-                    <span className="font-mono text-sm font-bold text-white min-w-[90px] text-right">
-                      ₹{(item.price * item.quantity).toLocaleString('en-IN')}
-                    </span>
-
-                    <button
-                      onClick={() => removeItem(item.id)}
-                      className="p-1.5 text-neutral-400 hover:text-red-400 transition-colors cursor-pointer"
-                      title="Remove item"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {/* Experience Options */}
-              <div className="pt-8 space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs uppercase tracking-[0.2em] text-neutral-400 font-mono font-semibold block">
-                    DELIVERY EXPERIENCE
-                  </span>
-                  <span className="w-1.5 h-1.5 bg-[#B91C1C]" />
-                </div>
+              {/* Delivery Experience Selector */}
+              <div className="space-y-3 pt-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
+                  SELECT DELIVERY METHOD
+                </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <button
@@ -224,44 +232,46 @@ export default function LuxuryCartPage() {
                     onClick={() => {
                       if (isServiceable) setDeliveryMode('try_on')
                     }}
-                    className={`p-4 text-left border rounded-none transition-all ${
+                    className={`p-4 text-left border rounded-sm transition-all ${
                       isServiceable
                         ? deliveryMode === 'try_on'
-                          ? 'border-[#B91C1C] bg-[#1A1B1D] ring-1 ring-[#B91C1C] shadow-lg cursor-pointer'
-                          : 'border-white/10 bg-[#262629] hover:border-white/20 text-neutral-300 cursor-pointer'
-                        : 'border-dashed border-white/10 bg-[#1A1B1D]/40 opacity-40 cursor-not-allowed'
+                          ? 'border-[#b91c1c] bg-[#fef2f2] ring-1 ring-[#b91c1c] shadow-xs cursor-pointer'
+                          : 'border-[#d3d6db] bg-white hover:border-[#14293a] text-[#14293a] cursor-pointer'
+                        : 'border-dashed border-[#d3d6db] bg-[#f8f8f8] opacity-50 cursor-not-allowed'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-white flex items-center gap-2">
-                        <Zap className="w-4 h-4 fill-amber-400 text-amber-400" /> Bolt ⚡ Try-On Salon
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#14293a] flex items-center gap-1.5">
+                        <Zap className="w-4 h-4 fill-[#b91c1c] text-[#b91c1c]" />
+                        <span>Bolt Try-On Service</span>
                       </span>
-                      <span className="font-mono text-xs font-bold text-white">₹99.00</span>
+                      <span className="text-xs font-bold text-[#b91c1c]">₹99.00 Hold</span>
                     </div>
-                    <p className="text-xs text-neutral-400 font-light mt-1.5 leading-relaxed">
+                    <p className="text-xs text-[#6c7079] mt-1.5 leading-relaxed">
                       {isServiceable
                         ? `Available in ${boltCity || 'your area'} (PIN: ${pincode}). Try up to 5 pieces at home before paying.`
-                        : 'Check your PIN in the top banner to check Bolt ⚡ doorstep salon eligibility.'}
+                        : 'Enter your PIN above to check Bolt doorstep try-on eligibility.'}
                     </p>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setDeliveryMode('direct')}
-                    className={`p-4 text-left border rounded-none transition-all cursor-pointer ${
+                    className={`p-4 text-left border rounded-sm transition-all cursor-pointer ${
                       deliveryMode === 'direct'
-                        ? 'border-[#B91C1C] bg-[#1A1B1D] ring-1 ring-[#B91C1C] shadow-lg'
-                        : 'border-white/10 bg-[#262629] hover:border-white/20 text-neutral-300'
+                        ? 'border-[#14293a] bg-[#f8f8f8] ring-1 ring-[#14293a] shadow-xs'
+                        : 'border-[#d3d6db] bg-white hover:border-[#14293a] text-[#14293a]'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-white flex items-center gap-2">
-                        <Truck className="w-4 h-4 text-[#B91C1C]" /> Standard Delivery
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#14293a] flex items-center gap-1.5">
+                        <Truck className="w-4 h-4 text-[#14293a]" />
+                        <span>Standard Delivery</span>
                       </span>
-                      <span className="font-mono text-xs font-bold text-white">₹150.00</span>
+                      <span className="text-xs font-bold text-[#14293a]">₹150.00</span>
                     </div>
-                    <p className="text-xs text-neutral-400 font-light mt-1.5 leading-relaxed">
-                      Tracked courier delivery to all Indian postal codes in 3–5 business days. Full payment upfront.
+                    <p className="text-xs text-[#6c7079] mt-1.5 leading-relaxed">
+                      Tracked insured courier delivery across India in 2–4 business days. Direct payment upfront.
                     </p>
                   </button>
                 </div>
@@ -269,73 +279,72 @@ export default function LuxuryCartPage() {
             </div>
 
             {/* Right Column: Order Summary Card */}
-            <div className="lg:col-span-5">
-              <div className="p-6 sm:p-8 border border-white/10 bg-[#1A1B1D] space-y-6 sticky top-28 shadow-xl rounded-none">
-                <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                  <span className="text-xs uppercase tracking-[0.2em] text-neutral-400 font-mono font-bold">
+            <div className="lg:col-span-4">
+              <div className="p-6 border border-[#d3d6db] bg-[#f8f8f8] space-y-5 sticky top-28 shadow-sm rounded-sm">
+                <div className="flex items-center justify-between border-b border-[#d3d6db] pb-3">
+                  <span className="text-xs uppercase tracking-wider font-bold text-[#14293a]">
                     ORDER SUMMARY
                   </span>
-                  <span className="text-xs font-mono text-neutral-400">
-                    {itemCount} {itemCount === 1 ? 'PIECE' : 'PIECES'}
-                    {isBoltSelected && ' (MAX 5)'}
+                  <span className="text-xs text-[#6c7079]">
+                    {itemCount} {itemCount === 1 ? 'item' : 'items'}
+                    {isBoltSelected && ' (max 5)'}
                   </span>
                 </div>
 
-                <div className="space-y-3 text-xs font-mono">
-                  <div className="flex justify-between text-neutral-400">
+                <div className="space-y-2.5 text-xs">
+                  <div className="flex justify-between text-[#6c7079]">
                     <span>Garments Subtotal</span>
-                    <span className="font-bold text-white">₹{subtotal.toLocaleString('en-IN')}</span>
+                    <span className="font-bold text-[#14293a]">₹{subtotal.toLocaleString('en-IN')}</span>
                   </div>
 
                   {isBoltSelected ? (
                     <>
-                      <div className="flex justify-between text-amber-300 bg-amber-950/30 p-2.5 border border-amber-500/20 rounded-none">
-                        <span className="flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                          Payable after Doorstep Try-On:
+                      <div className="flex justify-between text-[#b91c1c] bg-[#fef2f2] p-2.5 border border-[#fecaca] rounded-sm">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Payable after Try-On:
                         </span>
-                        <span className="font-bold font-mono">₹{subtotal.toLocaleString('en-IN')}</span>
+                        <span className="font-bold">₹{subtotal.toLocaleString('en-IN')}</span>
                       </div>
-                      <div className="flex justify-between text-neutral-400">
-                        <span>Bolt Convenience Booking Fee</span>
-                        <span className="font-bold text-white">₹99.00</span>
+                      <div className="flex justify-between text-[#6c7079]">
+                        <span>Bolt Convenience Hold</span>
+                        <span className="font-bold tabular-nums text-[#14293a]">₹99</span>
                       </div>
-                      <div className="border-t border-white/10 pt-3 flex justify-between text-base font-bold text-white">
-                        <span>Immediate Checkout Due</span>
-                        <span className="text-lg font-mono text-white">₹99.00 INR</span>
+                      <div className="border-t border-[#d3d6db] pt-3 flex justify-between text-base font-bold text-[#14293a]">
+                        <span>Immediate Hold Due</span>
+                        <span className="text-lg tabular-nums text-[#b91c1c]">₹99</span>
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="flex justify-between text-neutral-400">
-                        <span>Standard Shipping Fee</span>
-                        <span className="font-bold text-white">₹150.00</span>
+                      <div className="flex justify-between text-[#6c7079]">
+                        <span>Estimated Shipping</span>
+                        <span className="font-bold tabular-nums text-[#14293a]">₹150</span>
                       </div>
-                      <div className="flex justify-between text-neutral-400">
+                      <div className="flex justify-between text-[#6c7079]">
                         <span>Estimated Tax (8%)</span>
-                        <span className="font-bold text-white">₹{tax.toFixed(2)}</span>
+                        <span className="font-bold tabular-nums text-[#14293a]">₹{Math.round(tax).toLocaleString('en-IN')}</span>
                       </div>
-                      <div className="border-t border-white/10 pt-3 flex justify-between text-base font-bold text-white">
+                      <div className="border-t border-[#d3d6db] pt-3 flex justify-between text-base font-bold text-[#14293a]">
                         <span>Total Due Now</span>
-                        <span className="text-lg font-mono text-white">
-                          ₹{(subtotal + 150.0 + tax).toFixed(2)} INR
+                        <span className="text-lg tabular-nums">
+                          ₹{Math.round(subtotal + 150 + tax).toLocaleString('en-IN')}
                         </span>
                       </div>
                     </>
                   )}
                 </div>
 
-                {/* Action Button */}
+                {/* Checkout CTA */}
                 <Button
                   onClick={handleProceedToCheckout}
                   disabled={isOverBoltLimit}
                   size="xl"
-                  className="w-full h-14 bg-[#38393D] hover:bg-[#4A4B50] text-white font-mono font-bold text-xs tracking-[0.2em] uppercase rounded-none border border-white/15 shadow-xl flex items-center justify-center gap-3 group transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-12 bg-[#14293a] hover:bg-[#b91c1c] text-white font-sans font-bold text-xs tracking-wider uppercase rounded-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   isLoading={isCheckingAuth}
                 >
-                  <span>PROCEED TO CHECKOUT</span>
-                  <span className="w-1.5 h-1.5 rounded-none bg-[#B91C1C]" />
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform text-[#B91C1C]" />
+                  <span>Proceed to Checkout</span>
+                  <ArrowRight className="w-4 h-4" />
                 </Button>
               </div>
             </div>

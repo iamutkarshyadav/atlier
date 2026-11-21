@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
+  ArrowRight,
   CheckCircle,
   Truck,
   ShieldCheck,
@@ -19,6 +20,7 @@ import {
   MapPin,
   AlertCircle,
   Sparkles,
+  Check,
 } from 'lucide-react'
 import { Button, Input } from '@repo/ui'
 import { createBrowserClient } from '@repo/supabase/browser'
@@ -66,18 +68,18 @@ export default function LuxuryCheckoutPage() {
   const [timeslots, setTimeslots] = useState<BoltTimeslot[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
 
-  // Customer Shipping Address Form (Indian Defaults)
+  // Customer Shipping Address Form
   const [formData, setFormData] = useState({
-    name: 'Aarav Sharma',
-    email: 'aarav.sharma@atelier.in',
-    phone: '+91 98765 43210',
-    address: '100 Feet Road, HAL 2nd Stage, Indiranagar',
-    suite: 'Penthouse 4B',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-    postalCode: '560038',
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    suite: '',
+    city: '',
+    state: '',
+    postalCode: '',
     country: 'India',
-    notes: 'White-glove 45-minute doorstep try-on session. Call on arrival.',
+    notes: '',
   })
 
   // Sync postal code & city from Bolt store into address form if available
@@ -127,7 +129,6 @@ export default function LuxuryCheckoutPage() {
         .then((data) => {
           if (data.success && Array.isArray(data.timeslots)) {
             setTimeslots(data.timeslots)
-            // Auto select first slot if none selected
             if (!selectedTimeslotId && data.timeslots.length > 0) {
               setSelectedTimeslotId(data.timeslots[0].id)
             }
@@ -260,7 +261,6 @@ export default function LuxuryCheckoutPage() {
         activeInvoice = data.invoiceNumber || data.order.invoice_number || generatedInvoice
         activeTracking = data.trackingBarcode || data.order.tracking_barcode || generatedTracking
 
-        // Persist order reference for patron lookup & guest tracking
         try {
           if (typeof window !== 'undefined') {
             const rawRecent = localStorage.getItem('patron_recent_orders')
@@ -297,27 +297,27 @@ export default function LuxuryCheckoutPage() {
     const isConfirmedBolt = confirmedOrderType === 'bolt_try_on'
 
     return (
-      <div className="min-h-screen bg-[#212121] text-white">
-        <div className="max-w-2xl mx-auto px-4 sm:px-8 py-16 sm:py-24 text-center space-y-8">
-          <div className="w-16 h-16 mx-auto bg-[#1A1B1D] border border-white/10 rounded-none flex items-center justify-center">
-            <CheckCircle className="w-8 h-8 text-[#B91C1C]" />
+      <div className="min-h-screen bg-white text-[#14293a] font-sans">
+        <div className="max-w-2xl mx-auto px-4 sm:px-8 py-16 text-center space-y-6">
+          <div className="w-16 h-16 mx-auto bg-[#ecfdf5] border border-[#a7f3d0] rounded-full flex items-center justify-center text-[#065f46]">
+            <CheckCircle className="w-8 h-8 text-emerald-600" />
           </div>
 
-          <div className="space-y-3">
-            <span className="text-xs uppercase tracking-[0.25em] text-[#B91C1C] font-mono font-bold block flex items-center justify-center gap-1.5">
+          <div className="space-y-2">
+            <span className="text-xs uppercase tracking-wider text-[#b91c1c] font-bold block flex items-center justify-center gap-1.5">
               {isConfirmedBolt ? (
                 <>
-                  <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  BOLT ⚡ DOORSTEP SALON SCHEDULED
+                  <Zap className="w-4 h-4 fill-[#b91c1c] text-[#b91c1c]" />
+                  BOLT DOORSTEP TRY-ON SCHEDULED
                 </>
               ) : (
                 'ORDER CONFIRMED • STANDARD DISPATCH'
               )}
             </span>
-            <h1 className="text-3xl sm:text-5xl font-extrabold uppercase text-white tracking-tight leading-tight font-display">
-              THANK YOU FOR YOUR <span className="text-[#B91C1C]">{isConfirmedBolt ? 'TRY-ON BOOKING' : 'ORDER'}</span>
+            <h1 className="text-2xl sm:text-4xl font-sans font-black text-[#14293a] tracking-tight">
+              THANK YOU FOR YOUR {isConfirmedBolt ? 'TRY-ON BOOKING' : 'ORDER'}
             </h1>
-            <p className="text-xs sm:text-sm text-neutral-400 font-light leading-relaxed max-w-lg mx-auto">
+            <p className="text-xs sm:text-sm text-[#6c7079] leading-relaxed max-w-lg mx-auto">
               {isConfirmedBolt
                 ? 'Our white-glove courier will arrive at your doorstep with the requested garments. Try them on in the comfort of your home, keep what fits, and return the rest instantly.'
                 : 'Your garments have entered our dispatch queue. An official commercial receipt with tracking barcode has been generated for your record.'}
@@ -325,32 +325,32 @@ export default function LuxuryCheckoutPage() {
           </div>
 
           {/* Order Receipt Card */}
-          <div className="p-6 sm:p-8 border border-white/10 bg-[#1A1B1D] text-left space-y-4 font-mono text-xs shadow-xl rounded-none text-white">
-            <div className="flex justify-between items-center border-b border-white/10 pb-3">
-              <span className="text-neutral-400 uppercase tracking-wider text-[11px]">ORDER REFERENCE</span>
-              <span className="font-bold text-white font-mono text-sm">{orderReference}</span>
+          <div className="p-6 border border-[#d3d6db] bg-[#f8f8f8] text-left space-y-3.5 text-xs shadow-xs rounded-sm">
+            <div className="flex justify-between items-center border-b border-[#e5e7eb] pb-2.5">
+              <span className="text-[#6c7079] uppercase tracking-wider font-medium text-[11px]">ORDER REFERENCE</span>
+              <span className="font-bold text-[#14293a] text-sm">{orderReference}</span>
             </div>
 
-            <div className="flex justify-between items-center border-b border-white/10 pb-3">
-              <span className="text-neutral-400 uppercase tracking-wider text-[11px]">COMMERCIAL INVOICE</span>
-              <span className="font-bold text-neutral-200 font-mono text-xs bg-[#262629] px-2 py-0.5 border border-white/10 rounded-none">
+            <div className="flex justify-between items-center border-b border-[#e5e7eb] pb-2.5">
+              <span className="text-[#6c7079] uppercase tracking-wider font-medium text-[11px]">COMMERCIAL INVOICE</span>
+              <span className="font-bold text-[#14293a] bg-white px-2 py-0.5 border border-[#d3d6db] rounded-sm">
                 {invoiceNumber || `INV-2026-${orderReference.replace('ATL-', '')}`}
               </span>
             </div>
 
-            <div className="flex justify-between items-center border-b border-white/10 pb-3">
-              <span className="text-neutral-400 uppercase tracking-wider text-[11px]">SHIPMENT TRACKING</span>
-              <span className="font-mono text-xs text-[#B91C1C] font-bold">
+            <div className="flex justify-between items-center border-b border-[#e5e7eb] pb-2.5">
+              <span className="text-[#6c7079] uppercase tracking-wider font-medium text-[11px]">SHIPMENT TRACKING</span>
+              <span className="text-xs text-[#b91c1c] font-bold">
                 {trackingBarcode || `ATL-TRK-${orderReference.replace('ATL-', '')}`}
               </span>
             </div>
 
-            <div className="flex justify-between items-center border-b border-white/10 pb-3">
-              <span className="text-neutral-400 uppercase tracking-wider text-[11px]">DELIVERY EXPERIENCE</span>
-              <span className="font-bold text-white uppercase flex items-center gap-1">
+            <div className="flex justify-between items-center border-b border-[#e5e7eb] pb-2.5">
+              <span className="text-[#6c7079] uppercase tracking-wider font-medium text-[11px]">DELIVERY EXPERIENCE</span>
+              <span className="font-bold text-[#14293a] uppercase flex items-center gap-1">
                 {isConfirmedBolt ? (
                   <>
-                    <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> Bolt ⚡ Doorstep Try-On
+                    <Zap className="w-3.5 h-3.5 fill-[#b91c1c] text-[#b91c1c]" /> Bolt Doorstep Try-On
                   </>
                 ) : (
                   'Standard Insured Delivery'
@@ -359,75 +359,61 @@ export default function LuxuryCheckoutPage() {
             </div>
 
             {isConfirmedBolt && confirmedSlotLabel && (
-              <div className="flex justify-between items-center border-b border-white/10 pb-3 bg-amber-950/20 -mx-2 px-3 py-2 rounded-none">
-                <span className="text-amber-300 uppercase tracking-wider text-[11px] font-bold flex items-center gap-1.5">
+              <div className="flex justify-between items-center border-b border-[#e5e7eb] pb-2.5 bg-[#fef2f2] -mx-2 px-3 py-2 rounded-sm">
+                <span className="text-[#b91c1c] uppercase tracking-wider text-[11px] font-bold flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5" /> APPOINTMENT WINDOW
                 </span>
-                <span className="font-bold text-white font-mono text-xs">
+                <span className="font-bold text-[#14293a]">
                   {confirmedSlotLabel}
                 </span>
               </div>
             )}
 
-            <div className="flex justify-between items-baseline border-b border-white/10 pb-3">
-              <span className="text-neutral-400 uppercase tracking-wider text-[11px]">DESTINATION</span>
-              <span className="text-neutral-200 text-right max-w-[65%] font-mono text-xs font-medium">
+            <div className="flex justify-between items-baseline border-b border-[#e5e7eb] pb-2.5">
+              <span className="text-[#6c7079] uppercase tracking-wider font-medium text-[11px]">DESTINATION</span>
+              <span className="text-[#14293a] text-right max-w-[65%] font-medium">
                 {formData.address}, {formData.city}, {formData.state} {formData.postalCode}
               </span>
             </div>
 
             <div className="flex justify-between items-center pt-1 text-sm font-bold">
-              <span className="text-neutral-400 uppercase font-mono">
+              <span className="text-[#6c7079] uppercase">
                 {isConfirmedBolt ? 'CONVENIENCE FEE PAID' : 'TOTAL PAID'}
               </span>
-              <span className="font-mono text-base text-white">
-                ₹{immediateTotal.toFixed(2)} INR
+              <span className="text-base font-bold tabular-nums text-[#14293a]">
+                ₹{Math.round(immediateTotal).toLocaleString('en-IN')}
               </span>
             </div>
 
             {isConfirmedBolt && (
-              <div className="p-3 bg-[#262629] border border-white/10 rounded-none text-[11px] text-neutral-300 space-y-1">
-                <div className="flex justify-between font-bold text-white">
+              <div className="p-3 bg-white border border-[#d3d6db] rounded-sm text-xs text-[#6c7079] space-y-1">
+                <div className="flex justify-between font-bold text-[#14293a]">
                   <span>Garment Value (Payable after Try-On):</span>
                   <span>₹{subtotal.toLocaleString('en-IN')} INR</span>
                 </div>
-                <p className="text-[10px] text-neutral-400">
+                <p className="text-[11px]">
                   You will only be charged for the items you choose to keep after your 45-minute fitting salon.
                 </p>
               </div>
             )}
-
-            {/* Patron Actions */}
-            <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row gap-2">
-              <Link href="/orders" className="flex-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full h-10 border-white/15 hover:border-white/30 text-white font-mono font-bold text-xs uppercase rounded-none flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <FileText className="w-3.5 h-3.5 text-[#B91C1C]" /> View Orders Dashboard
-                </Button>
-              </Link>
-            </div>
           </div>
 
-          <div className="pt-4 flex flex-col sm:flex-row justify-center items-center gap-4">
+          <div className="pt-2 flex flex-col sm:flex-row justify-center items-center gap-3">
             <Link href="/orders" className="w-full sm:w-auto">
               <Button
                 size="lg"
-                style={{ color: '#ffffff', backgroundColor: '#09090b' }}
-                className="btn-dark w-full sm:w-auto px-8 h-14 hover:bg-[#27272A] dark:hover:bg-[#4A4B50] font-mono font-bold text-xs uppercase tracking-wider rounded-none border border-neutral-800 dark:border-white/15 shadow-xl cursor-pointer transition-all"
+                className="w-full sm:w-auto px-6 py-2.5 bg-[#14293a] hover:bg-[#b91c1c] text-white text-xs font-bold uppercase tracking-wider rounded-sm transition-colors shadow-sm"
               >
-                <span style={{ color: '#ffffff' }}>TRACK ORDER STATUS →</span>
+                <span>Track Order Status →</span>
               </Button>
             </Link>
-            <Link href="/#collection" className="w-full sm:w-auto">
+            <Link href="/shop" className="w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="lg"
-                className="w-full sm:w-auto px-8 h-14 border border-white/20 hover:border-white text-white font-mono font-bold text-xs uppercase tracking-wider rounded-none cursor-pointer"
+                className="w-full sm:w-auto px-6 py-2.5 border border-[#d3d6db] hover:border-[#14293a] text-[#14293a] text-xs font-bold uppercase tracking-wider rounded-sm"
               >
-                CONTINUE SHOPPING
+                Continue Shopping
               </Button>
             </Link>
           </div>
@@ -439,21 +425,20 @@ export default function LuxuryCheckoutPage() {
   // --- EMPTY CART GUARD ---
   if (isCartHydrated && items.length === 0) {
     return (
-      <div className="min-h-screen bg-[#FDFCF7] text-[#09090B] flex items-center justify-center px-4">
-        <div className="max-w-xl mx-auto py-28 text-center space-y-6">
-          <h1 className="text-3xl font-extrabold uppercase tracking-tight text-[#09090B] font-display">
+      <div className="min-h-screen bg-white text-[#14293a] flex items-center justify-center px-4 font-sans">
+        <div className="max-w-xl mx-auto py-24 text-center space-y-4">
+          <h1 className="font-sans text-2xl sm:text-3xl font-bold tracking-tight text-[#14293a]">
             YOUR BAG IS EMPTY
           </h1>
-          <p className="text-xs sm:text-sm text-neutral-500 font-light leading-relaxed">
+          <p className="text-xs sm:text-sm text-[#6c7079] leading-relaxed">
             Please add garments to your bag before initiating checkout.
           </p>
-          <Link href="/#collection" className="inline-block pt-2">
+          <Link href="/shop" className="inline-block pt-2">
             <Button
               size="lg"
-              style={{ color: '#ffffff', backgroundColor: '#09090b' }}
-              className="btn-dark px-8 h-14 hover:bg-neutral-800 font-mono font-bold text-xs uppercase tracking-wider rounded-none border border-neutral-800 shadow-xl transition-all"
+              className="px-6 py-2.5 bg-[#14293a] hover:bg-[#b91c1c] text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-sm transition-colors"
             >
-              <span style={{ color: '#ffffff' }}>EXPLORE COLLECTION →</span>
+              <span>Explore Collection →</span>
             </Button>
           </Link>
         </div>
@@ -462,77 +447,93 @@ export default function LuxuryCheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFCF7] text-[#09090B]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 py-10 sm:py-16 space-y-10 sm:space-y-12">
-        {/* Return to Bag Breadcrumb & Step Indicators */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#E8E4DA] pb-6 gap-4">
-          <Link
-            href="/cart"
-            className="inline-flex items-center gap-2 text-xs uppercase font-mono font-semibold tracking-wider text-neutral-400 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 text-[#B91C1C]" /> Return to Bag
-          </Link>
+    <div className="min-h-screen bg-white text-[#14293a] font-sans pb-24">
+      <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12 space-y-6">
+        {/* Row 1: Breadcrumb */}
+        <nav className="text-xs text-[#6c7079] mb-2 font-sans" aria-label="Breadcrumb">
+          <Link href="/" className="hover:text-[#14293a] transition-colors">Home</Link>
+          <span> / </span>
+          <Link href="/cart" className="hover:text-[#14293a] transition-colors">Shopping Bag</Link>
+          <span> / </span>
+          <span className="text-[#14293a]">Checkout</span>
+        </nav>
+
+        {/* Row 2: Single Flex Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#e5e7eb] pb-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-[#14293a] tracking-tight flex items-baseline">
+              Checkout
+              <span className="text-sm font-normal text-[#6c7079] ml-2">
+                ({itemCount} {itemCount === 1 ? 'item' : 'items'})
+              </span>
+            </h1>
+            <div className="text-xs text-[#6c7079] mt-1 flex items-center gap-2">
+              <span>Secure Checkout</span>
+              <span>·</span>
+              <span>{isBoltSelected ? 'Bolt 45-Min Doorstep Try-On' : 'Pan-India Delivery'}</span>
+            </div>
+          </div>
 
           {/* Step Indicator */}
-          <div className="flex items-center gap-6 text-xs uppercase font-mono tracking-wider text-neutral-400">
+          <div className="flex items-center gap-3 text-xs font-medium">
             <button
               onClick={() => setActiveStep(1)}
-              className={`transition-colors flex items-center gap-2 cursor-pointer ${
-                activeStep === 1 ? 'text-white font-bold' : 'hover:text-white'
+              className={`flex items-center gap-1.5 cursor-pointer transition-colors ${
+                activeStep === 1 ? 'text-[#14293a] font-bold' : 'text-[#8a909a] hover:text-[#14293a]'
               }`}
             >
               <span
-                className={`w-5 h-5 rounded-none flex items-center justify-center text-[10px] font-bold ${
-                  activeStep === 1 ? 'bg-[#B91C1C] text-white' : 'bg-[#262629] text-neutral-400 border border-white/10'
+                className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  activeStep === 1 ? 'bg-[#14293a] text-white' : 'bg-[#e5e7eb] text-[#6c7079]'
                 }`}
               >
                 1
               </span>
-              <span>EXPERIENCE & TIME SLOTS</span>
+              <span>Delivery &amp; Slots</span>
             </button>
-            <span className="text-neutral-600">→</span>
+            <span className="text-[#d3d6db]">/</span>
             <button
               onClick={() => {
                 if (!isOverBoltLimit) setActiveStep(2)
               }}
               disabled={isOverBoltLimit}
-              className={`transition-colors flex items-center gap-2 ${
+              className={`flex items-center gap-1.5 transition-colors ${
                 activeStep === 2
-                  ? 'text-white font-bold'
+                  ? 'text-[#14293a] font-bold'
                   : isOverBoltLimit
                   ? 'opacity-40 cursor-not-allowed'
-                  : 'hover:text-white cursor-pointer'
+                  : 'text-[#8a909a] hover:text-[#14293a] cursor-pointer'
               }`}
             >
               <span
-                className={`w-5 h-5 rounded-none flex items-center justify-center text-[10px] font-bold ${
-                  activeStep === 2 ? 'bg-[#B91C1C] text-white' : 'bg-[#262629] text-neutral-400 border border-white/10'
+                className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  activeStep === 2 ? 'bg-[#14293a] text-white' : 'bg-[#e5e7eb] text-[#6c7079]'
                 }`}
               >
                 2
               </span>
-              <span>SHIPPING ADDRESS</span>
+              <span>Shipping Address</span>
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* ========================================================= */}
           {/* LEFT COLUMN: INTERACTIVE CHECKOUT STEPS */}
           {/* ========================================================= */}
-          <div className="lg:col-span-7 space-y-8">
+          <div className="lg:col-span-8 space-y-6">
             {/* Guest Note */}
             {isAuthenticated === false && (
-              <div className="p-4 bg-[#262629] border border-white/10 rounded-none flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs font-mono">
-                <div className="flex items-center gap-2.5">
-                  <UserCheck className="w-4 h-4 text-[#B91C1C] shrink-0" />
-                  <span className="text-neutral-300">
+              <div className="p-3.5 bg-[#f8f8f8] border border-[#d3d6db] rounded-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-[#b91c1c] shrink-0" />
+                  <span className="text-[#6c7079]">
                     Checking out as guest. Sign in to save addresses to your account.
                   </span>
                 </div>
                 <Link
                   href="/login?callbackUrl=/checkout"
-                  className="text-xs uppercase font-bold text-white hover:text-[#B91C1C] underline shrink-0"
+                  className="text-xs font-bold text-[#b91c1c] hover:underline shrink-0"
                 >
                   Sign In →
                 </Link>
@@ -544,20 +545,20 @@ export default function LuxuryCheckoutPage() {
             {/* ========================================================= */}
             {activeStep === 1 && (
               <motion.div
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 className="space-y-6"
               >
                 <div className="space-y-1">
-                  <span className="text-xs uppercase tracking-[0.25em] text-neutral-400 font-mono font-semibold block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#b91c1c] block">
                     STEP 01
                   </span>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold uppercase tracking-tight text-white font-display">
-                    SELECT DELIVERY EXPERIENCE
+                  <h2 className="text-xl sm:text-2xl font-sans font-bold text-[#14293a]">
+                    SELECT DELIVERY METHOD
                   </h2>
-                  <p className="text-xs sm:text-sm text-neutral-400 font-light">
-                    Choose between our flagship white-glove doorstep fitting salon or standard insured delivery.
+                  <p className="text-xs text-[#6c7079]">
+                    Choose between our flagship white-glove doorstep fitting salon or standard direct delivery.
                   </p>
                 </div>
 
@@ -568,51 +569,51 @@ export default function LuxuryCheckoutPage() {
                     onClick={() => {
                       if (isServiceable) setDeliveryMode('bolt')
                     }}
-                    className={`p-5 border-2 rounded-none transition-all space-y-3 relative ${
+                    className={`p-4 border rounded-sm transition-all space-y-2 relative ${
                       isServiceable
                         ? deliveryMode === 'bolt'
-                          ? 'border-[#B91C1C] bg-[#1A1B1D] ring-1 ring-[#B91C1C] shadow-xl cursor-pointer'
-                          : 'border-white/10 bg-[#262629] hover:border-white/20 cursor-pointer'
-                        : 'border-dashed border-white/10 bg-[#1A1B1D]/40 cursor-not-allowed opacity-50'
+                          ? 'border-[#b91c1c] bg-[#fef2f2] ring-1 ring-[#b91c1c] shadow-xs cursor-pointer'
+                          : 'border-[#d3d6db] bg-white hover:border-[#14293a] cursor-pointer'
+                        : 'border-dashed border-[#d3d6db] bg-[#f8f8f8] cursor-not-allowed opacity-50'
                     }`}
                   >
                     <div className="flex items-start justify-between">
-                      <div className="w-9 h-9 bg-[#262629] rounded-none flex items-center justify-center text-amber-400 border border-white/10">
-                        <Zap className="w-5 h-5 fill-amber-400" />
+                      <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#b91c1c] border border-[#fecaca]">
+                        <Zap className="w-4 h-4 fill-[#b91c1c]" />
                       </div>
                       <div className="text-right">
-                        <span className="font-mono text-sm text-white font-bold block">
+                        <span className="text-xs text-[#14293a] font-bold block">
                           ₹99.00
                         </span>
-                        <span className="text-[10px] uppercase font-mono text-neutral-400">
-                          Convenience Fee
+                        <span className="text-[10px] text-[#6c7079]">
+                          Convenience Hold
                         </span>
                       </div>
                     </div>
 
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <h3 className="text-sm font-bold uppercase text-white font-mono">
-                          Bolt ⚡ Try-On Salon
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
+                          Bolt Try-On Service
                         </h3>
-                        <span className="bg-amber-950/60 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-1.5 py-0.5 rounded-none uppercase">
-                          FLAGSHIP
+                        <span className="bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca] text-[9px] font-bold px-1 py-0.2 rounded-sm uppercase">
+                          POPULAR
                         </span>
                       </div>
-                      <p className="text-xs text-neutral-400 font-light mt-1 leading-relaxed">
+                      <p className="text-xs text-[#6c7079] mt-1 leading-relaxed">
                         White-glove 45-min doorstep fitting. Try before you pay. Keep what fits, reject the rest immediately.
                       </p>
                     </div>
 
                     {isServiceable ? (
-                      <div className="pt-2 text-[11px] font-mono text-[#B91C1C] flex items-center gap-1.5 font-bold">
+                      <div className="pt-2 text-[11px] text-[#065f46] flex items-center gap-1 font-semibold">
                         <CheckCircle className="w-3.5 h-3.5" />
                         <span>Available in {boltCity || 'your area'} (PIN: {pincode})</span>
                       </div>
                     ) : (
-                      <div className="pt-2 text-[11px] font-mono text-amber-400 flex items-center gap-1.5">
+                      <div className="pt-2 text-[11px] text-amber-600 flex items-center gap-1">
                         <AlertCircle className="w-3.5 h-3.5" />
-                        <span>Check PIN in top banner to unlock Bolt ⚡</span>
+                        <span>Enter PIN in top banner to unlock Bolt</span>
                       </div>
                     )}
                   </div>
@@ -620,54 +621,54 @@ export default function LuxuryCheckoutPage() {
                   {/* Option B: Standard Delivery Tab */}
                   <div
                     onClick={() => setDeliveryMode('standard')}
-                    className={`p-5 border-2 rounded-none cursor-pointer transition-all space-y-3 ${
+                    className={`p-4 border rounded-sm cursor-pointer transition-all space-y-2 ${
                       deliveryMode === 'standard'
-                        ? 'border-[#B91C1C] bg-[#1A1B1D] ring-1 ring-[#B91C1C] shadow-xl'
-                        : 'border-white/10 bg-[#262629] hover:border-white/20'
+                        ? 'border-[#14293a] bg-[#f8f8f8] ring-1 ring-[#14293a] shadow-xs'
+                        : 'border-[#d3d6db] bg-white hover:border-[#14293a]'
                     }`}
                   >
                     <div className="flex items-start justify-between">
-                      <div className="w-9 h-9 bg-[#262629] rounded-none flex items-center justify-center text-[#B91C1C] border border-white/10">
-                        <Truck className="w-4 h-4 text-[#B91C1C]" />
+                      <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#14293a] border border-[#d3d6db]">
+                        <Truck className="w-4 h-4 text-[#14293a]" />
                       </div>
                       <div className="text-right">
-                        <span className="font-mono text-sm text-white font-bold block">
+                        <span className="text-xs text-[#14293a] font-bold block">
                           ₹150.00
                         </span>
-                        <span className="text-[10px] uppercase font-mono text-neutral-400">
+                        <span className="text-[10px] text-[#6c7079]">
                           Shipping Fee
                         </span>
                       </div>
                     </div>
 
                     <div>
-                      <h3 className="text-sm font-bold uppercase text-white font-mono">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
                         Standard Delivery
                       </h3>
-                      <p className="text-xs text-neutral-400 font-light mt-1 leading-relaxed">
-                        Fully insured dispatch from atelier workshop to all PIN codes across India. Full cart value charged upfront.
+                      <p className="text-xs text-[#6c7079] mt-1 leading-relaxed">
+                        Fully insured dispatch to all PIN codes across India. Full cart value charged upfront.
                       </p>
                     </div>
 
-                    <div className="pt-2 text-[11px] font-mono text-neutral-400 flex items-center gap-1.5">
+                    <div className="pt-2 text-[11px] text-[#6c7079] flex items-center gap-1">
                       <MapPin className="w-3.5 h-3.5" />
-                      <span>Nationwide delivery in 3–5 business days</span>
+                      <span>Nationwide dispatch in 2–4 business days</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Bolt Max 5 Items Warning */}
                 {isOverBoltLimit && (
-                  <div className="p-4 bg-red-950/40 border border-[#B91C1C]/40 rounded-none text-red-200 text-xs font-mono flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-[#B91C1C] shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <strong className="block font-bold uppercase tracking-wider text-white">
-                        Bolt ⚡ Try-On Limit Exceeded ({itemCount} / 5 pieces in bag)
+                  <div className="p-4 bg-[#fef2f2] border border-[#fecaca] rounded-sm text-[#b91c1c] text-xs flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-[#b91c1c] shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <strong className="block font-bold">
+                        Bolt Try-On Limit Exceeded ({itemCount} / 5 pieces in bag)
                       </strong>
-                      <p className="text-[11px] leading-relaxed text-neutral-300">
-                        Our white-glove doorstep salon accommodates a maximum of <strong>5 garments</strong> per appointment to ensure focused, tailored fitting. Please return to your bag to adjust quantities, or switch to <strong>Standard Delivery</strong> above.
+                      <p className="text-[11px] text-[#991b1b]">
+                        Doorstep Salon accommodates a maximum of 5 garments per appointment. Please adjust bag quantities or select Standard Delivery above.
                       </p>
-                      <Link href="/cart" className="inline-block pt-1 underline font-bold text-white hover:text-[#B91C1C]">
+                      <Link href="/cart" className="inline-block pt-1 underline font-bold hover:text-[#14293a]">
                         Adjust Bag Quantities →
                       </Link>
                     </div>
@@ -676,50 +677,46 @@ export default function LuxuryCheckoutPage() {
 
                 {/* Time Slots Section (When Bolt is active) */}
                 {isBoltSelected && (
-                  <div className="border border-white/10 bg-[#1A1B1D] rounded-none p-5 sm:p-6 space-y-4 shadow-lg">
-                    <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="border border-[#d3d6db] bg-[#f8f8f8] rounded-sm p-4 sm:p-5 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between border-b border-[#d3d6db] pb-2.5">
                       <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-[#B91C1C]" />
-                        <h4 className="text-xs uppercase font-mono font-bold tracking-wider text-white">
-                          SELECT BOLT ⚡ TIME SLOT WINDOW
+                        <Calendar className="w-4 h-4 text-[#b91c1c]" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
+                          SELECT BOLT FITTING WINDOW
                         </h4>
                       </div>
-                      <span className="text-[11px] font-mono text-neutral-400">
-                        IST Indian Standard Time
+                      <span className="text-[11px] text-[#6c7079]">
+                        IST (Indian Standard Time)
                       </span>
                     </div>
 
                     {loadingSlots ? (
-                      <div className="py-8 text-center text-xs font-mono text-neutral-400">
+                      <div className="py-6 text-center text-xs text-[#6c7079]">
                         Loading available fitting slots...
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         {timeslots.map((slot) => {
                           const isSelected = selectedTimeslotId === slot.id
                           return (
                             <div
                               key={slot.id}
                               onClick={() => setSelectedTimeslotId(slot.id)}
-                              className={`p-3.5 border rounded-none text-left cursor-pointer transition-all ${
+                              className={`p-3 border rounded-sm text-left cursor-pointer transition-all ${
                                 isSelected
-                                  ? 'border-[#B91C1C] bg-[#262629] text-white shadow-md ring-1 ring-[#B91C1C]'
-                                  : 'border-white/10 bg-[#212121] hover:border-white/20 text-neutral-300'
+                                  ? 'border-[#b91c1c] bg-white text-[#14293a] shadow-xs ring-1 ring-[#b91c1c]'
+                                  : 'border-[#d3d6db] bg-white hover:border-[#14293a] text-[#14293a]'
                               }`}
                             >
                               <div className="flex items-center justify-between">
-                                <span className="text-xs font-mono font-bold tracking-tight">
+                                <span className="text-xs font-bold">
                                   {slot.label}
                                 </span>
                                 {isSelected && (
-                                  <span className="w-2 h-2 rounded-none bg-amber-400 shrink-0" />
+                                  <span className="w-2 h-2 rounded-full bg-[#b91c1c] shrink-0" />
                                 )}
                               </div>
-                              <span
-                                className={`text-[10px] font-mono block mt-1 ${
-                                  isSelected ? 'text-neutral-400' : 'text-neutral-500'
-                                }`}
-                              >
+                              <span className="text-[10px] text-[#6c7079] block mt-0.5">
                                 Capacity: {slot.max_daily_capacity} Doorstep Salons Daily
                               </span>
                             </div>
@@ -736,10 +733,10 @@ export default function LuxuryCheckoutPage() {
                     onClick={handleProceedToAddress}
                     disabled={isOverBoltLimit}
                     size="xl"
-                    style={{ color: '#ffffff', backgroundColor: '#09090b' }}
-                    className="btn-dark w-full h-14 hover:bg-[#27272A] dark:hover:bg-[#4A4B50] font-mono font-bold text-xs uppercase tracking-wider rounded-none border border-neutral-800 dark:border-white/15 shadow-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="w-full h-12 bg-[#14293a] hover:bg-[#b91c1c] text-white font-sans font-bold text-xs uppercase tracking-wider rounded-sm shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition-colors"
                   >
-                    <span style={{ color: '#ffffff' }}>CONTINUE TO SHIPPING ADDRESS</span> <ChevronRight className="w-4 h-4 text-[#B91C1C]" />
+                    <span>Continue to Shipping Address</span>
+                    <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>
               </motion.div>
@@ -750,32 +747,32 @@ export default function LuxuryCheckoutPage() {
             {/* ========================================================= */}
             {activeStep === 2 && (
               <motion.div
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 className="space-y-6"
               >
-                <div className="flex justify-between items-baseline border-b border-white/10 pb-3">
-                  <div className="space-y-1">
-                    <span className="text-xs uppercase tracking-[0.25em] text-neutral-400 font-mono font-semibold block">
+                <div className="flex justify-between items-baseline border-b border-[#d3d6db] pb-3">
+                  <div className="space-y-0.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#b91c1c] block">
                       STEP 02
                     </span>
-                    <h2 className="text-2xl sm:text-3xl font-extrabold uppercase tracking-tight text-white font-display">
-                      SHIPPING ADDRESS & DETAILS
+                    <h2 className="text-xl sm:text-2xl font-sans font-bold text-[#14293a]">
+                      SHIPPING ADDRESS &amp; DETAILS
                     </h2>
                   </div>
                   <button
                     onClick={() => setActiveStep(1)}
-                    className="text-xs uppercase font-mono font-semibold text-neutral-400 hover:text-white underline underline-offset-4 cursor-pointer"
+                    className="text-xs font-semibold text-[#b91c1c] hover:underline cursor-pointer"
                   >
                     Edit Delivery Method
                   </button>
                 </div>
 
-                <form onSubmit={handleSubmitOrder} className="space-y-5">
+                <form onSubmit={handleSubmitOrder} className="space-y-4">
                   {checkoutError && (
-                    <div className="p-3 bg-red-950/70 border border-red-500/60 text-red-200 text-xs font-mono flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                    <div className="p-3 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] text-xs flex items-center gap-2 rounded-sm">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
                       <span>{checkoutError}</span>
                     </div>
                   )}
@@ -783,15 +780,15 @@ export default function LuxuryCheckoutPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input
                       label="Full Name"
-                      variant="underline"
+                      autoComplete="name"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
                     />
                     <Input
-                      label="Email Address (Order Confirmation)"
+                      label="Email Address"
                       type="email"
-                      variant="underline"
+                      autoComplete="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       required
@@ -801,14 +798,15 @@ export default function LuxuryCheckoutPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input
                       label="Mobile Number (Courier Coordination)"
-                      variant="underline"
+                      autoComplete="tel"
+                      inputMode="tel"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       required
                     />
                     <Input
                       label="Country"
-                      variant="underline"
+                      autoComplete="country-name"
                       value={formData.country}
                       onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                       required
@@ -819,7 +817,7 @@ export default function LuxuryCheckoutPage() {
                     <div className="sm:col-span-2">
                       <Input
                         label="Street Address / House No. / Building"
-                        variant="underline"
+                        autoComplete="street-address"
                         value={formData.address}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                         required
@@ -828,7 +826,7 @@ export default function LuxuryCheckoutPage() {
                     <div>
                       <Input
                         label="Apt / Floor / Landmark"
-                        variant="underline"
+                        autoComplete="address-line2"
                         value={formData.suite}
                         onChange={(e) => setFormData({ ...formData, suite: e.target.value })}
                       />
@@ -839,7 +837,7 @@ export default function LuxuryCheckoutPage() {
                     <div>
                       <Input
                         label="City"
-                        variant="underline"
+                        autoComplete="address-level2"
                         value={formData.city}
                         onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                         required
@@ -848,7 +846,7 @@ export default function LuxuryCheckoutPage() {
                     <div>
                       <Input
                         label="State"
-                        variant="underline"
+                        autoComplete="address-level1"
                         value={formData.state}
                         onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                         required
@@ -857,7 +855,8 @@ export default function LuxuryCheckoutPage() {
                     <div>
                       <Input
                         label="PIN Code"
-                        variant="underline"
+                        autoComplete="postal-code"
+                        inputMode="numeric"
                         value={formData.postalCode}
                         onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
                         required
@@ -867,30 +866,29 @@ export default function LuxuryCheckoutPage() {
 
                   <Input
                     label="Delivery / Fitting Notes (Optional)"
-                    variant="underline"
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     placeholder="e.g. Ring private door bell or call security gate on arrival."
                   />
 
                   {/* Save Address Checkbox */}
-                  <div className="pt-2 flex items-center gap-3">
+                  <div className="pt-1 flex items-center gap-2">
                     <input
                       type="checkbox"
                       id="saveAddress"
                       checked={saveAddressToProfile}
                       onChange={(e) => setSaveAddressToProfile(e.target.checked)}
-                      className="w-4 h-4 accent-[#B91C1C] rounded-none cursor-pointer"
+                      className="w-4 h-4 accent-[#b91c1c] rounded-sm cursor-pointer"
                     />
-                    <label htmlFor="saveAddress" className="text-xs text-neutral-400 font-mono cursor-pointer">
+                    <label htmlFor="saveAddress" className="text-xs text-[#6c7079] cursor-pointer">
                       Save address to profile for one-click future checkouts
                     </label>
                   </div>
 
                   {/* Submit Order Button */}
                   <div className="pt-4 space-y-3">
-                    <div className="p-3 bg-[#1A1B1D] border border-white/10 rounded-none text-xs text-neutral-300 font-mono flex items-center gap-2.5">
-                      <Lock className="w-4 h-4 text-[#B91C1C] shrink-0" />
+                    <div className="p-3 bg-[#f8f8f8] border border-[#d3d6db] rounded-sm text-xs text-[#6c7079] flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-[#b91c1c] shrink-0" />
                       <span>
                         {isBoltSelected
                           ? 'Flat ₹99 convenience booking fee authorized today. Clothes charged only after your doorstep trial.'
@@ -901,16 +899,15 @@ export default function LuxuryCheckoutPage() {
                     <Button
                       type="submit"
                       size="xl"
-                      style={{ color: '#ffffff', backgroundColor: '#09090b' }}
-                      className="btn-dark w-full h-14 hover:bg-[#27272A] dark:hover:bg-[#4A4B50] font-mono font-bold text-xs uppercase tracking-[0.2em] rounded-none border border-neutral-800 dark:border-white/15 shadow-xl flex items-center justify-center gap-3 cursor-pointer transition-all"
+                      className="w-full h-12 bg-[#14293a] hover:bg-[#b91c1c] text-white font-sans font-bold text-xs uppercase tracking-wider rounded-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-colors"
                       isLoading={isSubmitting}
                     >
-                      <span style={{ color: '#ffffff' }}>
+                      <span>
                         {isBoltSelected
-                          ? `CONFIRM BOLT ⚡ TRY-ON • ₹${immediateTotal.toFixed(2)} INR`
-                          : `CONFIRM ORDER • ₹${immediateTotal.toFixed(2)} INR`}
+                          ? `Confirm Bolt Try-On Booking • ₹${Math.round(immediateTotal).toLocaleString('en-IN')}`
+                          : `Confirm Order • ₹${Math.round(immediateTotal).toLocaleString('en-IN')}`}
                       </span>
-                      <span className="w-1.5 h-1.5 rounded-none bg-[#B91C1C]" />
+                      <ArrowRight className="w-4 h-4" />
                     </Button>
                   </div>
                 </form>
@@ -921,23 +918,23 @@ export default function LuxuryCheckoutPage() {
           {/* ========================================================= */}
           {/* RIGHT COLUMN: ORDER SUMMARY SIDEBAR */}
           {/* ========================================================= */}
-          <div className="lg:col-span-5 space-y-6">
-            <div className="p-6 sm:p-8 border border-white/10 bg-[#1A1B1D] space-y-6 sticky top-28 shadow-xl rounded-none">
-              <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                <span className="text-xs uppercase tracking-[0.2em] text-neutral-400 font-mono font-bold">
-                  SALON SELECTION
+          <div className="lg:col-span-4 space-y-5">
+            <div className="p-6 border border-[#d3d6db] bg-[#f8f8f8] space-y-4 sticky top-28 shadow-sm rounded-sm">
+              <div className="flex justify-between items-center border-b border-[#d3d6db] pb-3">
+                <span className="text-xs uppercase tracking-wider font-bold text-[#14293a]">
+                  ORDER SUMMARY
                 </span>
-                <span className="text-xs font-mono text-neutral-400 font-bold">
-                  {items.length} {items.length === 1 ? 'PIECE' : 'PIECES'}
-                  {isBoltSelected && ' (MAX 5)'}
+                <span className="text-xs text-[#6c7079]">
+                  {items.length} {items.length === 1 ? 'item' : 'items'}
+                  {isBoltSelected && ' (max 5)'}
                 </span>
               </div>
 
-              {/* Item list */}
-              <div className="space-y-4 divide-y divide-white/10 max-h-72 overflow-y-auto pr-1">
+              {/* Items list */}
+              <div className="space-y-3 divide-y divide-[#e5e7eb] max-h-64 overflow-y-auto pr-1 filter-card-scroll">
                 {items.map((item) => (
-                  <div key={item.id} className="pt-3 first:pt-0 flex gap-4 items-center">
-                    <div className="relative h-16 w-14 overflow-hidden bg-[#262629] shrink-0 border border-white/10 rounded-none">
+                  <div key={item.id} className="pt-2.5 first:pt-0 flex gap-3 items-center">
+                    <div className="relative h-14 w-12 overflow-hidden bg-white shrink-0 border border-[#d3d6db] rounded-sm">
                       <Image
                         src={item.image}
                         alt={item.title}
@@ -946,89 +943,89 @@ export default function LuxuryCheckoutPage() {
                       />
                     </div>
                     <div className="flex-1 min-w-0 space-y-0.5">
-                      <p className="text-xs font-bold uppercase text-white truncate font-mono">
+                      <p className="text-xs font-bold text-[#14293a] truncate">
                         {item.title}
                       </p>
-                      <div className="flex items-center gap-2 text-[10px] uppercase font-mono text-neutral-400">
-                        <span>QTY: {item.quantity}</span>
+                      <div className="flex items-center gap-2 text-[10px] text-[#6c7079]">
+                        <span>Qty: {item.quantity}</span>
                         {item.size && (
                           <span>
-                            • SIZE: <span className="text-[#B91C1C] font-bold">{item.size}</span>
+                            • Size: <strong className="text-[#14293a]">{item.size}</strong>
                           </span>
                         )}
                       </div>
                     </div>
-                    <span className="font-mono font-bold text-xs text-white shrink-0">
+                    <span className="text-xs font-bold text-[#14293a] shrink-0">
                       ₹{(item.price * item.quantity).toLocaleString('en-IN')}
                     </span>
                   </div>
                 ))}
               </div>
 
-              {/* Selected Shipping Method Badge */}
-              <div className="p-3 bg-[#262629] border border-white/10 rounded-none flex justify-between items-center text-xs font-mono">
-                <span className="font-bold text-white uppercase flex items-center gap-1.5">
+              {/* Selected Delivery Badge */}
+              <div className="p-3 bg-white border border-[#d3d6db] rounded-sm flex justify-between items-center text-xs">
+                <span className="font-bold text-[#14293a] flex items-center gap-1.5">
                   {isBoltSelected ? (
                     <>
-                      <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> Bolt ⚡ Doorstep Try-On
+                      <Zap className="w-3.5 h-3.5 fill-[#b91c1c] text-[#b91c1c]" /> Bolt Try-On Service
                     </>
                   ) : (
                     <>
-                      <Truck className="w-3.5 h-3.5 text-[#B91C1C]" /> Standard Insured Delivery
+                      <Truck className="w-3.5 h-3.5 text-[#14293a]" /> Standard Delivery
                     </>
                   )}
                 </span>
-                <span className="font-mono text-xs font-bold text-white">
+                <span className="font-bold text-[#14293a]">
                   {isBoltSelected ? '₹99.00' : '₹150.00'}
                 </span>
               </div>
 
-              {/* Calculations Breakdown */}
-              <div className="border-t border-white/10 pt-4 space-y-2 text-xs font-mono">
-                <div className="flex justify-between text-neutral-400">
-                  <span>Garment Value</span>
-                  <span className="font-bold text-white">₹{subtotal.toLocaleString('en-IN')}</span>
+              {/* Price Calculations Breakdown */}
+              <div className="border-t border-[#d3d6db] pt-3 space-y-2 text-xs">
+                <div className="flex justify-between text-[#6c7079]">
+                  <span>Garments Subtotal</span>
+                  <span className="font-bold text-[#14293a]">₹{subtotal.toLocaleString('en-IN')}</span>
                 </div>
 
                 {isBoltSelected ? (
                   <>
-                    <div className="flex justify-between text-amber-300 bg-amber-950/30 p-2 border border-amber-500/20 rounded-none">
+                    <div className="flex justify-between text-[#b91c1c] bg-[#fef2f2] p-2 border border-[#fecaca] rounded-sm">
                       <span className="flex items-center gap-1">
-                        <Sparkles className="w-3 h-3 text-amber-400" />
+                        <Sparkles className="w-3 h-3 text-[#b91c1c]" />
                         Payable after Try-On:
                       </span>
-                      <span className="font-bold font-mono">₹{subtotal.toLocaleString('en-IN')}</span>
+                      <span className="font-bold">₹{subtotal.toLocaleString('en-IN')}</span>
                     </div>
-                    <div className="flex justify-between text-neutral-400">
-                      <span>Doorstep Salon Convenience Fee</span>
-                      <span className="font-bold text-white">₹99.00</span>
+                    <div className="flex justify-between text-[#6c7079]">
+                      <span>Bolt Convenience Hold</span>
+                      <span className="font-bold text-[#14293a]">₹99.00</span>
                     </div>
-                    <div className="border-t border-white/10 pt-3 flex justify-between text-base font-bold text-white">
+                    <div className="border-t border-[#d3d6db] pt-3 flex justify-between text-base font-bold text-[#14293a]">
                       <span>Immediate Checkout Due</span>
-                      <span className="text-lg font-mono text-white">₹99.00 INR</span>
+                      <span className="text-lg text-[#b91c1c]">₹99.00</span>
                     </div>
                   </>
                 ) : (
                   <>
-                    <div className="flex justify-between text-neutral-400">
+                    <div className="flex justify-between text-[#6c7079]">
                       <span>Shipping Dispatch</span>
-                      <span className="font-bold text-white">₹150.00</span>
+                      <span className="font-bold tabular-nums text-[#14293a]">₹150</span>
                     </div>
-                    <div className="flex justify-between text-neutral-400">
+                    <div className="flex justify-between text-[#6c7079]">
                       <span>Estimated Tax (8%)</span>
-                      <span className="font-bold text-white">₹{tax.toFixed(2)}</span>
+                      <span className="font-bold tabular-nums text-[#14293a]">₹{Math.round(tax).toLocaleString('en-IN')}</span>
                     </div>
-                    <div className="border-t border-white/10 pt-3 flex justify-between text-base font-bold text-white">
+                    <div className="border-t border-[#d3d6db] pt-3 flex justify-between text-base font-bold text-[#14293a]">
                       <span>Total Due Now</span>
-                      <span className="text-lg font-mono text-white">₹{immediateTotal.toFixed(2)} INR</span>
+                      <span className="text-lg tabular-nums">₹{Math.round(immediateTotal).toLocaleString('en-IN')}</span>
                     </div>
                   </>
                 )}
               </div>
 
-              <div className="pt-2 flex items-center gap-2 text-[11px] uppercase tracking-wider text-neutral-400 font-mono justify-center">
-                <ShieldCheck className="w-4 h-4 text-[#B91C1C]" />
-                <span>Complimentary Returns & Doorstep Swaps</span>
+              <div className="pt-2 flex items-center gap-1.5 text-[11px] text-[#6c7079] justify-center">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#b91c1c]" />
+                <span>Complimentary Returns &amp; Doorstep Swaps</span>
               </div>
             </div>
           </div>

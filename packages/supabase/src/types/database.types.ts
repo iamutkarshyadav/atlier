@@ -908,6 +908,7 @@ export interface Database {
       categories: {
         Row: {
           id: string
+          parent_id: string | null
           name: string
           slug: string
           description: string | null
@@ -918,6 +919,7 @@ export interface Database {
         }
         Insert: {
           id?: string
+          parent_id?: string | null
           name: string
           slug: string
           description?: string | null
@@ -928,6 +930,7 @@ export interface Database {
         }
         Update: {
           id?: string
+          parent_id?: string | null
           name?: string
           slug?: string
           description?: string | null

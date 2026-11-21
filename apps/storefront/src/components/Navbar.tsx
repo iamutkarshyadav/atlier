@@ -1,8 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useRouter, usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -13,13 +12,28 @@ import {
   LogOut,
   Package,
   Zap,
+  ChevronDown,
+  User,
+  Menu,
+  MapPin,
+  Heart,
 } from 'lucide-react'
 import { useHydratedCart } from '../store/useCartStore'
 import { useHydratedBolt } from '../store/useBoltStore'
+import { useHydratedWishlist, useWishlistStore } from '../store/useWishlistStore'
+import { PincodeModal } from './PincodeModal'
+import { SearchModal } from './SearchModal'
 import { createBrowserClient } from '@repo/supabase/browser'
+import {
+  getCategories,
+  DEFAULT_CATEGORIES,
+  DEFAULT_PRODUCTS,
+  type Category,
+  type Product,
+} from '@repo/supabase/utils'
 
 function formatNameFromEmail(email: string): string {
-  const localPart = email.split('@')[0] || 'Gentleman'
+  const localPart = email.split('@')[0] || 'Account'
   return localPart
     .split(/[._-]/)
     .filter(Boolean)
@@ -27,27 +41,129 @@ function formatNameFromEmail(email: string): string {
     .join(' ')
 }
 
-export function Navbar() {
+export interface NavbarProps {
+  initialCategories?: Category[]
+}
+
+export function Navbar({ initialCategories = DEFAULT_CATEGORIES }: NavbarProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const isHome = pathname === '/'
 
-  const [scrolled, setScrolled] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [categories, setCategories] = useState<Category[]>(initialCategories)
+  const [activeMegaMenu, setActiveMegaMenu] = useState<string | null>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [expandedMobileCategory, setExpandedMobileCategory] = useState<string | null>(null)
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [userName, setUserName] = useState<string | null>(null)
-  const [isMenuHovered, setIsMenuHovered] = useState(false)
-  const [hoveredNavIndex, setHoveredNavIndex] = useState<number>(0)
+  const [isPincodeModalOpen, setIsPincodeModalOpen] = useState(false)
+  const [latestProducts, setLatestProducts] = useState<Product[]>(DEFAULT_PRODUCTS.slice(0, 2))
 
-  const searchInputRef = useRef<HTMLInputElement>(null)
+  const isBoltPage = pathname?.startsWith('/bolt')
+
+  const megaMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const userDropdownRef = useRef<HTMLDivElement>(null)
+  const categoryNavRef = useRef<HTMLElement>(null)
+
   const { itemCount } = useHydratedCart()
-  const { city: boltCity } = useHydratedBolt()
+  const { city: boltCity, pincode } = useHydratedBolt()
+  const { itemCount: wishlistCount } = useHydratedWishlist()
+  const clearWishlist = useWishlistStore((s) => s.clearWishlist)
+  const syncGuestWishlist = useWishlistStore((s) => s.syncGuestWishlist)
 
-  // Lock body scroll when full-screen menu is open
+  // Global keyboard shortcut for search modal: Cmd/Ctrl + K
   useEffect(() => {
-    if (menuOpen) {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setIsSearchModalOpen((prev) => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Re-fetch categories on mount to keep navigation synced with real-time Admin updates
+  useEffect(() => {
+    const supabase = createBrowserClient()
+    getCategories(supabase)
+      .then((cats) => {
+        if (cats && cats.length > 0) setCategories(cats)
+      })
+      .catch(() => {})
+  }, [])
+
+  // Fetch latest products from Supabase for New Arrivals live preview
+  useEffect(() => {
+    async function loadLatestProducts() {
+      try {
+        const supabase = createBrowserClient()
+        const { data } = await supabase
+          .from('products')
+          .select('*')
+          .eq('is_archived', false)
+          .order('created_at', { ascending: false })
+          .limit(2)
+
+        if (data && data.length > 0) {
+          setLatestProducts(
+            data.map((row: any) => ({
+              id: row.id,
+              title: row.title,
+              description: row.description,
+              price: Number(row.price),
+              stock: row.stock,
+              image_url: row.image_url,
+              category_id: row.category_id,
+              category: row.category || 'Apparel',
+              material: row.material,
+              edition: row.edition,
+              is_archived: row.is_archived,
+              created_at: row.created_at,
+              updated_at: row.updated_at,
+            }))
+          )
+        }
+      } catch {
+        // Fallback already populated via DEFAULT_PRODUCTS
+      }
+    }
+    loadLatestProducts()
+  }, [])
+
+  // Build memoized category tree: parents without parent_id, children grouped by parent_id
+  const { parentCategories, subcategoriesMap } = useMemo(() => {
+    const parents = categories
+      .filter((c) => !c.parent_id)
+      .filter((c) => {
+        const lower = c.name.toLowerCase().trim()
+        return !lower.startsWith('test') && lower !== 'new category'
+      })
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+    const subMap: Record<string, Category[]> = {}
+    categories.forEach((c) => {
+      if (c.parent_id) {
+        if (!subMap[c.parent_id]) subMap[c.parent_id] = []
+        subMap[c.parent_id].push(c)
+      }
+    })
+    Object.keys(subMap).forEach((pId) => {
+      subMap[pId].sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+    })
+    return { parentCategories: parents, subcategoriesMap: subMap }
+  }, [categories])
+
+  // Close mobile menu and mega-menu on navigation
+  useEffect(() => {
+    setMobileMenuOpen(false)
+    setActiveMegaMenu(null)
+    setUserDropdownOpen(false)
+  }, [pathname])
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
@@ -55,58 +171,33 @@ export function Navbar() {
     return () => {
       document.body.style.overflow = ''
     }
-  }, [menuOpen])
+  }, [mobileMenuOpen])
 
-  // Track scroll position for subtle backdrop when scrolling past hero
+  // Click outside & Escape listener for dropdowns and category popover
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 40)
-    }
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
-  // Auto focus search input when search modal opens
-  useEffect(() => {
-    if (searchOpen && searchInputRef.current) {
-      searchInputRef.current.focus()
-    }
-  }, [searchOpen])
-
-  // Handle escape key to close menu or search
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setMenuOpen(false)
-        setSearchOpen(false)
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target as Node)) {
+        setUserDropdownOpen(false)
+      }
+      if (categoryNavRef.current && !categoryNavRef.current.contains(e.target as Node)) {
+        setActiveMegaMenu(null)
       }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
-
-  // One-time cleanup of legacy un-namespaced auth cookies on localhost so storefront stays in clean patron/guest state
-  useEffect(() => {
-    if (typeof document !== 'undefined') {
-      try {
-        const cookies = document.cookie.split(';')
-        for (const c of cookies) {
-          const cookieName = c.split('=')[0].trim()
-          if (
-            cookieName.startsWith('sb-aavyohkylcguhrmblrcx') ||
-            cookieName.startsWith('sb-admin-session')
-          ) {
-            document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
-            if (window.location.hostname) {
-              document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=${window.location.hostname}`
-            }
-          }
-        }
-      } catch {}
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveMegaMenu(null)
+        setUserDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
     }
   }, [])
 
-  // Resolve user session
+  // Resolve user session from Supabase
   useEffect(() => {
     const supabase = createBrowserClient()
 
@@ -116,6 +207,9 @@ export function Navbar() {
         setUserName(null)
         return
       }
+
+      // Sync any guest wishlist items upon successful patron login
+      syncGuestWishlist()
 
       setUserEmail(authUser.email || null)
 
@@ -167,457 +261,738 @@ export function Navbar() {
     try {
       const supabase = createBrowserClient()
       await supabase.auth.signOut()
+      clearWishlist()
       setUserEmail(null)
       setUserName(null)
-      setMenuOpen(false)
+      setUserDropdownOpen(false)
       router.refresh()
     } catch {
       // Continue
     }
   }
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!searchQuery.trim()) return
-    router.push(`/shop?category=${encodeURIComponent(searchQuery.trim())}`)
-    setSearchOpen(false)
-    setSearchQuery('')
+  const handleMouseEnterMenu = (title: string) => {
+    if (megaMenuTimeoutRef.current) {
+      clearTimeout(megaMenuTimeoutRef.current)
+    }
+    setActiveMegaMenu(title)
   }
 
-  // Live cart count
-  const displayCartBadge = itemCount
-
-  const navItems = [
-    {
-      num: '01',
-      label: 'The Atelier Home',
-      href: '/',
-      subtitle: 'Flagship split-screen architecture & maison identity',
-      image: '/images/hero-woman.jpg',
-      tagline: 'HAUTE COUTURE SILHOUETTE',
-      provenance: 'Single-origin unbleached silk & bespoke tailoring',
-    },
-    {
-      num: '02',
-      label: 'Shop Collections',
-      href: '/shop',
-      subtitle: 'Limited 480 GSM loopback cotton & creator apparel',
-      image: '/images/prod1-primary.jpg',
-      tagline: 'PERMANENT COLLECTION',
-      provenance: '480 GSM Loopback French Terry, Kojima raw selvedge',
-    },
-    {
-      num: '03',
-      label: 'Couture & Tailoring',
-      href: '/shop?category=Outerwear+%26+Jackets',
-      subtitle: 'Architectural outerwear & structured cuts',
-      image: '/images/hero-gentleman.jpg',
-      tagline: 'BESPOKE PATRON ATELIER',
-      provenance: 'Brutalist silhouette, zero synthetic blending',
-    },
-    {
-      num: '04',
-      label: 'Bolt ⚡ Try-On Salon',
-      href: '/shop?try_on=true',
-      subtitle: '45-minute white-glove doorstep private fitting',
-      image: '/images/auth-editorial.jpg',
-      tagline: 'DOORSTEP FITTING PROTOCOL',
-      provenance: 'Available in Bengaluru, Mumbai, Delhi NCR & Hyderabad',
-    },
-    {
-      num: '05',
-      label: 'About Us',
-      href: '/about',
-      subtitle: 'Wakayama loopwheel & Kojima shuttle looms',
-      image: '/images/prod3-macro.jpg',
-      tagline: 'HONEST TEXTILE MONOLITH',
-      provenance: 'Preserving vintage slow-spinning circular loom traditions',
-    },
-    {
-      num: '06',
-      label: 'Shopping Bag',
-      href: '/cart',
-      subtitle: `${itemCount} curated garment${itemCount === 1 ? '' : 's'} reserved in bag`,
-      badge: itemCount > 0 ? itemCount : undefined,
-      image: '/images/prod2-primary.jpg',
-      tagline: 'CLIENT FITTING MANIFEST',
-      provenance: 'Insured trial dispatch & instant courier hand-off',
-    },
-    ...(userName
-      ? [
-          {
-            num: '07',
-            label: 'Patron Orders',
-            href: '/orders',
-            subtitle: 'Live dispatch radar & salon settlements',
-            image: '/images/prod3-profile.jpg',
-            tagline: 'REAL-TIME COURIER RADAR',
-            provenance: 'Synchronized live with metropolitan fulfillment salons',
-          },
-        ]
-      : []),
-  ]
-
-  const activeItem = navItems[hoveredNavIndex] || navItems[0]!
+  const handleMouseLeaveMenu = () => {
+    megaMenuTimeoutRef.current = setTimeout(() => {
+      setActiveMegaMenu(null)
+    }, 180)
+  }
 
   return (
-    <>
+    <header className="sticky top-0 z-50 w-full bg-white text-[#14293a] shadow-[0_1px_3px_0_rgba(0,0,0,0.06)] border-b border-[#d3d6db]">
       {/* ========================================================= */}
-      {/* SOVEREIGN TOP NAVBAR: FIXED ON HOME, STICKY ON INNER PAGES */}
+      {/* TIER 1: E-COMMERCE ANNOUNCEMENT STRIP                    */}
       {/* ========================================================= */}
-      <header
-        className={`sovereign-navbar ${
-          isHome ? 'fixed top-0 left-0 right-0' : 'sticky top-0'
-        } z-50 transition-all duration-300 ${
-          scrolled ? 'py-2.5 sm:py-3 shadow-md' : 'py-3 sm:py-3.5 shadow-sm'
-        }`}
-      >
-        <div className="w-full px-5 sm:px-8 lg:px-12 flex items-center justify-between">
-          {/* Left: Elegant Script "Tg" Marque & Title */}
-          <Link
-            href="/"
-            className="group flex items-center gap-2.5 sm:gap-3 select-none cursor-pointer"
-            aria-label="Tg • The Grace Atelier Home"
+      <div className="bg-[#f8f8f8] border-b border-[#e5e7eb] py-1.5 px-4 text-center text-xs tracking-wider font-sans font-medium text-[#14293a] flex flex-wrap items-center justify-center gap-2">
+        <span className="inline-flex items-center gap-1.5 text-[#b91c1c] font-semibold">
+          <Zap className="w-3 h-3 fill-[#b91c1c] text-[#b91c1c]" />
+          BOLT 45-MIN DOORSTEP TRY-ON
+        </span>
+        <span className="text-[#6c7079] hidden sm:inline">|</span>
+        <span className="text-[#6c7079] hidden sm:inline">
+          Try up to 5 pieces at home before buying • Free express delivery on orders over ₹1,999
+        </span>
+        <button
+          type="button"
+          onClick={() => setIsPincodeModalOpen(true)}
+          className="inline-flex items-center gap-1 text-[11px] bg-white border border-[#d3d6db] hover:border-[#14293a] px-2 py-0.5 rounded-full text-[#14293a] transition-colors cursor-pointer"
+        >
+          <MapPin className="w-2.5 h-2.5 text-[#b91c1c]" />
+          <span>{pincode ? `Deliver to: ${pincode}${boltCity ? ` (${boltCity})` : ''}` : 'Select Delivery PIN'}</span>
+        </button>
+      </div>
+
+      {/* ========================================================= */}
+      {/* TIER 2: PRIMARY HEADER (LOGO, CENTERED SEARCH, ACTIONS)   */}
+      {/* ========================================================= */}
+      <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4 sm:gap-6">
+        {/* Left: Mobile Hamburger & Logo */}
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="lg:hidden p-1.5 -ml-1.5 text-[#14293a] hover:bg-[#f1f1f1] rounded transition-colors"
+            aria-label="Open Navigation Menu"
           >
-            <span className="font-script text-3xl sm:text-4xl lg:text-[40px] navbar-brand-text font-normal tracking-wide transition-opacity group-hover:opacity-85 leading-none">
-              Tg
+            <Menu className="w-6 h-6" />
+          </button>
+
+          <Link href="/" className="flex flex-col group">
+            <span className="font-sans text-2xl sm:text-3xl font-black tracking-tight text-[#14293a] group-hover:text-[#b91c1c] transition-colors leading-none">
+              MAISON TG
             </span>
-            <div className="flex flex-col border-l border-neutral-300 dark:border-white/15 pl-2.5 sm:pl-3">
-              <span className="font-sans font-extrabold text-[10px] sm:text-[11px] uppercase tracking-[0.28em] navbar-brand-text leading-tight">
-                THE GRACE ATELIER
-              </span>
-              <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-neutral-500 dark:text-neutral-400 leading-tight">
-                MAISON HAUTE COUTURE
-              </span>
-            </div>
+            <span className="text-[9px] font-sans tracking-[0.25em] uppercase text-[#6c7079] mt-0.5 font-semibold">
+              ONLINE STORE
+            </span>
           </Link>
-
-          {/* Center: Haute Couture Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-7 xl:gap-9 font-sans text-[11px] uppercase tracking-[0.22em] font-bold">
-            <Link
-              href="/shop"
-              className="navbar-link transition-colors cursor-pointer py-1 hover:text-[#B91C1C] dark:hover:text-red-400"
-            >
-              Collections
-            </Link>
-            <Link
-              href="/shop?category=Outerwear+%26+Jackets"
-              className="navbar-link transition-colors cursor-pointer py-1 hover:text-[#B91C1C] dark:hover:text-red-400"
-            >
-              Couture
-            </Link>
-            <Link
-              href="/shop?try_on=true"
-              className="navbar-link transition-colors cursor-pointer py-1 flex items-center gap-1.5 hover:text-amber-500"
-            >
-              <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
-              <span>Bolt ⚡ Try-On</span>
-            </Link>
-            <Link
-              href="/about"
-              className="navbar-link transition-colors cursor-pointer py-1 hover:text-[#B91C1C] dark:hover:text-red-400"
-            >
-              About Us
-            </Link>
-          </nav>
-
-          {/* Right: Cart, Search, and Bespoke Asymmetric Hamburger Menu */}
-          <div className="flex items-center gap-2.5 sm:gap-4">
-
-            {/* 1. Shopping Cart Icon with Live Badge */}
-            <Link
-              href="/cart"
-              className="navbar-icon-btn relative p-1.5 transition-colors cursor-pointer"
-              aria-label="Shopping Cart"
-            >
-              <ShoppingBag className="w-5 h-5 sm:w-5.5 sm:h-5.5 stroke-[1.8]" />
-              {displayCartBadge > 0 && (
-                <span className="absolute -top-1 -right-1.5 bg-[#B91C1C] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center leading-none shadow-md">
-                  {displayCartBadge}
-                </span>
-              )}
-            </Link>
-
-            {/* 2. Search Icon */}
-            <button
-              onClick={() => setSearchOpen(!searchOpen)}
-              className="navbar-icon-btn p-1.5 transition-colors cursor-pointer"
-              aria-label="Search Collection"
-            >
-              <Search className="w-5 h-5 sm:w-5.5 sm:h-5.5 stroke-[1.8]" />
-            </button>
-
-            {/* 3. Bespoke Asymmetric Morphing Menu Button */}
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              onMouseEnter={() => setIsMenuHovered(true)}
-              onMouseLeave={() => setIsMenuHovered(false)}
-              className="navbar-icon-btn p-2 transition-colors cursor-pointer relative w-9 h-9 flex flex-col justify-center items-end gap-1.5 group"
-              aria-label={menuOpen ? 'Close Menu' : 'Open Bespoke Menu'}
-            >
-              <span
-                className={`navbar-hamburger-line h-[1.5px] transition-all duration-300 ease-out origin-center ${
-                  menuOpen
-                    ? 'w-6 rotate-45 translate-y-[4px] !bg-red-500'
-                    : 'w-6 group-hover:!bg-red-500'
-                }`}
-              />
-              <span
-                className={`navbar-hamburger-line h-[1.5px] transition-all duration-300 ease-out origin-center ${
-                  menuOpen
-                    ? 'w-6 -rotate-45 -translate-y-[3.5px] !bg-red-500'
-                    : isMenuHovered
-                    ? 'w-6 !bg-red-500'
-                    : 'w-4'
-                }`}
-              />
-            </button>
-          </div>
         </div>
 
-        {/* Dropdown / Inline Search Bar */}
-        {searchOpen && (
-          <div className="w-full px-6 sm:px-10 lg:px-14 py-3 bg-[#18181a]/95 backdrop-blur-md border-t border-b border-white/10 animate-in fade-in slide-in-from-top-2 duration-200">
-            <form
-              onSubmit={handleSearchSubmit}
-              className="max-w-2xl mx-auto flex items-center gap-3"
-            >
-              <Search className="w-4 h-4 text-neutral-400 shrink-0" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search luxury atelier, suiting, selvedge denim, 480 GSM hoodies..."
-                className="w-full bg-transparent text-sm text-white placeholder-neutral-500 focus:outline-none font-sans"
-              />
-              <button
-                type="submit"
-                style={{ color: '#ffffff', backgroundColor: '#09090b' }}
-                className="btn-dark px-4 py-1.5 hover:bg-[#27272A] dark:hover:bg-[#4A4B50] text-xs font-mono font-semibold uppercase transition-colors shrink-0 rounded-none border border-neutral-700 dark:border-white/15 cursor-pointer shadow-sm"
+        {/* Center: Balanced Proportionate Search Bar (Clicking opens native SearchModal) */}
+        <div className="hidden md:flex flex-1 max-w-md mx-4 lg:mx-8">
+          <button
+            type="button"
+            onClick={() => setIsSearchModalOpen(true)}
+            className="w-full flex items-center bg-[#f8f8f8] hover:bg-white border border-[#d3d6db] hover:border-[#14293a] rounded-sm px-3.5 py-2 text-xs text-[#6c7079] hover:text-[#14293a] transition-all shadow-2xs group cursor-pointer text-left"
+            aria-label="Search products"
+          >
+            <Search className="w-4 h-4 text-[#6c7079] group-hover:text-[#14293a] mr-2.5 shrink-0 transition-colors" />
+            <span className="font-sans text-xs text-[#8a909a] group-hover:text-[#6c7079] transition-colors">
+              Search for hoodies, t-shirts, jackets, denim...
+            </span>
+          </button>
+        </div>
+
+        {/* Right Utility Group (Bolt Badge, Account, Wishlist, Cart) */}
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          {/* Mobile search trigger button */}
+          <button
+            type="button"
+            onClick={() => setIsSearchModalOpen(true)}
+            className="md:hidden p-2 text-[#14293a] hover:bg-[#f1f1f1] rounded-sm transition-colors cursor-pointer"
+            aria-label="Search products"
+          >
+            <Search className="w-5 h-5 text-[#14293a]" />
+          </button>
+
+          {/* Bolt Try-On Service Pill (Single sleek branded badge, zero clunky toggle) */}
+          <Link
+            href="/bolt"
+            className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-bold uppercase tracking-wider transition-all cursor-pointer border ${
+              isBoltPage
+                ? 'bg-[#14293a] text-white border-[#14293a] shadow-xs'
+                : 'border-[#b91c1c] text-[#b91c1c] hover:bg-[#b91c1c] hover:text-white'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5 fill-current" />
+            <span>Bolt Try-On</span>
+          </Link>
+
+          {/* Account dropdown */}
+          <div className="relative" ref={userDropdownRef}>
+            {userEmail ? (
+              <div>
+                <button
+                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  className="flex items-center gap-1.5 text-xs font-sans font-medium text-[#14293a] hover:text-[#b91c1c] transition-colors py-1 cursor-pointer"
+                >
+                  <User className="w-4 h-4 text-[#6c7079]" />
+                  <span className="hidden sm:inline max-w-[120px] truncate">{userName || 'Account'}</span>
+                  <ChevronDown className="w-3 h-3 text-[#6c7079]" />
+                </button>
+
+                <AnimatePresence>
+                  {userDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      className="absolute right-0 mt-2 w-52 bg-white border border-[#d3d6db] shadow-xl rounded-sm py-2 z-50 text-xs font-sans"
+                    >
+                      <div className="px-4 py-2 border-b border-[#e5e7eb]">
+                        <p className="font-semibold text-[#14293a] truncate">{userName || 'Account'}</p>
+                        <p className="text-[11px] text-[#6c7079] truncate">{userEmail}</p>
+                      </div>
+                      <Link
+                        href="/orders"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-[#14293a] hover:bg-[#f8f8f8] transition-colors"
+                      >
+                        <Package className="w-3.5 h-3.5 text-[#6c7079]" />
+                        <span>My Orders</span>
+                      </Link>
+                      <Link
+                        href="/wishlist"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center justify-between px-4 py-2 text-[#14293a] hover:bg-[#f8f8f8] transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Heart className="w-3.5 h-3.5 text-[#6c7079]" />
+                          <span>My Wishlist</span>
+                        </div>
+                        {wishlistCount > 0 && (
+                          <span className="text-[10px] font-bold bg-[#f1f1f1] text-[#14293a] px-1.5 py-0.5 rounded-full">
+                            {wishlistCount}
+                          </span>
+                        )}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserDropdownOpen(false)
+                          setIsPincodeModalOpen(true)
+                        }}
+                        className="w-full flex items-center justify-between px-4 py-2 text-[#14293a] hover:bg-[#f8f8f8] transition-colors cursor-pointer text-left"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <MapPin className="w-3.5 h-3.5 text-[#6c7079] shrink-0" />
+                          <span className="truncate">
+                            {pincode ? `PIN: ${pincode}` : 'Delivery Pincode'}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-[#14293a] font-bold underline ml-1 shrink-0">
+                          {pincode ? 'Change' : 'Set'}
+                        </span>
+                      </button>
+                      <div className="border-t border-[#e5e7eb] my-1" />
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-left text-[#b91c1c] hover:bg-[#fef2f2] transition-colors cursor-pointer font-medium"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Sign Out</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="flex items-center gap-1.5 text-xs font-sans font-semibold text-[#14293a] hover:text-[#b91c1c] transition-colors py-1"
               >
-                <span style={{ color: '#ffffff' }}>Search</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSearchOpen(false)}
-                className="text-neutral-400 hover:text-white p-1 cursor-pointer"
-                aria-label="Close search"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </form>
+                <User className="w-4 h-4 text-[#6c7079]" />
+                <span className="hidden sm:inline">Sign In / Join</span>
+              </Link>
+            )}
           </div>
-        )}
-      </header>
+
+          {/* Wishlist Icon & Badge */}
+          <Link
+            href="/wishlist"
+            className="flex items-center gap-1 text-[#14293a] hover:text-[#b91c1c] transition-colors py-1 relative"
+            aria-label="Wishlist"
+          >
+            <div className="relative">
+              <Heart className="w-5 h-5" />
+              {wishlistCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-[#b91c1c] text-white font-sans text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center leading-none">
+                  {wishlistCount}
+                </span>
+              )}
+            </div>
+            <span className="hidden md:inline font-sans text-xs font-semibold ml-1">Wishlist</span>
+          </Link>
+
+          {/* Cart Icon & Badge */}
+          <Link
+            href="/cart"
+            className="flex items-center gap-1 text-[#14293a] hover:text-[#b91c1c] transition-colors py-1 relative"
+            aria-label="Shopping Cart"
+          >
+            <div className="relative">
+              <ShoppingBag className="w-5 h-5" />
+              {itemCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-[#b91c1c] text-white font-sans text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center leading-none">
+                  {itemCount}
+                </span>
+              )}
+            </div>
+            <span className="hidden md:inline font-sans text-xs font-semibold ml-1">Cart</span>
+          </Link>
+        </div>
+      </div>
 
       {/* ========================================================= */}
-      {/* FULL-SCREEN HAUTE COUTURE ATELIER NAVIGATION OVERLAY      */}
+      {/* TIER 3: DEDICATED CATEGORY BAR (MENUS ONLY)               */}
+      {/* ========================================================= */}
+      <nav
+        ref={categoryNavRef}
+        className="hidden lg:block border-t border-[#e5e7eb] bg-white relative"
+        onMouseLeave={handleMouseLeaveMenu}
+      >
+        <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8">
+          <ul className="flex items-center justify-start gap-8">
+            {/* Item 1: NEW ARRIVALS */}
+            <li
+              onMouseEnter={() => handleMouseEnterMenu('new-arrivals')}
+              className="relative shrink-0"
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveMegaMenu((prev) => (prev === 'new-arrivals' ? null : 'new-arrivals'))
+                }}
+                className={`inline-flex items-center gap-1.5 py-3 text-xs font-sans font-bold tracking-wider uppercase whitespace-nowrap transition-colors border-b-2 cursor-pointer ${
+                  activeMegaMenu === 'new-arrivals'
+                    ? 'text-[#b91c1c] border-[#b91c1c]'
+                    : 'text-[#14293a] border-transparent hover:text-[#b91c1c] hover:border-[#b91c1c]'
+                }`}
+                aria-expanded={activeMegaMenu === 'new-arrivals'}
+                aria-haspopup="true"
+              >
+                <span>NEW ARRIVALS</span>
+                <span className="text-[9px] px-1.5 py-0.2 bg-[#b91c1c] text-white rounded font-sans tracking-tight">
+                  NEW
+                </span>
+                <ChevronDown
+                  className={`w-3 h-3 text-[#6c7079] transition-transform duration-200 ${
+                    activeMegaMenu === 'new-arrivals' ? 'rotate-180 text-[#b91c1c]' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Anchored Luxury Split Popover */}
+              <AnimatePresence>
+                {activeMegaMenu === 'new-arrivals' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 4 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 top-full mt-0 w-[560px] bg-white border border-[#d3d6db] shadow-2xl rounded-b-sm z-50 p-5 text-left font-sans"
+                    onMouseEnter={() => {
+                      if (megaMenuTimeoutRef.current) clearTimeout(megaMenuTimeoutRef.current)
+                    }}
+                    onMouseLeave={handleMouseLeaveMenu}
+                  >
+                    <div className="grid grid-cols-12 gap-5 divide-x divide-[#e5e7eb]">
+                      {/* Left Column (5 cols, ~210px): Curated Fast Links & Category Filter */}
+                      <div className="col-span-5 pr-2 space-y-4">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#6c7079] block mb-2">
+                            New Releases
+                          </span>
+                          <div className="space-y-1.5">
+                            <Link
+                              href="/shop?sort=newest"
+                              onClick={() => setActiveMegaMenu(null)}
+                              className="flex items-center justify-between p-2 rounded-xs bg-[#f8f8f8] hover:bg-[#14293a] text-[#14293a] hover:text-white transition-all group font-bold text-xs"
+                            >
+                              <span>View All New In</span>
+                              <ArrowRight className="w-3.5 h-3.5 text-[#6c7079] group-hover:text-white group-hover:translate-x-0.5 transition-transform" />
+                            </Link>
+
+                            <Link
+                              href="/bolt"
+                              onClick={() => setActiveMegaMenu(null)}
+                              className="flex items-center justify-between p-2 rounded-xs border border-[#b91c1c]/20 hover:border-[#b91c1c] bg-[#fef2f2]/40 hover:bg-[#b91c1c] text-[#b91c1c] hover:text-white transition-all group font-semibold text-xs"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <Zap className="w-3.5 h-3.5 fill-current" />
+                                <span>Bolt Try-On Drops</span>
+                              </div>
+                              <span className="text-[10px] font-bold uppercase tracking-tight opacity-75">
+                                45-MIN
+                              </span>
+                            </Link>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-[#e5e7eb]">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#6c7079] block mb-2">
+                            Shop by Category
+                          </span>
+                          <ul className="space-y-1">
+                            {parentCategories.map((cat) => (
+                              <li key={cat.id}>
+                                <Link
+                                  href={`/shop?category=${encodeURIComponent(cat.slug || cat.name)}&sort=newest`}
+                                  onClick={() => setActiveMegaMenu(null)}
+                                  className="flex items-center justify-between py-1 px-1.5 rounded-xs text-xs text-[#14293a] hover:text-[#b91c1c] hover:bg-[#f8f8f8] transition-colors"
+                                >
+                                  <span className="font-medium truncate">{cat.name}</span>
+                                  <span className="text-[10px] text-[#8a909a] font-normal">New</span>
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+
+                      {/* Right Column (7 cols, ~310px): Live Product Drop Preview */}
+                      <div className="col-span-7 pl-5 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#6c7079]">
+                              Just Dropped
+                            </span>
+                            <span className="text-[10px] font-semibold text-[#b91c1c] uppercase tracking-wider">
+                              Latest Inventory
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            {latestProducts.slice(0, 2).map((product) => (
+                              <Link
+                                key={product.id}
+                                href={`/products/${product.id}`}
+                                onClick={() => setActiveMegaMenu(null)}
+                                className="group block border border-[#e5e7eb] hover:border-[#14293a] rounded-xs p-2 bg-[#f8f8f8]/50 hover:bg-white transition-all shadow-2xs"
+                              >
+                                <div className="relative aspect-3/4 bg-[#eceff1] rounded-xs overflow-hidden mb-2">
+                                  {product.image_url ? (
+                                    <img
+                                      src={product.image_url}
+                                      alt={product.title}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-xs text-[#8a909a]">
+                                      No Image
+                                    </div>
+                                  )}
+                                  <span className="absolute top-1 left-1 bg-[#14293a] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-xs tracking-tight">
+                                    NEW
+                                  </span>
+                                </div>
+                                <h4 className="text-xs font-semibold text-[#14293a] group-hover:text-[#b91c1c] transition-colors line-clamp-1 leading-snug">
+                                  {product.title}
+                                </h4>
+                                <p className="text-xs font-bold text-[#14293a] mt-0.5">
+                                  ₹{product.price.toLocaleString('en-IN')}
+                                </p>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="pt-3 mt-3 border-t border-[#e5e7eb] flex items-center justify-end">
+                          <Link
+                            href="/shop?sort=newest"
+                            onClick={() => setActiveMegaMenu(null)}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#b91c1c] hover:underline"
+                          >
+                            <span>Explore Entire New Drop</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </li>
+
+            {/* Dynamic Parent Categories */}
+            {parentCategories.map((cat) => {
+              const children = subcategoriesMap[cat.id] || []
+              const hasChildren = children.length > 0
+              const isActive = activeMegaMenu === cat.id
+
+              return (
+                <li
+                  key={cat.id}
+                  onMouseEnter={() => {
+                    if (hasChildren) {
+                      handleMouseEnterMenu(cat.id)
+                    } else {
+                      setActiveMegaMenu(null)
+                    }
+                  }}
+                  className="relative shrink-0"
+                >
+                  <Link
+                    href={`/shop?category=${encodeURIComponent(cat.slug || cat.name)}`}
+                    className={`inline-flex items-center gap-1 py-3 text-xs font-sans font-bold tracking-wider uppercase whitespace-nowrap transition-colors border-b-2 ${
+                      isActive
+                        ? 'text-[#b91c1c] border-[#b91c1c]'
+                        : 'text-[#14293a] border-transparent hover:text-[#b91c1c] hover:border-[#b91c1c]'
+                    }`}
+                  >
+                    <span>{cat.name}</span>
+                    {hasChildren && <ChevronDown className="w-3 h-3 text-[#6c7079]" />}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+
+        {/* Dynamic Mega-Menu Flyouts */}
+        <AnimatePresence>
+          {/* Parent Category Contextual Dropdown */}
+          {activeMegaMenu && activeMegaMenu !== 'new-arrivals' && (
+            (() => {
+              const activeParent = parentCategories.find((c) => c.id === activeMegaMenu)
+              const children = activeParent ? subcategoriesMap[activeParent.id] || [] : []
+              if (!activeParent || children.length === 0) return null
+
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: 3 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 3 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute left-0 right-0 top-full bg-white border-t border-b border-[#d3d6db] shadow-xl z-40"
+                  onMouseEnter={() => {
+                    if (megaMenuTimeoutRef.current) clearTimeout(megaMenuTimeoutRef.current)
+                  }}
+                  onMouseLeave={handleMouseLeaveMenu}
+                >
+                  <div className="max-w-[1100px] mx-auto px-6 py-5">
+                    <div className="flex items-center justify-between pb-2.5 mb-4 border-b border-[#e5e7eb]">
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
+                        {activeParent.name}
+                      </span>
+                      <Link
+                        href={`/shop?category=${encodeURIComponent(activeParent.slug || activeParent.name)}`}
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-[#b91c1c] hover:underline"
+                      >
+                        <span>View All {activeParent.name}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                      {children.map((child) => (
+                        <Link
+                          key={child.id}
+                          href={`/shop?category=${encodeURIComponent(child.slug || child.name)}`}
+                          onClick={() => setActiveMegaMenu(null)}
+                          className="p-3 bg-[#f8f8f8] hover:bg-[#f1f1f1] border border-[#e5e7eb] rounded-xs transition-colors group block"
+                        >
+                          <span className="text-xs font-bold text-[#14293a] group-hover:text-[#b91c1c] block">
+                            {child.name}
+                          </span>
+                          {child.description && (
+                            <span className="text-[11px] text-[#6c7079] line-clamp-1 block mt-0.5">
+                              {child.description}
+                            </span>
+                          )}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })()
+          )}
+        </AnimatePresence>
+      </nav>
+
+      {/* ========================================================= */}
+      {/* MOBILE ACCORDION DRAWER                                  */}
       {/* ========================================================= */}
       <AnimatePresence>
-        {menuOpen && (
+        {mobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-50 bg-[#FDFCF7] text-[#09090B] flex flex-col justify-between overflow-y-auto selection:bg-[#B91C1C] selection:text-white sovereign-fullscreen-menu"
+            className="fixed inset-0 bg-black/50 z-50 lg:hidden"
+            onClick={() => setMobileMenuOpen(false)}
           >
-            {/* Top Bar: Quiet Editorial Authority */}
-            <div className="w-full px-6 sm:px-12 py-5 sm:py-6 border-b border-[#E8E4DA] flex items-center justify-between">
-              {/* Left Brand Marque */}
-              <Link
-                href="/"
-                onClick={() => setMenuOpen(false)}
-                className="group flex items-center gap-3 select-none cursor-pointer"
-                aria-label="The Grace Atelier Home"
-              >
-                <span className="font-script text-3xl sm:text-4xl text-[#09090B] font-normal leading-none">
-                  Tg
-                </span>
-                <div className="flex flex-col border-l border-[#E8E4DA] pl-3">
-                  <span className="font-sans font-extrabold text-[10px] sm:text-[11px] uppercase tracking-[0.28em] text-[#09090B] leading-tight">
-                    THE GRACE ATELIER
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+              className="w-4/5 max-w-sm h-full bg-white shadow-2xl flex flex-col text-[#14293a]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Drawer Header */}
+              <div className="p-4 border-b border-[#e5e7eb] flex items-center justify-between">
+                <div>
+                  <span className="font-sans text-xl font-black tracking-tight text-[#14293a] block">
+                    MAISON TG
                   </span>
-                  <span className="font-mono text-[8px] sm:text-[9px] uppercase tracking-[0.2em] text-[#71717A] leading-tight">
-                    MAISON HAUTE COUTURE
+                  <span className="text-[9px] uppercase tracking-widest text-[#6c7079]">
+                    Online Store
                   </span>
                 </div>
-              </Link>
-
-              {/* Center Season Badge */}
-              <div className="hidden sm:inline-flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.25em] text-[#71717A] bg-[#FAF8F2] px-4 py-1.5 border border-[#E8E4DA]">
-                <span className="w-1.5 h-1.5 rounded-none bg-[#B91C1C]" />
-                <span>AUTUMN / WINTER 2026 • ATELIER ARCHIVE</span>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1.5 text-[#6c7079] hover:text-[#14293a] rounded"
+                  aria-label="Close Menu"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              {/* Right: Minimal Close Trigger with ESC indicator */}
-              <button
-                type="button"
-                onClick={() => setMenuOpen(false)}
-                className="group flex items-center gap-2 py-1.5 px-3 bg-[#FAF8F2] hover:bg-[#F2EFE8] border border-[#E8E4DA] transition-all cursor-pointer rounded-none"
-                aria-label="Close Navigation"
-              >
-                <span className="text-[10px] font-mono uppercase tracking-widest text-[#71717A] group-hover:text-[#09090B] hidden sm:inline">
-                  ESC
-                </span>
-                <X className="w-4 h-4 text-[#09090B] transition-transform group-hover:rotate-90 duration-300" />
-              </button>
-            </div>
-
-            {/* Central Dual-Zone Grid */}
-            <div className="w-full max-w-7xl mx-auto px-6 sm:px-12 py-8 sm:py-12 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
-              {/* Zone A: Interactive Lookbook Visual Canvas (Desktop Left 5 cols) */}
-              <div className="hidden lg:flex lg:col-span-5 flex-col justify-center space-y-4">
-                <div className="relative aspect-[3/4] w-full max-w-md bg-[#FAF8F2] border border-[#E8E4DA] overflow-hidden shadow-sm">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={activeItem.image}
-                      initial={{ opacity: 0, scale: 1.05 }}
-                      animate={{ opacity: 1, scale: 1.0 }}
-                      exit={{ opacity: 0, scale: 0.98 }}
-                      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                      className="relative w-full h-full"
-                    >
-                      <Image
-                        src={activeItem.image}
-                        alt={activeItem.label}
-                        fill
-                        priority
-                        className="object-cover object-center filter grayscale contrast-110 brightness-95"
-                      />
-                      {/* Subtle Vignette Gradient */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-
-                      {/* Micro-Caption Box */}
-                      <div className="absolute bottom-4 left-4 right-4 text-white font-mono space-y-1">
-                        <span className="text-[9px] uppercase tracking-[0.25em] text-red-300 font-bold block">
-                          {activeItem.tagline}
-                        </span>
-                        <p className="text-[11px] font-sans font-light text-neutral-200 leading-snug">
-                          {activeItem.provenance}
-                        </p>
-                      </div>
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-
-                <div className="flex items-center justify-between text-[10px] font-mono text-[#71717A] uppercase tracking-wider px-1">
-                  <span>PERSPECTIVE INDEX // {activeItem.num}</span>
-                  <span className="flex items-center gap-1.5 text-[#047857] font-semibold">
-                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                    LIVE CATALOGUE
-                  </span>
-                </div>
+              {/* Mobile Search Trigger Button */}
+              <div className="p-4 border-b border-[#e5e7eb]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    setIsSearchModalOpen(true)
+                  }}
+                  className="w-full flex items-center bg-[#f8f8f8] hover:bg-[#f1f1f1] border border-[#d3d6db] text-xs px-3 py-2 text-[#6c7079] rounded-sm gap-2 text-left transition-colors cursor-pointer"
+                >
+                  <Search className="w-3.5 h-3.5 text-[#6c7079]" />
+                  <span>Search for hoodies, t-shirts, jackets, denim...</span>
+                </button>
               </div>
 
-              {/* Zone B: Haute Couture Navigation Stack (Right 7 cols) */}
-              <nav className="lg:col-span-7 flex flex-col justify-center divide-y divide-[#E8E4DA]">
-                {navItems.map((item, idx) => {
-                  const isHovered = hoveredNavIndex === idx
+              {/* Mobile Bolt Try-On Service Link */}
+              <div className="p-3 bg-[#f8f8f8] border-b border-[#e5e7eb]">
+                <Link
+                  href="/bolt"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`w-full py-2.5 px-3 rounded-sm text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-colors border ${
+                    isBoltPage
+                      ? 'bg-[#14293a] text-white border-[#14293a]'
+                      : 'bg-white border-[#b91c1c] text-[#b91c1c] hover:bg-[#b91c1c] hover:text-white'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5 fill-current" />
+                    <span>Bolt 45-Min Try-On</span>
+                  </span>
+                  <span className="text-[10px] font-normal uppercase opacity-75">
+                    {isBoltPage ? 'Active Mode' : 'Explore Service →'}
+                  </span>
+                </Link>
+              </div>
 
-                  return (
-                    <motion.div
-                      key={item.href}
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.04 * idx, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                    >
-                      <Link
-                        href={item.href}
-                        onClick={() => setMenuOpen(false)}
-                        onMouseEnter={() => setHoveredNavIndex(idx)}
-                        className="group flex items-center justify-between py-3.5 sm:py-4.5 transition-all cursor-pointer"
-                      >
-                        <div className="flex items-baseline gap-4 sm:gap-6">
-                          {/* Number */}
-                          <span className={`font-mono text-xs sm:text-sm font-bold transition-colors duration-200 ${
-                            isHovered ? 'text-[#B91C1C]' : 'text-[#71717A]'
-                          }`}>
-                            {item.num}
-                          </span>
+              {/* Category Links */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="space-y-1">
+                  {/* New Arrivals Link */}
+                  <Link
+                    href="/shop?sort=newest"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between py-2.5 px-3 rounded-sm text-xs font-sans font-bold uppercase tracking-wider text-[#14293a] hover:bg-[#f8f8f8] hover:text-[#b91c1c] transition-colors"
+                  >
+                    <span>New Arrivals</span>
+                    <span className="text-[9px] px-1.5 py-0.5 bg-[#b91c1c] text-white rounded font-sans">
+                      NEW
+                    </span>
+                  </Link>
 
-                          {/* Titles Stack */}
-                          <div className="space-y-0.5">
-                            <span className={`font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold uppercase tracking-tight transition-all duration-300 block ${
-                              isHovered
-                                ? 'text-[#B91C1C] translate-x-2'
-                                : 'text-[#09090B]'
-                            }`}>
-                              {item.label}
-                            </span>
-                            <span className="text-[10px] sm:text-[11px] font-mono text-[#71717A] uppercase tracking-wider block">
-                              {item.subtitle}
-                            </span>
-                          </div>
-                        </div>
+                  {/* Dynamic Parent Categories & Subcategories */}
+                  {parentCategories.map((cat) => {
+                    const children = subcategoriesMap[cat.id] || []
+                    const hasChildren = children.length > 0
+                    const isExpanded = expandedMobileCategory === cat.id
 
-                        {/* Trailing Indicator */}
-                        <div className="flex items-center gap-2 pl-3">
-                          {item.badge ? (
-                            <span className="px-2.5 py-1 bg-[#09090B] text-white font-mono font-bold text-xs shadow-sm">
-                              {item.badge}
-                            </span>
-                          ) : (
-                            <ArrowRight className={`w-5 h-5 text-[#B91C1C] transition-all duration-300 ${
-                              isHovered ? 'opacity-100 translate-x-1' : 'opacity-0 -translate-x-2'
-                            }`} />
+                    return (
+                      <div key={cat.id} className="border-b border-[#f1f1f1] last:border-b-0">
+                        <div className="flex items-center justify-between">
+                          <Link
+                            href={`/shop?category=${encodeURIComponent(cat.slug || cat.name)}`}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex-1 py-2.5 px-3 rounded-sm text-xs font-sans font-bold uppercase tracking-wider text-[#14293a] hover:bg-[#f8f8f8] hover:text-[#b91c1c] transition-colors"
+                          >
+                            {cat.name}
+                          </Link>
+                          {hasChildren && (
+                            <button
+                              type="button"
+                              onClick={() => setExpandedMobileCategory(isExpanded ? null : cat.id)}
+                              className="p-2.5 text-[#6c7079] hover:text-[#14293a]"
+                              aria-label={`Toggle ${cat.name} subcategories`}
+                            >
+                              <ChevronDown
+                                className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                              />
+                            </button>
                           )}
                         </div>
-                      </Link>
-                    </motion.div>
-                  )
-                })}
-              </nav>
-            </div>
 
-            {/* Bottom Bar: Patron Concierge Strip */}
-            <footer className="w-full max-w-7xl mx-auto px-6 sm:px-12 py-5 border-t border-[#E8E4DA] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs font-mono">
-              {userName ? (
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-[#FAF8F2] border border-[#E8E4DA] text-[#09090B] font-bold text-xs flex items-center justify-center">
-                      {userName.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <span className="font-bold uppercase text-[#09090B] tracking-wider">{userName}</span>
-                      {userEmail && (
-                        <span className="text-[11px] text-[#71717A] ml-2 hidden sm:inline">({userEmail})</span>
-                      )}
-                    </div>
-                    <span className="hidden md:inline-flex items-center gap-1.5 ml-4 px-2.5 py-0.5 bg-[#ECFDF5] border border-[#A7F3D0] text-[#065F46] text-[10px] font-semibold">
-                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                      SALON ACTIVE: {boltCity ? boltCity.toUpperCase() : 'BENGALURU'}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={handleSignOut}
-                    type="button"
-                    className="text-[#B91C1C] hover:text-[#991B1B] hover:underline uppercase tracking-wider font-bold text-xs flex items-center gap-1.5 cursor-pointer py-1"
-                  >
-                    <span>Sign Out</span>
-                    <LogOut className="w-3.5 h-3.5" />
-                  </button>
+                        {hasChildren && isExpanded && (
+                          <div className="pl-4 pr-3 pb-2 space-y-1 bg-[#fcfcfc]">
+                            <Link
+                              href={`/shop?category=${encodeURIComponent(cat.slug || cat.name)}`}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className="block py-1.5 px-3 text-xs font-semibold text-[#b91c1c] hover:underline"
+                            >
+                              All {cat.name} →
+                            </Link>
+                            {children.map((child) => (
+                              <Link
+                                key={child.id}
+                                href={`/shop?category=${encodeURIComponent(child.slug || child.name)}`}
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="block py-1.5 px-3 text-xs text-[#6c7079] hover:text-[#14293a]"
+                              >
+                                {child.name}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-3">
-                  <p className="text-[11px] text-[#71717A] font-mono">
-                    Private bespoke reservations &amp; 45-minute white-glove doorstep salon sessions.
-                  </p>
+
+                <div className="border-t border-[#e5e7eb] pt-4 space-y-2 text-xs font-sans">
                   <Link
-                    href="/login"
-                    onClick={() => setMenuOpen(false)}
-                    className="text-[#09090B] hover:text-[#B91C1C] hover:underline uppercase tracking-wider font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer"
+                    href="/about"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block py-2 px-3 text-[#6c7079] hover:text-[#14293a]"
                   >
-                    <span>Sign In to Patron Account →</span>
+                    About Us
                   </Link>
+                  <Link
+                    href="/orders"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block py-2 px-3 text-[#6c7079] hover:text-[#14293a]"
+                  >
+                    My Orders
+                  </Link>
+                  <Link
+                    href="/wishlist"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between py-2 px-3 text-[#6c7079] hover:text-[#14293a]"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Heart className="w-3.5 h-3.5" />
+                      <span>My Wishlist</span>
+                    </span>
+                    {wishlistCount > 0 && (
+                      <span className="text-[10px] font-bold bg-[#b91c1c] text-white px-1.5 py-0.2 rounded-full">
+                        {wishlistCount}
+                      </span>
+                    )}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false)
+                      setIsPincodeModalOpen(true)
+                    }}
+                    className="w-full flex items-center justify-between py-2 px-3 text-[#6c7079] hover:text-[#14293a] text-left cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span>{pincode ? `Delivery PIN: ${pincode}` : 'Select Delivery PIN'}</span>
+                    </span>
+                    <span className="text-[10px] text-[#14293a] font-bold underline">
+                      {pincode ? 'Change' : 'Set'}
+                    </span>
+                  </button>
+                  {userEmail ? (
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full text-left py-2 px-3 text-[#b91c1c] font-semibold cursor-pointer"
+                    >
+                      Sign Out ({userEmail})
+                    </button>
+                  ) : (
+                    <Link
+                      href="/login"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block py-2 px-3 text-[#b91c1c] font-bold"
+                    >
+                      Sign In / Register
+                    </Link>
+                  )}
                 </div>
-              )}
-            </footer>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+
+      {/* Global Delivery Pincode Modal */}
+      <PincodeModal
+        isOpen={isPincodeModalOpen}
+        onClose={() => setIsPincodeModalOpen(false)}
+      />
+
+      {/* Global Search Pop-up Modal (Native <dialog>) */}
+      <SearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        categories={categories}
+      />
+    </header>
   )
 }

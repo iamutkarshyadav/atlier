@@ -494,6 +494,60 @@ function deleteLocalDbBanner(id: string) {
   })
 }
 
+function loadLocalDbWishlist(): any[] {
+  const db = readLocalDb()
+  if (db && Array.isArray(db.wishlist_items)) {
+    return db.wishlist_items
+  }
+  const mem = (globalThis as any).__LIVE_WISHLIST__
+  if (Array.isArray(mem)) return mem
+  return []
+}
+
+function saveLocalDbWishlistItem(item: any): any {
+  let saved = item
+  updateLocalDb((db) => {
+    if (!Array.isArray(db.wishlist_items)) db.wishlist_items = []
+    const idx = db.wishlist_items.findIndex(
+      (w: any) => w.user_id === item.user_id && w.product_id === item.product_id
+    )
+    if (idx !== -1) {
+      db.wishlist_items[idx] = { ...db.wishlist_items[idx], ...item }
+      saved = db.wishlist_items[idx]
+    } else {
+      db.wishlist_items.unshift(item)
+      saved = item
+    }
+  })
+  if (!Array.isArray((globalThis as any).__LIVE_WISHLIST__)) {
+    ;(globalThis as any).__LIVE_WISHLIST__ = [...loadLocalDbWishlist()]
+  }
+  const memIdx = (globalThis as any).__LIVE_WISHLIST__.findIndex(
+    (w: any) => w.user_id === item.user_id && w.product_id === item.product_id
+  )
+  if (memIdx !== -1) {
+    (globalThis as any).__LIVE_WISHLIST__[memIdx] = saved
+  } else {
+    (globalThis as any).__LIVE_WISHLIST__.unshift(saved)
+  }
+  return saved
+}
+
+function removeLocalDbWishlistItem(userId: string, productId: string) {
+  updateLocalDb((db) => {
+    if (Array.isArray(db.wishlist_items)) {
+      db.wishlist_items = db.wishlist_items.filter(
+        (w: any) => !(w.user_id === userId && w.product_id === productId)
+      )
+    }
+  })
+  if (Array.isArray((globalThis as any).__LIVE_WISHLIST__)) {
+    ;(globalThis as any).__LIVE_WISHLIST__ = (globalThis as any).__LIVE_WISHLIST__.filter(
+      (w: any) => !(w.user_id === userId && w.product_id === productId)
+    )
+  }
+}
+
 export interface MockUserAccount {
   id: string
   email: string
@@ -784,6 +838,29 @@ export function createResilientFetch(options?: { timeoutMs?: number }): typeof f
 
       const res = await fetch(input, mergedInit)
       clearTimeout(timer)
+
+      // If live Supabase returns 404/400 (e.g. table not migrated yet on remote database or offline mock URL)
+      // gracefully fall back to local mock dispatcher
+      if (!res.ok && (res.status === 404 || res.status === 400) && urlString.includes('/rest/v1/')) {
+        try {
+          const clone = res.clone()
+          const errData = await clone.json().catch(() => null)
+          if (
+            errData?.code === 'PGRST205' ||
+            errData?.code === '42P01' ||
+            errData?.code === 'PGRST200' ||
+            errData?.message?.includes('schema cache') ||
+            errData?.message?.includes('relation') ||
+            errData?.message?.includes('does not exist') ||
+            errData?.message?.includes('relationship')
+          ) {
+            return handleOfflineSupabaseRequest(urlString, init)
+          }
+        } catch {
+          // pass through original response
+        }
+      }
+
       return res
     } catch (networkErr: any) {
       // 2. Host unreachable / DNS ENOTFOUND / ECONNREFUSED / timeout
@@ -1556,6 +1633,88 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
     return new Response(JSON.stringify([]), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // K3. PostgREST: wishlist_items (/rest/v1/wishlist_items)
+  if (url.includes('/rest/v1/wishlist_items')) {
+    const diskWishlist = loadLocalDbWishlist()
+    const allProducts = loadLocalDbProducts()
+
+    if (method === 'POST') {
+      const itemsToInsert = Array.isArray(bodyJson) ? bodyJson : [bodyJson]
+      const inserted: any[] = []
+
+      for (const row of itemsToInsert) {
+        if (!row || !row.product_id) continue
+        const item = {
+          id: row.id || `wish-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          user_id: row.user_id,
+          product_id: row.product_id,
+          created_at: row.created_at || new Date().toISOString(),
+        }
+        saveLocalDbWishlistItem(item)
+        inserted.push(item)
+      }
+
+      const accept = getHeader(init?.headers, 'Accept')
+      const isSingle = accept.includes('vnd.pgrst.object+json')
+      return new Response(JSON.stringify(isSingle ? inserted[0] || null : (Array.isArray(bodyJson) ? inserted : inserted[0] || {})), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (method === 'DELETE') {
+      const userIdMatch = url.match(/(?:^|[?&])user_id=eq\.([^&]+)/)
+      const productIdMatch = url.match(/(?:^|[?&])product_id=eq\.([^&]+)/)
+      const targetUserId = userIdMatch ? decodeURIComponent(userIdMatch[1]) : null
+      const targetProductId = productIdMatch ? decodeURIComponent(productIdMatch[1]) : null
+
+      if (targetUserId && targetProductId) {
+        removeLocalDbWishlistItem(targetUserId, targetProductId)
+      }
+
+      return new Response(null, {
+        status: 204,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    // GET requests
+    let results = diskWishlist
+
+    const userIdMatch = url.match(/(?:^|[?&])user_id=eq\.([^&]+)/)
+    if (userIdMatch) {
+      const targetUserId = decodeURIComponent(userIdMatch[1])
+      results = results.filter((w: any) => w.user_id === targetUserId)
+    }
+
+    const productIdMatch = url.match(/(?:^|[?&])product_id=eq\.([^&]+)/)
+    if (productIdMatch) {
+      const targetProductId = decodeURIComponent(productIdMatch[1])
+      results = results.filter((w: any) => w.product_id === targetProductId)
+    }
+
+    // Embed products if requested in query
+    if (url.includes('products(')) {
+      results = results.map((w: any) => {
+        const prod = allProducts.find((p: any) => p.id === w.product_id) || DEFAULT_PRODUCTS.find((p: any) => p.id === w.product_id) || null
+        return {
+          ...w,
+          products: prod ? { ...prod, categories: null } : null,
+        }
+      })
+    }
+
+    const accept = getHeader(init?.headers, 'Accept')
+    const isSingle = accept.includes('vnd.pgrst.object+json')
+    return new Response(JSON.stringify(isSingle ? results[0] || null : results), {
+      status: isSingle && !results[0] ? 404 : 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Range': `0-${results.length ? results.length - 1 : 0}/${results.length}`,
+      },
     })
   }
 

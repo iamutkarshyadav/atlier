@@ -32,6 +32,7 @@ export default function AdminCategoriesPage() {
   // Form states
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
+  const [parentId, setParentId] = useState('')
   const [description, setDescription] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [displayOrder, setDisplayOrder] = useState('1')
@@ -62,6 +63,7 @@ export default function AdminCategoriesPage() {
     const { data, error } = await createCategory(supabase, {
       name: name.trim(),
       slug: generatedSlug,
+      parent_id: parentId.trim() || null,
       description: description.trim() || null,
       image_url: imageUrl.trim() || null,
       display_order: parseInt(displayOrder, 10) || categories.length + 1,
@@ -73,6 +75,7 @@ export default function AdminCategoriesPage() {
       setFeedback({ type: 'success', message: `Category "${name}" created. Now active on Storefront navigation!` })
       setName('')
       setSlug('')
+      setParentId('')
       setDescription('')
       setImageUrl('')
       setIsAdding(false)
@@ -199,6 +202,24 @@ export default function AdminCategoriesPage() {
               />
             </div>
 
+            <div className="space-y-1">
+              <label className="text-3xs uppercase tracking-wider text-zinc-400 font-semibold">Parent Category (Optional)</label>
+              <select
+                value={parentId}
+                onChange={(e) => setParentId(e.target.value)}
+                className="w-full h-9 bg-chrome-950 border border-chrome-800 px-3 text-xs text-zinc-100 focus:border-amber-400 focus:outline-none"
+              >
+                <option value="">-- None (Top-Level Parent Category) --</option>
+                {categories
+                  .filter((c) => !c.parent_id)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
             <div className="sm:col-span-2 space-y-1">
               <label className="text-3xs uppercase tracking-wider text-zinc-400 font-semibold">Curator Description</label>
               <input
@@ -259,7 +280,18 @@ export default function AdminCategoriesPage() {
                       </div>
                     )}
                     <div>
-                      <p className="font-semibold text-zinc-100 text-xs">{cat.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-zinc-100 text-xs">{cat.name}</p>
+                        {cat.parent_id ? (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-amber-950/60 text-amber-400 border border-amber-800/60 rounded">
+                            Subcategory of {categories.find((c) => c.id === cat.parent_id)?.name || 'Parent'}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-zinc-800 text-zinc-400 rounded">
+                            Parent
+                          </span>
+                        )}
+                      </div>
                       <span className="text-3xs text-zinc-500 font-mono">ID: {cat.id.slice(0, 8)}...</span>
                     </div>
                   </div>

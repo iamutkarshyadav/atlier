@@ -1,6 +1,5 @@
 import React from 'react'
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
 import { createServerSupabaseClient } from '@repo/supabase/server'
 import {
   getProductWithVariantsAndMedia,
@@ -22,10 +21,10 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const resolved = product || DEFAULT_PRODUCTS.find((p) => p.id === params.id) || DEFAULT_PRODUCTS[0]!
 
   return {
-    title: `${resolved.title} | Atelier Creator Apparel`,
+    title: `${resolved.title} | Maison TG`,
     description: resolved.description || 'Creator apparel engineered from custom heavyweight textiles.',
     openGraph: {
-      title: `${resolved.title} — Atelier Collection`,
+      title: `${resolved.title} — Maison TG`,
       description: resolved.description || 'Creator apparel engineered from custom heavyweight textiles.',
       images: resolved.image_url ? [resolved.image_url] : [],
       type: 'website',
@@ -47,8 +46,8 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
     DEFAULT_PRODUCTS[0]!
 
   return (
-    <div className="min-h-screen bg-[#FDFCF7] text-[#09090B] selection:bg-[#B91C1C] selection:text-white pb-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 pt-8 pb-16 sm:pt-10 sm:pb-20">
+    <div className="min-h-screen bg-white text-[#14293a] selection:bg-[#b91c1c] selection:text-white pb-20 font-sans">
+      <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-16">
         <ProductInteractiveIsland
           product={resolvedProduct}
           variants={variants}

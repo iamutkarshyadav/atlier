@@ -1,5 +1,6 @@
 export * from './useCartStore'
 export * from './useBoltStore'
+export * from './useWishlistStore'
 export {
   calculateSubtotal,
   calculateTax,

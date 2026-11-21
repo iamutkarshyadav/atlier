@@ -2,63 +2,81 @@ import React from 'react'
 import type { Metadata } from 'next'
 import { createServerSupabaseClient } from '@repo/supabase/server'
 import {
-  getPageLayout,
   getStorefrontProducts,
+  getCategories,
   DEFAULT_PRODUCTS,
-  DEFAULT_HOME_LAYOUT,
+  DEFAULT_CATEGORIES,
   type Product,
-  type LayoutNode,
+  type Category,
 } from '@repo/supabase/utils'
 import { HeroSplitScreen } from '../components/HeroSplitScreen'
-import { LayoutRenderer } from '../components/cms/LayoutRenderer'
+import { TrustServiceStrip } from '../components/TrustServiceStrip'
+import { HomepageProductShowcase } from '../components/HomepageProductShowcase'
+import { CuratedSpotlightGrid } from '../components/CuratedSpotlightGrid'
+import { NewsletterStrip } from '../components/NewsletterStrip'
 
 export const revalidate = 60
 
 export const metadata: Metadata = {
-  title: 'Maison Tg • The Grace Atelier | Haute Couture',
+  title: 'Maison TG | Online Shopping for Men & Women Apparel',
   description:
-    'Elegance, Luxury, Grace & Perfection. Discover limited-edition hand-draped silk, bespoke tailoring, and Bangalore premier 45-minute white-glove doorstep salon.',
+    'Discover premium apparel crafted from 480 GSM French Terry and 14oz Japanese raw selvedge denim. Free express shipping across India on orders over ₹1,999.',
 }
+
+const FABRIC_MARQUEE = [
+  '480 GSM French Terry Loopback',
+  '14oz Japanese Shuttle-Loomed Selvedge Denim',
+  'Heavyweight Boxy Fits',
+  '100% Organic Combed Cotton',
+  'Complimentary Express Delivery on Orders Over ₹1,999',
+  'Pure Belgian Flax Linen',
+]
 
 export default async function HomePage() {
   const supabase = await createServerSupabaseClient()
   let products: Product[] = []
-  let layoutNodes: LayoutNode[] = DEFAULT_HOME_LAYOUT.layout_json as unknown as LayoutNode[]
+  let categories: Category[] = []
 
   try {
-    const [fetchedProds, pageLayout] = await Promise.all([
+    const [fetchedProds, fetchedCats] = await Promise.all([
       getStorefrontProducts(supabase, 'all'),
-      getPageLayout(supabase, 'home'),
+      getCategories(supabase),
     ])
-
     products = fetchedProds && fetchedProds.length > 0 ? fetchedProds : DEFAULT_PRODUCTS
-    if (pageLayout && Array.isArray(pageLayout.layout_json) && pageLayout.layout_json.length > 0) {
-      layoutNodes = pageLayout.layout_json as unknown as LayoutNode[]
-    }
+    categories = fetchedCats && fetchedCats.length > 0 ? fetchedCats : DEFAULT_CATEGORIES
   } catch {
     products = DEFAULT_PRODUCTS
-    layoutNodes = DEFAULT_HOME_LAYOUT.layout_json as unknown as LayoutNode[]
+    categories = DEFAULT_CATEGORIES
   }
 
-  // Filter out any legacy HeroBanner block so the Split-Screen Hero is the sole primary hero,
-  // and omit the legacy material lab banner
-  const secondaryLayoutNodes = layoutNodes.filter(
-    (node) => node.type !== 'HeroBanner' && node.id !== 'custom-div-specs-01'
-  )
-
   return (
-    <div className="bg-[#FDFCF7] text-[#09090B] overflow-hidden selection:bg-red-600 selection:text-white transition-colors duration-200">
-      {/* 50/50 Split-Screen Reconstructed Hero Landing Section */}
+    <div className="bg-white text-[#14293a] overflow-hidden selection:bg-[#b91c1c] selection:text-white font-sans">
+      {/* 1. HERO BANNER CAROUSEL */}
       <HeroSplitScreen />
 
-      {/* Marquee & Curated Collections */}
-      <div id="collection" className="bg-[#FDFCF7] text-[#09090B] transition-colors duration-200">
-        <LayoutRenderer
-          initialLayout={secondaryLayoutNodes}
-          pageSlug="home"
-          products={products}
-        />
+      {/* 2. VALUE & TRUST REASSURANCE STRIP */}
+      <TrustServiceStrip />
+
+      {/* 3. ATELIER FABRIC & CRAFT CONTINUOUS MARQUEE */}
+      <div className="bg-[#f8f8f8] border-b border-[#d3d6db] py-3 overflow-hidden select-none text-xs tracking-wider uppercase font-semibold">
+        <div className="flex whitespace-nowrap gap-10 animate-marquee" style={{ animationDuration: '28s' }}>
+          {[...FABRIC_MARQUEE, ...FABRIC_MARQUEE, ...FABRIC_MARQUEE].map((text, idx) => (
+            <div key={idx} className="flex items-center gap-3 shrink-0">
+              <span className="text-[#b91c1c] text-xs">◆</span>
+              <span className="text-[#14293a]">{text}</span>
+            </div>
+          ))}
+        </div>
       </div>
+
+      {/* 4. PERMANENT CURATED PRODUCT SHOWCASE & CATEGORY STRIP */}
+      <HomepageProductShowcase products={products} categories={categories} />
+
+      {/* 5. CURATED SPOTLIGHT MATERIAL TILES */}
+      <CuratedSpotlightGrid />
+
+      {/* 6. ATELIER CIRCLE VIP NEWSLETTER & PRIVATE DISPATCH */}
+      <NewsletterStrip />
     </div>
   )
 }

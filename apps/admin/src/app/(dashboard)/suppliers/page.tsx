@@ -120,11 +120,18 @@ export default function SuppliersPage() {
     setFormSuccess(null)
 
     try {
+      const trimmedGstin = (gstin.trim() || '29AAAAA0000A1Z5').toUpperCase()
+      if (trimmedGstin.length > 15) {
+        setFormError(`GSTIN Tax ID cannot exceed 15 characters (currently ${trimmedGstin.length} chars). Example: 29AAAAA0000A1Z5`)
+        setIsSubmitting(false)
+        return
+      }
+
       const supabase = createBrowserClient()
       const payload = {
         vendor_code: vendorCode.trim().toUpperCase(),
         name: name.trim(),
-        gstin: gstin.trim() || '29AAAAA0000A1Z5',
+        gstin: trimmedGstin,
         contact_person: contactPerson.trim() || null,
         email: email.trim(),
         phone: phone.trim(),
@@ -333,8 +340,9 @@ export default function SuppliersPage() {
                 value={vendorCode}
                 onChange={(e) => setVendorCode(e.target.value.toUpperCase())}
                 placeholder="SUP-CERRUTI-01"
+                maxLength={20}
                 required
-                className="w-full bg-chrome-950 border border-chrome-800 px-3 py-1.5 text-xs text-zinc-100 focus:outline-none uppercase"
+                className="w-full bg-chrome-950 border border-chrome-800 px-3 py-1.5 text-xs text-zinc-100 focus:outline-none uppercase font-mono"
               />
             </div>
             <div className="space-y-1">
@@ -354,17 +362,26 @@ export default function SuppliersPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-2xs uppercase tracking-wider text-zinc-400 font-semibold block">
-                GSTIN Tax ID *
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-2xs uppercase tracking-wider text-zinc-400 font-semibold block">
+                  GSTIN Tax ID *
+                </label>
+                <span className={`text-3xs font-mono tabular-nums ${gstin.length === 15 ? 'text-emerald-400 font-bold' : gstin.length > 0 ? 'text-amber-400' : 'text-zinc-500'}`}>
+                  {gstin.length}/15
+                </span>
+              </div>
               <input
                 type="text"
                 value={gstin}
-                onChange={(e) => setGstin(e.target.value.toUpperCase())}
+                onChange={(e) => setGstin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                 placeholder="29AAAAA0000A1Z5"
+                maxLength={15}
                 required
                 className="w-full bg-chrome-950 border border-chrome-800 px-3 py-1.5 text-xs text-zinc-100 focus:outline-none uppercase font-mono"
               />
+              <span className="text-3xs text-zinc-500 block">
+                Standard 15-char Indian GSTIN (e.g. 29AAAAA0000A1Z5)
+              </span>
             </div>
             <div className="space-y-1">
               <label className="text-2xs uppercase tracking-wider text-zinc-400 font-semibold block">
@@ -373,11 +390,15 @@ export default function SuppliersPage() {
               <input
                 type="text"
                 value={stateCode}
-                onChange={(e) => setStateCode(e.target.value)}
+                onChange={(e) => setStateCode(e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="29"
+                maxLength={2}
                 required
                 className="w-full bg-chrome-950 border border-chrome-800 px-3 py-1.5 text-xs text-zinc-100 focus:outline-none font-mono"
               />
+              <span className="text-3xs text-zinc-500 block">
+                2-digit state code (e.g. 29 for KA)
+              </span>
             </div>
           </div>
 
@@ -391,6 +412,7 @@ export default function SuppliersPage() {
                 value={contactPerson}
                 onChange={(e) => setContactPerson(e.target.value)}
                 placeholder="Marco Rossi"
+                maxLength={100}
                 className="w-full bg-chrome-950 border border-chrome-800 px-3 py-1.5 text-xs text-zinc-100 focus:outline-none"
               />
             </div>
@@ -403,6 +425,7 @@ export default function SuppliersPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+91 80 4000 0000"
+                maxLength={20}
                 required
                 className="w-full bg-chrome-950 border border-chrome-800 px-3 py-1.5 text-xs text-zinc-100 focus:outline-none"
               />
@@ -470,6 +493,7 @@ export default function SuppliersPage() {
                 value={pincode}
                 onChange={(e) => setPincode(e.target.value)}
                 placeholder="560001"
+                maxLength={10}
                 className="w-full bg-chrome-950 border border-chrome-800 px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none font-mono"
               />
             </div>
