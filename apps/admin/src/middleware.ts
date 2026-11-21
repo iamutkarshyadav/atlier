@@ -26,6 +26,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/inventory/') ||
     pathname.startsWith('/api/try-on/') ||
     pathname.startsWith('/api/users/') ||
+    pathname.startsWith('/api/admin/suppliers') ||
     STATIC_FILE_REGEX.test(pathname)
   ) {
     return NextResponse.next()

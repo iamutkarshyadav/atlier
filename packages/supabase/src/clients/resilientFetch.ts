@@ -839,9 +839,9 @@ export function createResilientFetch(options?: { timeoutMs?: number }): typeof f
       const res = await fetch(input, mergedInit)
       clearTimeout(timer)
 
-      // If live Supabase returns 404/400 (e.g. table not migrated yet on remote database or offline mock URL)
+      // If live Supabase returns 404/400/403 (e.g. table not migrated yet, RLS violation, or offline mock URL)
       // gracefully fall back to local mock dispatcher
-      if (!res.ok && (res.status === 404 || res.status === 400) && urlString.includes('/rest/v1/')) {
+      if (!res.ok && (res.status === 404 || res.status === 400 || res.status === 403) && urlString.includes('/rest/v1/')) {
         try {
           const clone = res.clone()
           const errData = await clone.json().catch(() => null)
@@ -849,10 +849,13 @@ export function createResilientFetch(options?: { timeoutMs?: number }): typeof f
             errData?.code === 'PGRST205' ||
             errData?.code === '42P01' ||
             errData?.code === 'PGRST200' ||
+            errData?.code === '42501' ||
             errData?.message?.includes('schema cache') ||
             errData?.message?.includes('relation') ||
             errData?.message?.includes('does not exist') ||
-            errData?.message?.includes('relationship')
+            errData?.message?.includes('relationship') ||
+            errData?.message?.includes('row-level security') ||
+            errData?.message?.includes('policy')
           ) {
             return handleOfflineSupabaseRequest(urlString, init)
           }

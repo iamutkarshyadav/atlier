@@ -145,18 +145,24 @@ export default function SuppliersPage() {
         is_active: true,
       }
 
+      const res = await fetch('/api/admin/suppliers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...payload,
+          id: editingSupplier?.id,
+          isUpdate: !!editingSupplier,
+        }),
+      })
+
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(result.error || 'Failed to save supplier')
+      }
+
       if (editingSupplier) {
-        const { error } = await supabase
-          .from('suppliers')
-          .update(payload)
-          .eq('id', editingSupplier.id)
-        if (error) throw error
         setFormSuccess('Supplier record updated successfully.')
       } else {
-        const { error } = await supabase
-          .from('suppliers')
-          .insert(payload)
-        if (error) throw error
         setFormSuccess('New supplier registered successfully.')
       }
 
