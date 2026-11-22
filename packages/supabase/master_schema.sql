@@ -3710,6 +3710,47 @@ END;
 $$;
 
 -- ==============================================================================
+-- COLLECTIONS & OCCASIONS MERCHANDISING
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.collections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  group_type TEXT NOT NULL DEFAULT 'occasion' CHECK (group_type IN ('occasion', 'collection', 'season', 'capsule')),
+  description TEXT,
+  image_url TEXT,
+  display_order INTEGER NOT NULL DEFAULT 1,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  show_in_navbar BOOLEAN NOT NULL DEFAULT true,
+  show_on_home BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.collection_categories (
+  collection_id UUID NOT NULL REFERENCES public.collections(id) ON DELETE CASCADE,
+  category_id UUID NOT NULL REFERENCES public.categories(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  PRIMARY KEY (collection_id, category_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.collection_products (
+  collection_id UUID NOT NULL REFERENCES public.collections(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  PRIMARY KEY (collection_id, product_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_collections_slug ON public.collections(slug);
+CREATE INDEX IF NOT EXISTS idx_collections_display ON public.collections(display_order, is_active);
+CREATE INDEX IF NOT EXISTS idx_coll_cats_collection ON public.collection_categories(collection_id);
+CREATE INDEX IF NOT EXISTS idx_coll_cats_category ON public.collection_categories(category_id);
+CREATE INDEX IF NOT EXISTS idx_coll_prods_collection ON public.collection_products(collection_id);
+CREATE INDEX IF NOT EXISTS idx_coll_prods_product ON public.collection_products(product_id);
+
+
+-- ==============================================================================
 -- 20261123_production_wms_oms_remediation.sql
 -- PRODUCTION WMS + OMS + OMNICHANNEL RETAIL ENGINE REMEDIATION
 --
@@ -4875,5 +4916,46 @@ BEGIN
   );
 END;
 $$;
+
+-- ==============================================================================
+-- COLLECTIONS & OCCASIONS MERCHANDISING
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.collections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  group_type TEXT NOT NULL DEFAULT 'occasion' CHECK (group_type IN ('occasion', 'collection', 'season', 'capsule')),
+  description TEXT,
+  image_url TEXT,
+  display_order INTEGER NOT NULL DEFAULT 1,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  show_in_navbar BOOLEAN NOT NULL DEFAULT true,
+  show_on_home BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.collection_categories (
+  collection_id UUID NOT NULL REFERENCES public.collections(id) ON DELETE CASCADE,
+  category_id UUID NOT NULL REFERENCES public.categories(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  PRIMARY KEY (collection_id, category_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.collection_products (
+  collection_id UUID NOT NULL REFERENCES public.collections(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  PRIMARY KEY (collection_id, product_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_collections_slug ON public.collections(slug);
+CREATE INDEX IF NOT EXISTS idx_collections_display ON public.collections(display_order, is_active);
+CREATE INDEX IF NOT EXISTS idx_coll_cats_collection ON public.collection_categories(collection_id);
+CREATE INDEX IF NOT EXISTS idx_coll_cats_category ON public.collection_categories(category_id);
+CREATE INDEX IF NOT EXISTS idx_coll_prods_collection ON public.collection_products(collection_id);
+CREATE INDEX IF NOT EXISTS idx_coll_prods_product ON public.collection_products(product_id);
+
 
 

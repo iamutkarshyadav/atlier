@@ -58,6 +58,10 @@ import type {
   StorefrontTokensUpdate,
   LayoutNode,
   ComponentType,
+  Collection,
+  CollectionInsert,
+  CollectionUpdate,
+  CollectionWithRelations,
 } from '../types/database.types'
 
 export * from '../types/database.types'
@@ -334,6 +338,88 @@ export const DEFAULT_CATEGORIES: Category[] = [
     display_order: 3,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+  },
+]
+
+export const DEFAULT_COLLECTIONS: CollectionWithRelations[] = [
+  {
+    id: 'col-00000000-0000-0000-0000-000000000001',
+    name: 'Festivals & Celebrations',
+    slug: 'festivals',
+    group_type: 'occasion',
+    description: 'Artisanal banarasi silks, anarkali sets, and rich festive textures for milestone events.',
+    image_url: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=1200&q=85',
+    display_order: 1,
+    is_active: true,
+    show_in_navbar: true,
+    show_on_home: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    category_ids: [
+      'c1000000-0000-0000-0000-000000000005',
+      'c1000000-0000-0000-0000-000000000051',
+      'c1000000-0000-0000-0000-000000000053',
+      'c1000000-0000-0000-0000-000000000054',
+    ],
+    product_ids: [],
+  },
+  {
+    id: 'col-00000000-0000-0000-0000-000000000002',
+    name: 'Royal Weddings',
+    slug: 'weddings',
+    group_type: 'occasion',
+    description: 'Grand ceremonial silhouettes, hand-embroidered kalidars, and heritage weaves.',
+    image_url: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=1200&q=85',
+    display_order: 2,
+    is_active: true,
+    show_in_navbar: true,
+    show_on_home: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    category_ids: [
+      'c1000000-0000-0000-0000-000000000005',
+      'c1000000-0000-0000-0000-000000000053',
+    ],
+    product_ids: [],
+  },
+  {
+    id: 'col-00000000-0000-0000-0000-000000000003',
+    name: 'Resort & Travel',
+    slug: 'travel',
+    group_type: 'occasion',
+    description: 'Breathable pure linen shirts, relaxed trousers, and easy transit layers.',
+    image_url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
+    display_order: 3,
+    is_active: true,
+    show_in_navbar: true,
+    show_on_home: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    category_ids: [
+      'c1000000-0000-0000-0000-000000000002',
+      'c1000000-0000-0000-0000-000000000004',
+    ],
+    product_ids: [],
+  },
+  {
+    id: 'col-00000000-0000-0000-0000-000000000004',
+    name: 'Minimalist Workwear',
+    slug: 'workwear',
+    group_type: 'occasion',
+    description: 'Tailored structured separates, crisp poplin shirts, and muted monochrome layers.',
+    image_url: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=1200&q=85',
+    display_order: 4,
+    is_active: true,
+    show_in_navbar: true,
+    show_on_home: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    category_ids: [
+      'c1000000-0000-0000-0000-000000000002',
+      'c1000000-0000-0000-0000-000000000004',
+      'c1000000-0000-0000-0000-000000000003',
+    ],
+    product_ids: [],
   },
 ]
 
@@ -884,6 +970,122 @@ export async function deleteCategory(
     return { success: false, error: error.message }
   }
   return { success: true }
+}
+
+// ==========================================
+// 2b. COLLECTIONS & OCCASIONS OPERATIONS
+// ==========================================
+
+/**
+ * Fetch all merchandising collections and occasion groupings.
+ */
+export async function getCollections(
+  supabase: SupabaseClient<Database>,
+  options?: {
+    onlyActive?: boolean
+    showInNavbar?: boolean
+    showOnHome?: boolean
+  }
+): Promise<CollectionWithRelations[]> {
+  try {
+    let query = supabase
+      .from('collections')
+      .select('*, collection_categories(category_id), collection_products(product_id)')
+      .order('display_order', { ascending: true })
+
+    if (options?.onlyActive !== false) {
+      query = query.eq('is_active', true)
+    }
+    if (options?.showInNavbar) {
+      query = query.eq('show_in_navbar', true)
+    }
+    if (options?.showOnHome) {
+      query = query.eq('show_on_home', true)
+    }
+
+    const { data, error } = await query
+
+    if (error || !data || data.length === 0) {
+      let filtered = DEFAULT_COLLECTIONS
+      if (options?.onlyActive !== false) {
+        filtered = filtered.filter((c) => c.is_active)
+      }
+      if (options?.showInNavbar) {
+        filtered = filtered.filter((c) => c.show_in_navbar)
+      }
+      if (options?.showOnHome) {
+        filtered = filtered.filter((c) => c.show_on_home)
+      }
+      return filtered
+    }
+
+    return (data as any[]).map((row) => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      group_type: row.group_type,
+      description: row.description,
+      image_url: row.image_url,
+      display_order: row.display_order,
+      is_active: row.is_active,
+      show_in_navbar: row.show_in_navbar,
+      show_on_home: row.show_on_home,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      category_ids: Array.isArray(row.collection_categories)
+        ? row.collection_categories.map((cc: any) => cc.category_id).filter(Boolean)
+        : [],
+      product_ids: Array.isArray(row.collection_products)
+        ? row.collection_products.map((cp: any) => cp.product_id).filter(Boolean)
+        : [],
+    }))
+  } catch {
+    return DEFAULT_COLLECTIONS
+  }
+}
+
+/**
+ * Fetch a single collection by slug with resolved categories and products.
+ */
+export async function getCollectionBySlug(
+  supabase: SupabaseClient<Database>,
+  slug: string
+): Promise<CollectionWithRelations | null> {
+  try {
+    const { data, error } = await supabase
+      .from('collections')
+      .select('*, collection_categories(category_id), collection_products(product_id)')
+      .eq('slug', slug)
+      .maybeSingle()
+
+    if (error || !data) {
+      return DEFAULT_COLLECTIONS.find((c) => c.slug === slug) || null
+    }
+
+    const row: any = data
+    return {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      group_type: row.group_type,
+      description: row.description,
+      image_url: row.image_url,
+      display_order: row.display_order,
+      is_active: row.is_active,
+      show_in_navbar: row.show_in_navbar,
+      show_on_home: row.show_on_home,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      category_ids: Array.isArray(row.collection_categories)
+        ? row.collection_categories.map((cc: any) => cc.category_id).filter(Boolean)
+        : [],
+      product_ids: Array.isArray(row.collection_products)
+        ? row.collection_products.map((cp: any) => cp.product_id).filter(Boolean)
+        : [],
+    }
+  } catch {
+    return DEFAULT_COLLECTIONS.find((c) => c.slug === slug) || null
+  }
 }
 
 // ==========================================

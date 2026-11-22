@@ -21,10 +21,13 @@ import {
 import { createBrowserClient } from '@repo/supabase/browser'
 import {
   getCategories,
+  getCollections,
   DEFAULT_PRODUCTS,
+  DEFAULT_COLLECTIONS,
   type Product,
   type Category,
   type ProductVariant,
+  type CollectionWithRelations,
 } from '@repo/supabase/utils'
 import { useCartStore } from '../../store/useCartStore'
 import { ProductCard } from '../../components/ProductCard'
@@ -51,6 +54,7 @@ function ShopContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialCategoryParam = searchParams.get('category') || 'All'
+  const collectionParam = searchParams.get('collection')
   const queryParam = searchParams.get('q') || searchParams.get('search') || ''
   const deliveryParam = searchParams.get('delivery')
   const sortParam = searchParams.get('sort')
@@ -64,6 +68,8 @@ function ShopContent() {
           : 'recommended'
 
   const [categories, setCategories] = useState<Category[]>([])
+  const [collections, setCollections] = useState<CollectionWithRelations[]>(DEFAULT_COLLECTIONS)
+  const [selectedCollectionSlug, setSelectedCollectionSlug] = useState<string | null>(collectionParam)
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [variantsMap, setVariantsMap] = useState<Record<string, ProductVariant[]>>({})
   const [isLoading, setIsLoading] = useState(true)
@@ -156,6 +162,10 @@ function ShopContent() {
   }, [initialCategoryParam])
 
   useEffect(() => {
+    setSelectedCollectionSlug(searchParams.get('collection') || null)
+  }, [searchParams])
+
+  useEffect(() => {
     setSearchQuery(queryParam)
   }, [queryParam])
 
@@ -182,16 +192,18 @@ function ShopContent() {
       try {
         const supabase = createBrowserClient()
 
-        const [cats, joinedRes] = await Promise.all([
+        const [cats, joinedRes, cols] = await Promise.all([
           getCategories(supabase),
           supabase
             .from('products')
             .select('*, product_variants(*), categories(*)')
             .eq('is_archived', false)
             .order('created_at', { ascending: false }),
+          getCollections(supabase, { onlyActive: true }),
         ])
 
         setCategories(cats)
+        if (cols && cols.length > 0) setCollections(cols)
 
         if (joinedRes.error || !joinedRes.data || joinedRes.data.length === 0) {
           setAllProducts(DEFAULT_PRODUCTS)
@@ -245,9 +257,70 @@ function ShopContent() {
     loadShopData()
   }, [])
 
-  // Filter application with full search query support (User Adjustment 3)
+  // Resolve active collection / occasion
+  const activeCollection = useMemo(() => {
+    if (!selectedCollectionSlug) return null
+    const target = selectedCollectionSlug.toLowerCase().trim()
+    return (
+      collections.find(
+        (c) => c.slug.toLowerCase() === target || c.name.toLowerCase() === target
+      ) || null
+    )
+  }, [selectedCollectionSlug, collections])
+
+  // Resolve mapped category IDs (including all child subcategories) and fallback category names/slugs
+  const { collectionCategoryIds, collectionCategoryNamesAndSlugs, collectionProductIds } = useMemo(() => {
+    if (!activeCollection) {
+      return {
+        collectionCategoryIds: new Set<string>(),
+        collectionCategoryNamesAndSlugs: new Set<string>(),
+        collectionProductIds: new Set<string>(),
+      }
+    }
+
+    const catIds = new Set<string>(activeCollection.category_ids || [])
+    const namesAndSlugs = new Set<string>()
+
+    categories.forEach((c) => {
+      if (catIds.has(c.id)) {
+        namesAndSlugs.add(c.name.toLowerCase())
+        namesAndSlugs.add(c.slug.toLowerCase())
+        // If it's a parent category, automatically include all its children!
+        if (!c.parent_id) {
+          categories.forEach((child) => {
+            if (child.parent_id === c.id) {
+              catIds.add(child.id)
+              namesAndSlugs.add(child.name.toLowerCase())
+              namesAndSlugs.add(child.slug.toLowerCase())
+            }
+          })
+        }
+      }
+    })
+
+    return {
+      collectionCategoryIds: catIds,
+      collectionCategoryNamesAndSlugs: namesAndSlugs,
+      collectionProductIds: new Set<string>(activeCollection.product_ids || []),
+    }
+  }, [activeCollection, categories])
+
+  // Filter application with full search query and collection support
   const filteredProducts = useMemo(() => {
     return allProducts.filter((product) => {
+      // 0. Occasion / Collection Filter (Resolves category_id with fallback to category name/slug, plus pinned products)
+      if (activeCollection) {
+        const isPinned = collectionProductIds.has(product.id)
+        const matchesCategoryId = Boolean(
+          product.category_id && collectionCategoryIds.has(product.category_id)
+        )
+        const matchesCategoryNameOrSlug = Boolean(
+          product.category && collectionCategoryNamesAndSlugs.has(product.category.toLowerCase())
+        )
+        const matchesCollection = isPinned || matchesCategoryId || matchesCategoryNameOrSlug
+        if (!matchesCollection) return false
+      }
+
       // 1. Text Search Filter (q param)
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim()
@@ -407,6 +480,12 @@ function ShopContent() {
           <Link href="/" className="hover:text-[#14293a] transition-colors">Home</Link>
           <span> / </span>
           <Link href="/shop" className="hover:text-[#14293a] transition-colors">Shop</Link>
+          {activeCollection && (
+            <>
+              <span> / </span>
+              <span className="text-[#14293a] font-medium">Occasion: {activeCollection.name}</span>
+            </>
+          )}
           {selectedCategory !== 'All' && (
             <>
               <span> / </span>
@@ -420,6 +499,45 @@ function ShopContent() {
             </>
           )}
         </nav>
+
+        {/* Active Occasion / Collection Banner */}
+        {activeCollection && (
+          <div className="mb-4 p-4 sm:p-5 bg-[#fbfbfb] border border-[#e5e7eb] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-[#14293a] text-white">
+                  {activeCollection.group_type}
+                </span>
+                <span className="text-xs text-[#6c7079] font-medium">
+                  Curated Collection
+                </span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold text-[#14293a]">
+                {activeCollection.name}
+              </h2>
+              {activeCollection.description && (
+                <p className="text-xs text-[#6c7079] mt-1 max-w-2xl leading-relaxed">
+                  {activeCollection.description}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCollectionSlug(null)
+                const params = new URLSearchParams(searchParams.toString())
+                params.delete('collection')
+                const queryStr = params.toString()
+                router.push(`/shop${queryStr ? `?${queryStr}` : ''}`)
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white hover:bg-[#f0f0f0] border border-[#d3d6db] text-[#14293a] transition-colors shrink-0 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5 text-[#b91c1c]" />
+              <span>Clear Occasion</span>
+            </button>
+          </div>
+        )}
 
         {/* Row 2: Single Flex Bar */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#e5e7eb] pb-4 mb-6">

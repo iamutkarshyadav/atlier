@@ -6,17 +6,21 @@ import {
   getCategories,
   getPromotionalBanners,
   getStorefrontConfig,
+  getCollections,
   DEFAULT_PRODUCTS,
   DEFAULT_CATEGORIES,
+  DEFAULT_COLLECTIONS,
   DEFAULT_HOMEPAGE_SECTIONS,
   type Product,
   type Category,
   type PromotionalBanner,
+  type CollectionWithRelations,
 } from '@repo/supabase/utils'
 import { HeroSplitScreen, type HeroSlide } from '../components/HeroSplitScreen'
 import { TrustServiceStrip } from '../components/TrustServiceStrip'
 import { HomepageProductShowcase } from '../components/HomepageProductShowcase'
 import { CuratedSpotlightGrid } from '../components/CuratedSpotlightGrid'
+import { ShopByOccasion } from '../components/ShopByOccasion'
 import { NewsletterStrip } from '../components/NewsletterStrip'
 
 export const revalidate = 60
@@ -41,24 +45,28 @@ export default async function HomePage() {
   let products: Product[] = []
   let categories: Category[] = []
   let banners: PromotionalBanner[] = []
+  let collections: CollectionWithRelations[] = []
   let homepageSections = DEFAULT_HOMEPAGE_SECTIONS
 
   try {
-    const [fetchedProds, fetchedCats, fetchedBanners, fetchedConfig] = await Promise.all([
+    const [fetchedProds, fetchedCats, fetchedBanners, fetchedConfig, fetchedCollections] = await Promise.all([
       getStorefrontProducts(supabase, 'all'),
       getCategories(supabase),
       getPromotionalBanners(supabase, true),
       getStorefrontConfig(supabase),
+      getCollections(supabase, { showOnHome: true, onlyActive: true }),
     ])
     products = fetchedProds && fetchedProds.length > 0 ? fetchedProds : DEFAULT_PRODUCTS
     categories = fetchedCats && fetchedCats.length > 0 ? fetchedCats : DEFAULT_CATEGORIES
     banners = fetchedBanners || []
+    collections = fetchedCollections && fetchedCollections.length > 0 ? fetchedCollections : DEFAULT_COLLECTIONS
     if (fetchedConfig?.homepage_sections && Array.isArray(fetchedConfig.homepage_sections)) {
       homepageSections = fetchedConfig.homepage_sections
     }
   } catch {
     products = DEFAULT_PRODUCTS
     categories = DEFAULT_CATEGORIES
+    collections = DEFAULT_COLLECTIONS
   }
 
   const heroSlides: HeroSlide[] =
@@ -94,9 +102,13 @@ export default async function HomePage() {
       </div>
     ),
     product_showcase: <HomepageProductShowcase key="product_showcase" products={products} categories={categories} />,
+    shop_by_occasion: <ShopByOccasion key="shop_by_occasion" collections={collections} />,
     spotlight_grid: <CuratedSpotlightGrid key="spotlight_grid" />,
     newsletter: <NewsletterStrip key="newsletter" />,
   }
+
+  // Ensure Shop by Occasion displays even if not in legacy homepage_sections config
+  const hasOccasionSection = sortedSections.some((s: any) => s.id === 'shop_by_occasion')
 
   return (
     <div className="bg-white text-[#14293a] overflow-hidden selection:bg-[#b91c1c] selection:text-white font-sans">
@@ -104,6 +116,7 @@ export default async function HomePage() {
         if (sec.is_active === false) return null
         return sectionRenderer[sec.id] || null
       })}
+      {!hasOccasionSection && <ShopByOccasion collections={collections} />}
     </div>
   )
 }

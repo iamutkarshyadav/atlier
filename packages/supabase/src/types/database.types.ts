@@ -950,6 +950,116 @@ export interface Database {
         }
         Relationships: []
       }
+      collections: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          group_type: 'occasion' | 'collection' | 'season' | 'capsule'
+          description: string | null
+          image_url: string | null
+          display_order: number
+          is_active: boolean
+          show_in_navbar: boolean
+          show_on_home: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          group_type?: 'occasion' | 'collection' | 'season' | 'capsule'
+          description?: string | null
+          image_url?: string | null
+          display_order?: number
+          is_active?: boolean
+          show_in_navbar?: boolean
+          show_on_home?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          group_type?: 'occasion' | 'collection' | 'season' | 'capsule'
+          description?: string | null
+          image_url?: string | null
+          display_order?: number
+          is_active?: boolean
+          show_in_navbar?: boolean
+          show_on_home?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      collection_categories: {
+        Row: {
+          collection_id: string
+          category_id: string
+          created_at: string
+        }
+        Insert: {
+          collection_id: string
+          category_id: string
+          created_at?: string
+        }
+        Update: {
+          collection_id?: string
+          category_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_categories_collection_id_fkey"
+            columns: ["collection_id"]
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_categories_category_id_fkey"
+            columns: ["category_id"]
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      collection_products: {
+        Row: {
+          collection_id: string
+          product_id: string
+          display_order: number
+          created_at: string
+        }
+        Insert: {
+          collection_id: string
+          product_id: string
+          display_order?: number
+          created_at?: string
+        }
+        Update: {
+          collection_id?: string
+          product_id?: string
+          display_order?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_products_collection_id_fkey"
+            columns: ["collection_id"]
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_products_product_id_fkey"
+            columns: ["product_id"]
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       addresses: {
         Row: {
           id: string
@@ -1937,3 +2047,21 @@ export type PageLayoutUpdate = Database['public']['Tables']['page_layouts']['Upd
 export type StorefrontTokens = Database['public']['Tables']['storefront_tokens']['Row']
 export type StorefrontTokensInsert = Database['public']['Tables']['storefront_tokens']['Insert']
 export type StorefrontTokensUpdate = Database['public']['Tables']['storefront_tokens']['Update']
+
+export type Collection = Database['public']['Tables']['collections']['Row']
+export type CollectionInsert = Database['public']['Tables']['collections']['Insert']
+export type CollectionUpdate = Database['public']['Tables']['collections']['Update']
+
+export type CollectionCategory = Database['public']['Tables']['collection_categories']['Row']
+export type CollectionCategoryInsert = Database['public']['Tables']['collection_categories']['Insert']
+
+export type CollectionProduct = Database['public']['Tables']['collection_products']['Row']
+export type CollectionProductInsert = Database['public']['Tables']['collection_products']['Insert']
+
+export type CollectionGroupType = 'occasion' | 'collection' | 'season' | 'capsule'
+
+export interface CollectionWithRelations extends Collection {
+  category_ids?: string[]
+  product_ids?: string[]
+  product_count?: number
+}

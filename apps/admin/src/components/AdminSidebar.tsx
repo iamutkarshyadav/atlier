@@ -18,6 +18,7 @@ import {
   Barcode as BarcodeIcon,
   Users,
   Layers,
+  Sparkles,
   LogOut,
   Zap,
   ChevronLeft,
@@ -76,6 +77,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Catalog & CMS',
     items: [
       { href: '/categories', label: 'Categories', icon: FolderTree },
+      { href: '/collections', label: 'Collections & Occasions', icon: Sparkles },
       { href: '/barcodes', label: 'Barcode Studio', icon: BarcodeIcon },
       { href: '/customers', label: 'Customers & Staff', icon: Users },
       { href: '/cms', label: 'Storefront CMS', icon: Layers },

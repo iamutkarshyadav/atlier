@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter, usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -26,10 +27,12 @@ import { SearchModal } from './SearchModal'
 import { createBrowserClient } from '@repo/supabase/browser'
 import {
   getCategories,
+  getCollections,
   DEFAULT_CATEGORIES,
   DEFAULT_PRODUCTS,
   type Category,
   type Product,
+  type CollectionWithRelations,
 } from '@repo/supabase/utils'
 
 function formatNameFromEmail(email: string): string {
@@ -57,6 +60,7 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
   const pathname = usePathname()
 
   const [categories, setCategories] = useState<Category[]>(initialCategories)
+  const [occasions, setOccasions] = useState<CollectionWithRelations[]>([])
   const [activeMegaMenu, setActiveMegaMenu] = useState<string | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [expandedMobileCategory, setExpandedMobileCategory] = useState<string | null>(null)
@@ -91,12 +95,16 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // Re-fetch categories on mount to keep navigation synced with real-time Admin updates
+  // Re-fetch categories and occasions on mount to keep navigation synced with real-time Admin updates
   useEffect(() => {
     const supabase = createBrowserClient()
-    getCategories(supabase)
-      .then((cats) => {
+    Promise.all([
+      getCategories(supabase),
+      getCollections(supabase, { onlyActive: true, showInNavbar: true }),
+    ])
+      .then(([cats, cols]) => {
         if (cats && cats.length > 0) setCategories(cats)
+        if (cols && cols.length > 0) setOccasions(cols)
       })
       .catch(() => {})
   }, [])
@@ -674,6 +682,35 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
               </AnimatePresence>
             </li>
 
+            {/* Item 2: OCCASIONS (Dynamic Multi-Category Groupings) */}
+            {occasions.length > 0 && (
+              <li
+                onMouseEnter={() => handleMouseEnterMenu('occasions')}
+                className="relative shrink-0"
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveMegaMenu((prev) => (prev === 'occasions' ? null : 'occasions'))
+                  }}
+                  className={`inline-flex items-center gap-1.5 py-3 text-xs font-sans font-bold tracking-wider uppercase whitespace-nowrap transition-colors border-b-2 cursor-pointer ${
+                    activeMegaMenu === 'occasions'
+                      ? 'text-[#b91c1c] border-[#b91c1c]'
+                      : 'text-[#14293a] border-transparent hover:text-[#b91c1c] hover:border-[#b91c1c]'
+                  }`}
+                  aria-expanded={activeMegaMenu === 'occasions'}
+                  aria-haspopup="true"
+                >
+                  <span>OCCASIONS</span>
+                  <ChevronDown
+                    className={`w-3 h-3 text-[#6c7079] transition-transform duration-200 ${
+                      activeMegaMenu === 'occasions' ? 'rotate-180 text-[#b91c1c]' : ''
+                    }`}
+                  />
+                </button>
+              </li>
+            )}
+
             {/* Dynamic Parent Categories */}
             {parentCategories.map((cat) => {
               const children = subcategoriesMap[cat.id] || []
@@ -707,6 +744,82 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
               )
             })}
           </ul>
+        </div>
+
+        {/* Occasions Mega-Menu Flyout */}
+        <div
+          className={`absolute left-0 right-0 top-full bg-white border-t border-b border-[#d3d6db] shadow-2xl z-40 transition-all duration-150 ease-out ${
+            activeMegaMenu === 'occasions' && occasions.length > 0
+              ? 'opacity-100 translate-y-0 pointer-events-auto visible'
+              : 'opacity-0 translate-y-1 pointer-events-none invisible'
+          }`}
+          onMouseEnter={() => {
+            if (megaMenuTimeoutRef.current) clearTimeout(megaMenuTimeoutRef.current)
+          }}
+          onMouseLeave={handleMouseLeaveMenu}
+        >
+          {activeMegaMenu === 'occasions' && occasions.length > 0 && (
+            <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <div className="flex items-center justify-between pb-3 mb-5 border-b border-[#e5e7eb]">
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-[#14293a]">
+                    Shop by Occasion & Lifestyle Edits
+                  </h3>
+                  <p className="text-xs text-[#6c7079] mt-0.5">
+                    Curated apparel groupings tailored for weddings, festivals, resort travel, and everyday wear.
+                  </p>
+                </div>
+                <Link
+                  href="/shop"
+                  onClick={() => setActiveMegaMenu(null)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#b91c1c] hover:underline"
+                >
+                  <span>Explore All Curations</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {occasions.map((occ) => (
+                  <Link
+                    key={occ.id}
+                    href={`/shop?collection=${encodeURIComponent(occ.slug)}`}
+                    onClick={() => setActiveMegaMenu(null)}
+                    className="group flex flex-col bg-[#fbfbfb] border border-[#e5e7eb] hover:border-[#14293a] transition-all duration-200 overflow-hidden"
+                  >
+                    <div className="relative aspect-[16/10] bg-[#f0f0f0] overflow-hidden">
+                      {occ.image_url ? (
+                        <Image
+                          src={occ.image_url}
+                          alt={occ.name}
+                          fill
+                          unoptimized
+                          className="object-cover group-hover:scale-104 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xs text-[#8a909a]">
+                          No Image
+                        </div>
+                      )}
+                      <span className="absolute top-2 left-2 bg-[#14293a]/90 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5">
+                        {occ.group_type}
+                      </span>
+                    </div>
+                    <div className="p-3">
+                      <h4 className="text-xs font-bold text-[#14293a] group-hover:text-[#b91c1c] transition-colors line-clamp-1">
+                        {occ.name}
+                      </h4>
+                      {occ.description && (
+                        <p className="text-[11px] text-[#6c7079] line-clamp-1 mt-0.5">
+                          {occ.description}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Fast CSS Hover Mega-Menu Flyouts (Zero AnimatePresence overhead) */}
