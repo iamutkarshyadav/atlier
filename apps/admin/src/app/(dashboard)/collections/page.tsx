@@ -25,7 +25,14 @@ import {
 } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { triggerStorefrontRevalidation } from '@/lib/revalidate'
-import type { Category, Product, CollectionWithRelations, CollectionGroupType } from '@repo/supabase/utils'
+import { createBrowserClient } from '@repo/supabase/browser'
+import {
+  getAllProductsAdmin,
+  type Category,
+  type Product,
+  type CollectionWithRelations,
+  type CollectionGroupType,
+} from '@repo/supabase/utils'
 
 const CURATED_PRESETS = [
   {
@@ -123,11 +130,11 @@ export default function AdminCollectionsPage() {
       }
 
       // Fetch products for picker
-      const prodRes = await fetch('/api/admin/inventory/products?limit=100', { cache: 'no-store' }).catch(() => null)
-      if (prodRes) {
-        const prodJson = await prodRes.json().catch(() => null)
-        if (prodJson?.products) setProducts(prodJson.products)
-      }
+      try {
+        const supabase = createBrowserClient()
+        const prods = await getAllProductsAdmin(supabase)
+        if (prods && Array.isArray(prods)) setProducts(prods)
+      } catch {}
     } catch {
       // Fallback
     } finally {
@@ -137,6 +144,21 @@ export default function AdminCollectionsPage() {
 
   useEffect(() => {
     loadData()
+
+    const supabase = createBrowserClient()
+    const channel = supabase
+      .channel('admin_collections_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'collections' }, () => {
+        loadData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'storefront_config' }, () => {
+        loadData()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   // Category Tree

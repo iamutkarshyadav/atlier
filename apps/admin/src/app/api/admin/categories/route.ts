@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
     const payload: any = {
       name: name.trim(),
       slug: cleanSlug,
+      parent_id: targetParentId,
       description: effectiveDescription,
       image_url: image_url && image_url.trim() ? image_url.trim() : null,
       display_order: typeof display_order === 'number' ? display_order : parseInt(display_order, 10) || 1,
@@ -61,23 +62,39 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Category cannot be its own parent' }, { status: 400 })
       }
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('categories')
         .update(payload)
         .eq('id', id)
         .select()
         .single()
 
+      if (error && (error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('parent_id') || error.message?.includes('schema cache'))) {
+        const fallback = { ...payload }
+        delete fallback.parent_id
+        const retry = await supabase.from('categories').update(fallback).eq('id', id).select().single()
+        data = retry.data
+        error = retry.error
+      }
+
       if (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 })
       }
       return NextResponse.json({ success: true, category: normalizeCategoryRow(data) })
     } else {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('categories')
         .insert(payload)
         .select()
         .single()
+
+      if (error && (error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('parent_id') || error.message?.includes('schema cache'))) {
+        const fallback = { ...payload }
+        delete fallback.parent_id
+        const retry = await supabase.from('categories').insert(fallback).select().single()
+        data = retry.data
+        error = retry.error
+      }
 
       if (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 })

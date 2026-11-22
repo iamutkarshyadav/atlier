@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { triggerStorefrontRevalidation } from '@/lib/revalidate'
+import { createBrowserClient } from '@repo/supabase/browser'
 import type { Category } from '@repo/supabase/utils'
 
 const CURATED_PRESETS = [
@@ -112,6 +113,18 @@ export default function AdminCategoriesPage() {
 
   useEffect(() => {
     loadData()
+
+    const supabase = createBrowserClient()
+    const channel = supabase
+      .channel('admin_categories_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+        loadData()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   // Auto-dismiss feedback toast after 4s

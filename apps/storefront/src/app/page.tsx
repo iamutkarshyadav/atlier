@@ -23,7 +23,8 @@ import { CuratedSpotlightGrid } from '../components/CuratedSpotlightGrid'
 import { ShopByOccasion } from '../components/ShopByOccasion'
 import { NewsletterStrip } from '../components/NewsletterStrip'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export const metadata: Metadata = {
   title: 'Maison TG | Online Shopping for Men & Women Apparel',
@@ -57,9 +58,9 @@ export default async function HomePage() {
       getCollections(supabase, { showOnHome: true, onlyActive: true }),
     ])
     products = fetchedProds && fetchedProds.length > 0 ? fetchedProds : DEFAULT_PRODUCTS
-    categories = fetchedCats && fetchedCats.length > 0 ? fetchedCats : DEFAULT_CATEGORIES
+    categories = Array.isArray(fetchedCats) && fetchedCats.length > 0 ? fetchedCats : DEFAULT_CATEGORIES
     banners = fetchedBanners || []
-    collections = fetchedCollections && fetchedCollections.length > 0 ? fetchedCollections : DEFAULT_COLLECTIONS
+    collections = Array.isArray(fetchedCollections) ? fetchedCollections : DEFAULT_COLLECTIONS
     if (fetchedConfig?.homepage_sections && Array.isArray(fetchedConfig.homepage_sections)) {
       homepageSections = fetchedConfig.homepage_sections
     }

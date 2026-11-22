@@ -86,7 +86,7 @@ export default function LuxuryAdminOrdersPage() {
       // 1. Fetch from unified server API route (combines DB + live ledger)
       let fetchedOrders: OrderWithItems[] = []
       try {
-        const res = await fetch('/api/orders')
+        const res = await fetch(`/api/orders?t=${Date.now()}`, { cache: 'no-store' })
         const data = await res.json()
         if (data.success && Array.isArray(data.orders)) {
           fetchedOrders = data.orders
@@ -137,8 +137,35 @@ export default function LuxuryAdminOrdersPage() {
     const supabase = createBrowserClient()
     const channel = supabase
       .channel('admin_realtime_orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        loadData(true)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          // Adjustment #4: Refetch from /api/orders to hydrate order_items
+          loadData(true)
+        } else if (payload.eventType === 'UPDATE') {
+          // Optimistic / fast in-place update for status changes
+          const updatedRow = payload.new as any
+          if (updatedRow && updatedRow.id) {
+            setOrders((prev) =>
+              prev.map((ord) =>
+                ord.id === updatedRow.id
+                  ? {
+                      ...ord,
+                      status: updatedRow.status || ord.status,
+                      payment_status: updatedRow.payment_status || (ord as any).payment_status,
+                      delivery_courier_id:
+                        updatedRow.delivery_courier_id !== undefined
+                          ? updatedRow.delivery_courier_id
+                          : (ord as any).delivery_courier_id,
+                      try_on_status: updatedRow.try_on_status || ord.try_on_status,
+                      updated_at: updatedRow.updated_at || new Date().toISOString(),
+                    }
+                  : ord
+              )
+            )
+          }
+        } else {
+          loadData(true)
+        }
       })
       .subscribe()
 

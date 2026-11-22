@@ -14,6 +14,8 @@ import {
   Package,
   Zap,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   User,
   Menu,
   MapPin,
@@ -76,6 +78,36 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
   const megaMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const userDropdownRef = useRef<HTMLDivElement>(null)
   const categoryNavRef = useRef<HTMLElement>(null)
+  const categoryScrollRef = useRef<HTMLUListElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  const checkScrollIndicators = () => {
+    const el = categoryScrollRef.current
+    if (!el) return
+    const { scrollLeft, scrollWidth, clientWidth } = el
+    setCanScrollLeft(scrollLeft > 6)
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 6)
+  }
+
+  useEffect(() => {
+    const el = categoryScrollRef.current
+    if (!el) return
+    checkScrollIndicators()
+    el.addEventListener('scroll', checkScrollIndicators, { passive: true })
+    window.addEventListener('resize', checkScrollIndicators)
+    return () => {
+      el.removeEventListener('scroll', checkScrollIndicators)
+      window.removeEventListener('resize', checkScrollIndicators)
+    }
+  }, [categories, occasions])
+
+  const scrollCategoryTrack = (direction: 'left' | 'right') => {
+    const el = categoryScrollRef.current
+    if (!el) return
+    const scrollAmount = direction === 'left' ? -260 : 260
+    el.scrollBy({ left: scrollAmount, behavior: 'smooth' })
+  }
 
   const { itemCount } = useHydratedCart()
   const { city: boltCity, pincode } = useHydratedBolt()
@@ -95,18 +127,54 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // Re-fetch categories and occasions on mount to keep navigation synced with real-time Admin updates
+  // Re-fetch categories and occasions on mount and subscribe to real-time changes
   useEffect(() => {
     const supabase = createBrowserClient()
-    Promise.all([
-      getCategories(supabase),
-      getCollections(supabase, { onlyActive: true, showInNavbar: true }),
-    ])
-      .then(([cats, cols]) => {
-        if (cats && cats.length > 0) setCategories(cats)
-        if (cols && cols.length > 0) setOccasions(cols)
+    const fetchNavData = async () => {
+      try {
+        const [catRes, colRes] = await Promise.all([
+          fetch('/api/categories', { cache: 'no-store' }),
+          fetch('/api/collections?showInNavbar=true', { cache: 'no-store' }),
+        ])
+        const [catJson, colJson] = await Promise.all([catRes.json(), colRes.json()])
+        if (catJson.success && Array.isArray(catJson.categories) && catJson.categories.length > 0) {
+          setCategories(catJson.categories)
+        }
+        if (colJson.success && Array.isArray(colJson.collections)) {
+          setOccasions(colJson.collections)
+          return
+        }
+      } catch {}
+
+      Promise.all([
+        getCategories(supabase),
+        getCollections(supabase, { onlyActive: true, showInNavbar: true }),
+      ])
+        .then(([cats, cols]) => {
+          if (Array.isArray(cats) && cats.length > 0) setCategories(cats)
+          if (Array.isArray(cols)) setOccasions(cols)
+        })
+        .catch(() => {})
+    }
+
+    fetchNavData()
+
+    const channel = supabase
+      .channel('navbar_realtime_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'collections' }, () => {
+        fetchNavData()
       })
-      .catch(() => {})
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+        fetchNavData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'storefront_config' }, () => {
+        fetchNavData()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   // Fetch latest products from Supabase for New Arrivals live preview
@@ -296,7 +364,7 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white text-[#14293a] shadow-[0_1px_3px_0_rgba(0,0,0,0.06)] border-b border-[#d3d6db]">
+    <header className="sticky top-0 z-50 w-full max-w-full bg-white text-[#14293a] shadow-[0_1px_3px_0_rgba(0,0,0,0.06)] border-b border-[#d3d6db] overflow-x-clip">
       {/* ========================================================= */}
       {/* TIER 1: E-COMMERCE ANNOUNCEMENT STRIP                    */}
       {/* ========================================================= */}
@@ -515,11 +583,36 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
       {/* ========================================================= */}
       <nav
         ref={categoryNavRef}
-        className="hidden lg:block border-t border-[#e5e7eb] bg-white relative"
+        className="hidden lg:block border-t border-[#e5e7eb] bg-white relative w-full max-w-full overflow-x-clip"
         onMouseLeave={handleMouseLeaveMenu}
       >
-        <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8">
-          <ul className="flex items-center justify-start gap-8">
+        <div className="relative max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Left Navigation Chevron Button & Fade Mask */}
+          {canScrollLeft && (
+            <div className="absolute left-0 top-0 bottom-0 z-20 flex items-center pr-4 pl-1 bg-gradient-to-r from-white via-white/95 to-transparent">
+              <button
+                type="button"
+                onClick={() => scrollCategoryTrack('left')}
+                className="w-6 h-6 rounded-full bg-white border border-[#d3d6db] shadow-xs flex items-center justify-center text-[#14293a] hover:text-[#b91c1c] hover:border-[#14293a] transition-all cursor-pointer"
+                aria-label="Scroll navigation left"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Scrollable Category Track */}
+          <ul
+            ref={categoryScrollRef}
+            onWheel={(e) => {
+              const el = categoryScrollRef.current
+              if (el && el.scrollWidth > el.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                el.scrollLeft += e.deltaY
+              }
+            }}
+            className="flex items-center justify-start gap-6 sm:gap-8 overflow-x-auto scroll-smooth scrollbar-none py-0 select-none min-w-0"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
             {/* Item 1: NEW ARRIVALS */}
             <li
               onMouseEnter={() => handleMouseEnterMenu('new-arrivals')}
@@ -548,138 +641,6 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
                   }`}
                 />
               </button>
-
-              {/* Anchored Luxury Split Popover */}
-              <AnimatePresence>
-                {activeMegaMenu === 'new-arrivals' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 4 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute left-0 top-full mt-0 w-[560px] bg-white border border-[#d3d6db] shadow-2xl rounded-b-sm z-50 p-5 text-left font-sans"
-                    onMouseEnter={() => {
-                      if (megaMenuTimeoutRef.current) clearTimeout(megaMenuTimeoutRef.current)
-                    }}
-                    onMouseLeave={handleMouseLeaveMenu}
-                  >
-                    <div className="grid grid-cols-12 gap-5 divide-x divide-[#e5e7eb]">
-                      {/* Left Column (5 cols, ~210px): Curated Fast Links & Category Filter */}
-                      <div className="col-span-5 pr-2 space-y-4">
-                        <div>
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#6c7079] block mb-2">
-                            New Releases
-                          </span>
-                          <div className="space-y-1.5">
-                            <Link
-                              href="/shop?sort=newest"
-                              onClick={() => setActiveMegaMenu(null)}
-                              className="flex items-center justify-between p-2 rounded-xs bg-[#f8f8f8] hover:bg-[#14293a] text-[#14293a] hover:text-white transition-all group font-bold text-xs"
-                            >
-                              <span>View All New In</span>
-                              <ArrowRight className="w-3.5 h-3.5 text-[#6c7079] group-hover:text-white group-hover:translate-x-0.5 transition-transform" />
-                            </Link>
-
-                            <Link
-                              href="/bolt"
-                              onClick={() => setActiveMegaMenu(null)}
-                              className="flex items-center justify-between p-2 rounded-xs border border-[#b91c1c]/20 hover:border-[#b91c1c] bg-[#fef2f2]/40 hover:bg-[#b91c1c] text-[#b91c1c] hover:text-white transition-all group font-semibold text-xs"
-                            >
-                              <div className="flex items-center gap-1.5">
-                                <Zap className="w-3.5 h-3.5 fill-current" />
-                                <span>Bolt Try-On Drops</span>
-                              </div>
-                              <span className="text-[10px] font-bold uppercase tracking-tight opacity-75">
-                                45-MIN
-                              </span>
-                            </Link>
-                          </div>
-                        </div>
-
-                        <div className="pt-2 border-t border-[#e5e7eb]">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#6c7079] block mb-2">
-                            Shop by Category
-                          </span>
-                          <ul className="space-y-1">
-                            {parentCategories.map((cat) => (
-                              <li key={cat.id}>
-                                <Link
-                                  href={`/shop?category=${encodeURIComponent(cat.slug || cat.name)}&sort=newest`}
-                                  onClick={() => setActiveMegaMenu(null)}
-                                  className="flex items-center justify-between py-1 px-1.5 rounded-xs text-xs text-[#14293a] hover:text-[#b91c1c] hover:bg-[#f8f8f8] transition-colors"
-                                >
-                                  <span className="font-medium truncate">{cat.name}</span>
-                                  <span className="text-[10px] text-[#8a909a] font-normal">New</span>
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-
-                      {/* Right Column (7 cols, ~310px): Live Product Drop Preview */}
-                      <div className="col-span-7 pl-5 flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#6c7079]">
-                              Just Dropped
-                            </span>
-                            <span className="text-[10px] font-semibold text-[#b91c1c] uppercase tracking-wider">
-                              Latest Inventory
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-3">
-                            {latestProducts.slice(0, 2).map((product) => (
-                              <Link
-                                key={product.id}
-                                href={`/products/${product.id}`}
-                                onClick={() => setActiveMegaMenu(null)}
-                                className="group block border border-[#e5e7eb] hover:border-[#14293a] rounded-xs p-2 bg-[#f8f8f8]/50 hover:bg-white transition-all shadow-2xs"
-                              >
-                                <div className="relative aspect-3/4 bg-[#eceff1] rounded-xs overflow-hidden mb-2">
-                                  {product.image_url ? (
-                                    <img
-                                      src={product.image_url}
-                                      alt={product.title}
-                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                      loading="lazy"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-xs text-[#8a909a]">
-                                      No Image
-                                    </div>
-                                  )}
-                                  <span className="absolute top-1 left-1 bg-[#14293a] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-xs tracking-tight">
-                                    NEW
-                                  </span>
-                                </div>
-                                <h4 className="text-xs font-semibold text-[#14293a] group-hover:text-[#b91c1c] transition-colors line-clamp-1 leading-snug">
-                                  {product.title}
-                                </h4>
-                                <p className="text-xs font-bold text-[#14293a] mt-0.5">
-                                  ₹{product.price.toLocaleString('en-IN')}
-                                </p>
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="pt-3 mt-3 border-t border-[#e5e7eb] flex items-center justify-end">
-                          <Link
-                            href="/shop?sort=newest"
-                            onClick={() => setActiveMegaMenu(null)}
-                            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#b91c1c] hover:underline"
-                          >
-                            <span>Explore Entire New Drop</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </li>
 
             {/* Item 2: OCCASIONS (Dynamic Multi-Category Groupings) */}
@@ -744,7 +705,153 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
               )
             })}
           </ul>
+
+          {/* Right Navigation Chevron Button & Fade Mask */}
+          {canScrollRight && (
+            <div className="absolute right-0 top-0 bottom-0 z-20 flex items-center pl-4 pr-1 bg-gradient-to-l from-white via-white/95 to-transparent">
+              <button
+                type="button"
+                onClick={() => scrollCategoryTrack('right')}
+                className="w-6 h-6 rounded-full bg-white border border-[#d3d6db] shadow-xs flex items-center justify-center text-[#14293a] hover:text-[#b91c1c] hover:border-[#14293a] transition-all cursor-pointer"
+                aria-label="Scroll navigation right"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Anchored Luxury Split Popover for NEW ARRIVALS */}
+        <AnimatePresence>
+          {activeMegaMenu === 'new-arrivals' && (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.15 }}
+              className="absolute left-4 sm:left-6 lg:left-8 top-full mt-0 w-[560px] max-w-[calc(100vw-2rem)] bg-white border border-[#d3d6db] shadow-2xl rounded-b-sm z-50 p-5 text-left font-sans"
+              onMouseEnter={() => {
+                if (megaMenuTimeoutRef.current) clearTimeout(megaMenuTimeoutRef.current)
+              }}
+              onMouseLeave={handleMouseLeaveMenu}
+            >
+              <div className="grid grid-cols-12 gap-5 divide-x divide-[#e5e7eb]">
+                {/* Left Column (5 cols, ~210px): Curated Fast Links & Category Filter */}
+                <div className="col-span-5 pr-2 space-y-4">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#6c7079] block mb-2">
+                      New Releases
+                    </span>
+                    <div className="space-y-1.5">
+                      <Link
+                        href="/shop?sort=newest"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="flex items-center justify-between p-2 rounded-xs bg-[#f8f8f8] hover:bg-[#14293a] text-[#14293a] hover:text-white transition-all group font-bold text-xs"
+                      >
+                        <span>View All New In</span>
+                        <ArrowRight className="w-3.5 h-3.5 text-[#6c7079] group-hover:text-white group-hover:translate-x-0.5 transition-transform" />
+                      </Link>
+
+                      <Link
+                        href="/bolt"
+                        onClick={() => setActiveMegaMenu(null)}
+                        className="flex items-center justify-between p-2 rounded-xs border border-[#b91c1c]/20 hover:border-[#b91c1c] bg-[#fef2f2]/40 hover:bg-[#b91c1c] text-[#b91c1c] hover:text-white transition-all group font-semibold text-xs"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Zap className="w-3.5 h-3.5 fill-current" />
+                          <span>Bolt Try-On Drops</span>
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-tight opacity-75">
+                          45-MIN
+                        </span>
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-[#e5e7eb]">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#6c7079] block mb-2">
+                      Shop by Category
+                    </span>
+                    <ul className="space-y-1">
+                      {parentCategories.map((cat) => (
+                        <li key={cat.id}>
+                          <Link
+                            href={`/shop?category=${encodeURIComponent(cat.slug || cat.name)}&sort=newest`}
+                            onClick={() => setActiveMegaMenu(null)}
+                            className="flex items-center justify-between py-1 px-1.5 rounded-xs text-xs text-[#14293a] hover:text-[#b91c1c] hover:bg-[#f8f8f8] transition-colors"
+                          >
+                            <span className="font-medium truncate">{cat.name}</span>
+                            <span className="text-[10px] text-[#8a909a] font-normal">New</span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Right Column (7 cols, ~310px): Live Product Drop Preview */}
+                <div className="col-span-7 pl-5 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#6c7079]">
+                        Just Dropped
+                      </span>
+                      <span className="text-[10px] font-semibold text-[#b91c1c] uppercase tracking-wider">
+                        Latest Inventory
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {latestProducts.slice(0, 2).map((product) => (
+                        <Link
+                          key={product.id}
+                          href={`/products/${product.id}`}
+                          onClick={() => setActiveMegaMenu(null)}
+                          className="group block border border-[#e5e7eb] hover:border-[#14293a] rounded-xs p-2 bg-[#f8f8f8]/50 hover:bg-white transition-all shadow-2xs"
+                        >
+                          <div className="relative aspect-3/4 bg-[#eceff1] rounded-xs overflow-hidden mb-2">
+                            {product.image_url ? (
+                              <img
+                                src={product.image_url}
+                                alt={product.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-xs text-[#8a909a]">
+                                No Image
+                              </div>
+                            )}
+                            <span className="absolute top-1 left-1 bg-[#14293a] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-xs tracking-tight">
+                              NEW
+                            </span>
+                          </div>
+                          <h4 className="text-xs font-semibold text-[#14293a] group-hover:text-[#b91c1c] transition-colors line-clamp-1 leading-snug">
+                            {product.title}
+                          </h4>
+                          <p className="text-xs font-bold text-[#14293a] mt-0.5">
+                            ₹{product.price.toLocaleString('en-IN')}
+                          </p>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 mt-3 border-t border-[#e5e7eb] flex items-center justify-end">
+                    <Link
+                      href="/shop?sort=newest"
+                      onClick={() => setActiveMegaMenu(null)}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[#b91c1c] hover:underline"
+                    >
+                      <span>Explore Entire New Drop</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Occasions Mega-Menu Flyout */}
         <div

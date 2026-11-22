@@ -1006,6 +1006,21 @@ export async function getCollections(
     const { data, error } = await query
 
     if (error || !data || data.length === 0) {
+      try {
+        const { data: configRow } = await (supabase as any)
+          .from('storefront_config')
+          .select('value')
+          .eq('key', 'collections')
+          .maybeSingle()
+        if (configRow?.value && Array.isArray(configRow.value) && configRow.value.length > 0) {
+          let list = configRow.value as CollectionWithRelations[]
+          if (options?.onlyActive !== false) list = list.filter((c) => c.is_active)
+          if (options?.showInNavbar) list = list.filter((c) => c.show_in_navbar)
+          if (options?.showOnHome) list = list.filter((c) => c.show_on_home)
+          return list.sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+        }
+      } catch {}
+
       let filtered = DEFAULT_COLLECTIONS
       if (options?.onlyActive !== false) {
         filtered = filtered.filter((c) => c.is_active)
@@ -1018,6 +1033,8 @@ export async function getCollections(
       }
       return filtered
     }
+
+    if (!data) return []
 
     return (data as any[]).map((row) => ({
       id: row.id,
@@ -1059,6 +1076,19 @@ export async function getCollectionBySlug(
       .maybeSingle()
 
     if (error || !data) {
+      try {
+        const { data: configRow } = await (supabase as any)
+          .from('storefront_config')
+          .select('value')
+          .eq('key', 'collections')
+          .maybeSingle()
+        if (configRow?.value && Array.isArray(configRow.value)) {
+          const found = (configRow.value as CollectionWithRelations[]).find(
+            (c) => c.slug === slug || c.id === slug
+          )
+          if (found) return found
+        }
+      } catch {}
       return DEFAULT_COLLECTIONS.find((c) => c.slug === slug) || null
     }
 
@@ -1412,11 +1442,16 @@ export async function getAllOrders(supabase: SupabaseClient<Database>): Promise<
       .select('*, bolt_timeslot:bolt_timeslots(*), order_items(*, product:products(id, title, image_url, price, material))')
       .order('created_at', { ascending: false })
 
-    if (error || !data || data.length === 0) {
+    if (error) {
+      console.warn('[getAllOrders] Supabase query error, falling back to DEFAULT_ORDERS:', error)
       return DEFAULT_ORDERS
     }
 
-    return data as unknown as OrderWithItems[]
+    if (Array.isArray(data)) {
+      return data as unknown as OrderWithItems[]
+    }
+
+    return DEFAULT_ORDERS
   } catch (err) {
     return DEFAULT_ORDERS
   }
@@ -2081,7 +2116,38 @@ export async function createProductWithVariantsAndMedia(
           barcode_url: generateBarcodeDataUrl(barcodeVal),
         }
       })
-      await supabase.from('product_variants').insert(variantRows)
+      const { data: insertedVariants } = await supabase
+        .from('product_variants')
+        .insert(variantRows)
+        .select('id, stock')
+
+      // Auto-populate inventory_levels for each new variant at default Bengaluru warehouse (BLR-WH01)
+      try {
+        const { data: defaultLoc } = await supabase
+          .from('locations')
+          .select('id')
+          .eq('code', 'BLR-WH01')
+          .maybeSingle()
+
+        const locId = defaultLoc?.id || 'd1000000-0000-0000-0000-000000000001'
+        const varsToSync = insertedVariants || []
+        if (varsToSync.length > 0) {
+          const invRows = varsToSync.map((v: any) => ({
+            location_id: locId,
+            variant_id: v.id,
+            on_hand: Number(v.stock) || 0,
+            reserved: 0,
+            reorder_point: 10,
+            reorder_quantity: 20,
+          }))
+          await (supabase.from('inventory_levels') as any).upsert(invRows, {
+            onConflict: 'location_id,variant_id',
+            ignoreDuplicates: true,
+          })
+        }
+      } catch (invErr) {
+        console.warn('[createProductWithVariantsAndMedia] Auto-inventory sync warning:', invErr)
+      }
     }
 
     if (payload.media && payload.media.length > 0) {

@@ -4,21 +4,49 @@ import { DEFAULT_COLLECTIONS } from '@repo/supabase/utils'
 
 export const dynamic = 'force-dynamic'
 
+async function loadCollectionsFromConfig(supabase: any) {
+  try {
+    const { data } = await supabase
+      .from('storefront_config')
+      .select('value')
+      .eq('key', 'collections')
+      .maybeSingle()
+    if (data?.value && Array.isArray(data.value) && data.value.length > 0) {
+      return data.value
+    }
+  } catch {}
+  return DEFAULT_COLLECTIONS
+}
+
+async function saveCollectionsToConfig(supabase: any, collections: any[]) {
+  try {
+    await supabase.from('storefront_config').upsert(
+      {
+        key: 'collections',
+        value: collections,
+        description: 'Dynamic collections and occasions config',
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'key' }
+    )
+  } catch {}
+}
+
 export async function GET() {
   try {
     const supabase = createServiceRoleClient()
 
-    // 1. Fetch collections with relations
-    const { data: collections, error: collError } = await supabase
+    // 1. Fetch collections with relations or fallback from storefront_config
+    let collections: any[] = []
+    const { data: rawCols, error: collError } = await supabase
       .from('collections')
       .select('*, collection_categories(category_id), collection_products(product_id)')
       .order('display_order', { ascending: true })
 
-    if (collError || !collections) {
-      return NextResponse.json({
-        success: true,
-        collections: DEFAULT_COLLECTIONS,
-      })
+    if (!collError && rawCols && rawCols.length > 0) {
+      collections = rawCols
+    } else {
+      collections = await loadCollectionsFromConfig(supabase)
     }
 
     // 2. Fetch categories and products to compute live resolved product counts
@@ -33,10 +61,14 @@ export async function GET() {
     const normalizedCollections = collections.map((col: any) => {
       const rawCategoryIds: string[] = Array.isArray(col.collection_categories)
         ? col.collection_categories.map((c: any) => c.category_id).filter(Boolean)
-        : []
+        : Array.isArray(col.category_ids)
+          ? col.category_ids
+          : []
       const rawProductIds: string[] = Array.isArray(col.collection_products)
         ? col.collection_products.map((p: any) => p.product_id).filter(Boolean)
-        : []
+        : Array.isArray(col.product_ids)
+          ? col.product_ids
+          : []
 
       // Expand parent categories to also include all child subcategories
       const resolvedCategoryIds = new Set<string>(rawCategoryIds)
@@ -139,54 +171,86 @@ export async function POST(req: NextRequest) {
 
     let savedId = id
 
-    if (id) {
-      const { data, error } = await supabase
-        .from('collections')
-        .update(payload)
-        .eq('id', id)
-        .select()
-        .single()
+    // Try relational collections table first
+    let tableSaveFailed = false
+    try {
+      if (id) {
+        const { data, error } = await supabase
+          .from('collections')
+          .update(payload)
+          .eq('id', id)
+          .select()
+          .single()
 
-      if (error) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 })
-      }
-      savedId = data.id
-    } else {
-      const { data, error } = await supabase
-        .from('collections')
-        .insert(payload)
-        .select()
-        .single()
+        if (error) {
+          tableSaveFailed = true
+        } else {
+          savedId = data.id
+        }
+      } else {
+        const { data, error } = await supabase
+          .from('collections')
+          .insert(payload)
+          .select()
+          .single()
 
-      if (error) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+        if (error) {
+          tableSaveFailed = true
+        } else {
+          savedId = data.id
+        }
       }
-      savedId = data.id
+
+      if (!tableSaveFailed && savedId) {
+        // Synchronize category mappings (Many-to-Many)
+        if (Array.isArray(category_ids)) {
+          await supabase.from('collection_categories').delete().eq('collection_id', savedId)
+          if (category_ids.length > 0) {
+            const catRows = category_ids.map((catId: string) => ({
+              collection_id: savedId,
+              category_id: catId,
+            }))
+            await supabase.from('collection_categories').insert(catRows)
+          }
+        }
+
+        // Synchronize pinned product mappings
+        if (Array.isArray(product_ids)) {
+          await supabase.from('collection_products').delete().eq('collection_id', savedId)
+          if (product_ids.length > 0) {
+            const prodRows = product_ids.map((prodId: string, idx: number) => ({
+              collection_id: savedId,
+              product_id: prodId,
+              display_order: idx + 1,
+            }))
+            await supabase.from('collection_products').insert(prodRows)
+          }
+        }
+      }
+    } catch {
+      tableSaveFailed = true
     }
 
-    // Synchronize category mappings (Many-to-Many)
-    if (Array.isArray(category_ids) && savedId) {
-      await supabase.from('collection_categories').delete().eq('collection_id', savedId)
-      if (category_ids.length > 0) {
-        const catRows = category_ids.map((catId: string) => ({
-          collection_id: savedId,
-          category_id: catId,
-        }))
-        await supabase.from('collection_categories').insert(catRows)
+    // Fallback: If collections table does not exist or errors, persist to storefront_config
+    if (tableSaveFailed || !savedId) {
+      savedId = id || `col-${Date.now().toString(16).padStart(12, '0')}`
+      const currentCols = await loadCollectionsFromConfig(supabase)
+      const colEntry = {
+        ...payload,
+        id: savedId,
+        created_at: new Date().toISOString(),
+        category_ids: Array.isArray(category_ids) ? category_ids : [],
+        product_ids: Array.isArray(product_ids) ? product_ids : [],
       }
-    }
 
-    // Synchronize pinned product mappings
-    if (Array.isArray(product_ids) && savedId) {
-      await supabase.from('collection_products').delete().eq('collection_id', savedId)
-      if (product_ids.length > 0) {
-        const prodRows = product_ids.map((prodId: string, idx: number) => ({
-          collection_id: savedId,
-          product_id: prodId,
-          display_order: idx + 1,
-        }))
-        await supabase.from('collection_products').insert(prodRows)
+      const existingIdx = currentCols.findIndex((c: any) => c.id === savedId || c.slug === cleanSlug)
+      if (existingIdx !== -1) {
+        currentCols[existingIdx] = { ...currentCols[existingIdx], ...colEntry }
+      } else {
+        currentCols.push(colEntry)
       }
+
+      await saveCollectionsToConfig(supabase, currentCols)
     }
 
     return NextResponse.json({
@@ -213,7 +277,10 @@ export async function DELETE(req: NextRequest) {
 
     const { error } = await supabase.from('collections').delete().eq('id', id)
     if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+      const currentCols = await loadCollectionsFromConfig(supabase)
+      const filtered = currentCols.filter((c: any) => c.id !== id && c.slug !== id)
+      await saveCollectionsToConfig(supabase, filtered)
+      return NextResponse.json({ success: true })
     }
 
     return NextResponse.json({ success: true })

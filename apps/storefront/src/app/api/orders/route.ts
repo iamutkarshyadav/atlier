@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceRoleClient } from '@repo/supabase/server'
-import { atomicCreateOrderAndReserve } from '@repo/supabase/utils'
+import { atomicCreateOrderAndReserve, createOrderWithItems } from '@repo/supabase/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -71,53 +71,27 @@ export async function GET(req: NextRequest) {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      let mergedOrders = userOrders ? [...userOrders] : []
-
-      // Also match any orders with user's verified email in shipping_address / delivery_notes
-      if (user.email) {
-        const userEmailLower = user.email.toLowerCase()
-        const { data: allRecent } = await supabase
-          .from('orders')
-          .select('*, order_items(*, product:products(id, title, image_url, price, material))')
-          .order('created_at', { ascending: false })
-
-        if (allRecent) {
-          const existingIds = new Set(mergedOrders.map((o) => o.id))
-          for (const ord of allRecent) {
-            if (!existingIds.has(ord.id)) {
-              const addrMatch = ord.shipping_address?.toLowerCase().includes(userEmailLower)
-              const notesMatch = ord.delivery_notes?.toLowerCase().includes(userEmailLower)
-              if (addrMatch || notesMatch) {
-                mergedOrders.push(ord)
-                existingIds.add(ord.id)
-              }
-            }
-          }
-        }
+      if (ordersError) {
+        return NextResponse.json({ error: ordersError.message }, { status: 500 })
       }
 
-      // Sort chronological descending
-      mergedOrders.sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-
-      return NextResponse.json({ success: true, orders: mergedOrders })
+      return NextResponse.json({ success: true, orders: userOrders || [] })
     }
 
     // 4. Unauthenticated guest lookup by email query param
     if (emailParam) {
-      const { data: allRecent } = await supabase
+      const { data: emailOrders, error: emailErr } = await supabase
         .from('orders')
         .select('*, order_items(*, product:products(id, title, image_url, price, material))')
+        .ilike('shipping_address', `%${emailParam}%`)
         .order('created_at', { ascending: false })
+        .limit(20)
 
-      const emailOrders = (allRecent || []).filter(
-        (o) =>
-          o.shipping_address?.toLowerCase().includes(emailParam) ||
-          o.delivery_notes?.toLowerCase().includes(emailParam)
-      )
+      if (emailErr) {
+        return NextResponse.json({ error: emailErr.message }, { status: 500 })
+      }
 
-      return NextResponse.json({ success: true, orders: emailOrders })
+      return NextResponse.json({ success: true, orders: emailOrders || [] })
     }
 
     // 5. Unauthenticated without reference: return empty orders gracefully with requiresAuth flag
@@ -156,9 +130,9 @@ export async function POST(req: NextRequest) {
       ''
 
     // Support both registered patrons and guest storefront checkouts
-    let customerUserId = user?.id || orderData?.user_id
+    let customerUserId: string | null = user?.id || orderData?.user_id || null
 
-    // Ensure customerUserId exists in public.users to satisfy foreign key constraint
+    // Ensure customerUserId exists in public.users to satisfy foreign key constraint if provided
     if (customerUserId) {
       const { data: userExists } = await supabase
         .from('users')
@@ -173,31 +147,18 @@ export async function POST(req: NextRequest) {
             .select('id')
             .eq('email', customerEmail.toLowerCase().trim())
             .maybeSingle()
-          if (userByEmail) {
-            customerUserId = userByEmail.id
-          }
-        }
-
-        if (!userExists && (!customerEmail || customerUserId === orderData?.user_id)) {
-          const { data: fallbackUser } = await supabase
-            .from('users')
-            .select('id')
-            .limit(1)
-            .maybeSingle()
-          if (fallbackUser) {
-            customerUserId = fallbackUser.id
-          }
+          customerUserId = userByEmail?.id || null
+        } else {
+          customerUserId = null
         }
       }
-    } else {
-      const { data: fallbackUser } = await supabase
+    } else if (customerEmail) {
+      const { data: userByEmail } = await supabase
         .from('users')
         .select('id')
-        .limit(1)
+        .eq('email', customerEmail.toLowerCase().trim())
         .maybeSingle()
-      if (fallbackUser) {
-        customerUserId = fallbackUser.id
-      }
+      customerUserId = userByEmail?.id || null
     }
 
     // 1. Authoritative Server-Side Price Verification
@@ -369,6 +330,57 @@ export async function POST(req: NextRequest) {
           },
           { status: 409 }
         )
+      }
+
+      // If atomic RPC is not yet registered in Postgres or errored, attempt direct DB insertion via createOrderWithItems
+      if (
+        errorLower.includes('function') ||
+        errorLower.includes('schema cache') ||
+        errorLower.includes('does not exist') ||
+        errorLower.includes('atomic_create_order_and_reserve') ||
+        errorLower.includes('not found')
+      ) {
+        console.warn('[POST /api/orders] RPC failed, falling back to direct createOrderWithItems:', errorMsg)
+        const randSeq = Math.floor(1000 + Math.random() * 9000)
+        const fallbackOrderNumber = orderData.order_number || `ORD-${Date.now().toString().slice(-6)}-${randSeq}`
+        const directResult = await createOrderWithItems(
+          adminClient,
+          {
+            order_number: fallbackOrderNumber,
+            user_id: customerUserId || null,
+            status: 'pending',
+            order_type: isBolt ? 'bolt_try_on' : 'standard',
+            delivery_mode: isBolt ? 'try_on' : 'direct',
+            try_on_status: isBolt ? 'scheduled' : null,
+            bolt_pincode: isBolt ? (orderData.bolt_pincode || null) : null,
+            bolt_timeslot_id: isBolt ? (orderData.bolt_timeslot_id || null) : null,
+            tax_amount: taxAmount,
+            shipping_fee: shippingFee,
+            total: calculatedTotal,
+            original_total: calculatedTotal,
+            shipping_address: finalShippingAddress,
+            delivery_notes: orderData.delivery_notes || null,
+            invoice_number: `INV-2026-${randSeq}`,
+            tracking_barcode: `ATL-TRK-${randSeq}`,
+          } as any,
+          verifiedItems.map((it) => ({
+            productId: it.product_id,
+            quantity: it.quantity,
+            unitPrice: it.unit_price,
+            size: it.size || undefined,
+          }))
+        )
+
+        if (directResult.data) {
+          return NextResponse.json({
+            success: true,
+            order: directResult.data,
+            orderNumber: directResult.data.order_number,
+            invoiceNumber: directResult.data.invoice_number,
+            trackingBarcode: directResult.data.tracking_barcode,
+            total: directResult.data.total,
+          })
+        }
       }
 
       return NextResponse.json(

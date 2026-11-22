@@ -93,7 +93,7 @@ export default function CustomerOrdersPage() {
         }
       } catch {}
 
-      const res = await fetch('/api/orders', { headers })
+      const res = await fetch(`/api/orders?t=${Date.now()}`, { headers, cache: 'no-store' })
       const data = await res.json()
 
       let fetchedOrders: OrderWithItems[] = []
@@ -126,6 +126,54 @@ export default function CustomerOrdersPage() {
 
   useEffect(() => {
     loadOrders()
+
+    const supabase = createBrowserClient()
+    const channel = supabase
+      .channel('storefront_customer_orders')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          if (payload.eventType === 'UPDATE') {
+            const updatedRow = payload.new as any
+            if (updatedRow && updatedRow.id) {
+              setOrders((prev) =>
+                prev.map((ord) =>
+                  ord.id === updatedRow.id || ord.order_number === updatedRow.order_number
+                    ? {
+                        ...ord,
+                        status: updatedRow.status || ord.status,
+                        try_on_status: updatedRow.try_on_status || ord.try_on_status,
+                        delivery_courier_id: updatedRow.delivery_courier_id ?? (ord as any).delivery_courier_id,
+                        delivery_partner_id: updatedRow.delivery_partner_id ?? (ord as any).delivery_partner_id,
+                        updated_at: updatedRow.updated_at || new Date().toISOString(),
+                      }
+                    : ord
+                )
+              )
+              setTrackResult((prev) => {
+                if (!prev) return null
+                if (prev.id === updatedRow.id || prev.order_number === updatedRow.order_number) {
+                  return {
+                    ...prev,
+                    status: updatedRow.status || prev.status,
+                    try_on_status: updatedRow.try_on_status || prev.try_on_status,
+                    updated_at: updatedRow.updated_at || new Date().toISOString(),
+                  }
+                }
+                return prev
+              })
+            }
+          } else if (payload.eventType === 'INSERT') {
+            loadOrders(true)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [loadOrders])
 
   // 3. Handle Guest Lookup

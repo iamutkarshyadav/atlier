@@ -255,6 +255,24 @@ function ShopContent() {
       }
     }
     loadShopData()
+
+    const supabase = createBrowserClient()
+    const channel = supabase
+      .channel('shop_realtime_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+        loadShopData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'collections' }, () => {
+        loadShopData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'storefront_config' }, () => {
+        loadShopData()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   // Resolve active collection / occasion

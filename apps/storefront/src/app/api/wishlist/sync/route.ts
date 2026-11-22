@@ -3,6 +3,42 @@ import { createServerSupabaseClient } from '@repo/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
+async function getWishlistProductIds(supabase: any, userId: string): Promise<string[]> {
+  try {
+    const { data } = await supabase
+      .from('storefront_config')
+      .select('value')
+      .eq('key', 'user_wishlists')
+      .maybeSingle()
+    if (data?.value && typeof data.value === 'object') {
+      const list = data.value[userId]
+      return Array.isArray(list) ? list : []
+    }
+  } catch {}
+  return []
+}
+
+async function saveWishlistProductIds(supabase: any, userId: string, productIds: string[]) {
+  try {
+    const { data } = await supabase
+      .from('storefront_config')
+      .select('value')
+      .eq('key', 'user_wishlists')
+      .maybeSingle()
+    const current = data?.value && typeof data.value === 'object' ? { ...data.value } : {}
+    current[userId] = Array.from(new Set(productIds.filter(Boolean)))
+    await supabase.from('storefront_config').upsert(
+      {
+        key: 'user_wishlists',
+        value: current,
+        description: 'Dynamic user wishlists config',
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'key' }
+    )
+  } catch {}
+}
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient()
@@ -21,27 +57,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, count: 0 }, { status: 200 })
     }
 
-    const rows = productIds
-      .filter((id) => typeof id === 'string' && id.trim().length > 0)
-      .map((productId) => ({
-        user_id: user.id,
-        product_id: productId.trim(),
-      }))
+    const validIds = productIds.filter((id) => typeof id === 'string' && id.trim().length > 0)
+    const currentList = await getWishlistProductIds(supabase, user.id)
+    const combined = Array.from(new Set([...currentList, ...validIds]))
+    await saveWishlistProductIds(supabase, user.id, combined)
 
-    if (rows.length === 0) {
-      return NextResponse.json({ success: true, count: 0 }, { status: 200 })
-    }
-
-    const { error } = await (supabase as any)
-      .from('wishlist_items')
-      .upsert(rows, { onConflict: 'user_id,product_id' })
-
-    if (error) {
-      console.warn('[POST /api/wishlist/sync] Supabase warning (falling back to local):', error.message)
-      return NextResponse.json({ success: true, count: rows.length, fallback: true }, { status: 200 })
-    }
-
-    return NextResponse.json({ success: true, count: rows.length }, { status: 200 })
+    return NextResponse.json({ success: true, count: combined.length }, { status: 200 })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: message }, { status: 500 })

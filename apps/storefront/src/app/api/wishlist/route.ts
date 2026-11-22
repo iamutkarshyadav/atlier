@@ -3,6 +3,42 @@ import { createServerSupabaseClient } from '@repo/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
+async function getWishlistProductIds(supabase: any, userId: string): Promise<string[]> {
+  try {
+    const { data } = await supabase
+      .from('storefront_config')
+      .select('value')
+      .eq('key', 'user_wishlists')
+      .maybeSingle()
+    if (data?.value && typeof data.value === 'object') {
+      const list = data.value[userId]
+      return Array.isArray(list) ? list : []
+    }
+  } catch {}
+  return []
+}
+
+async function saveWishlistProductIds(supabase: any, userId: string, productIds: string[]) {
+  try {
+    const { data } = await supabase
+      .from('storefront_config')
+      .select('value')
+      .eq('key', 'user_wishlists')
+      .maybeSingle()
+    const current = data?.value && typeof data.value === 'object' ? { ...data.value } : {}
+    current[userId] = Array.from(new Set(productIds.filter(Boolean)))
+    await supabase.from('storefront_config').upsert(
+      {
+        key: 'user_wishlists',
+        value: current,
+        description: 'Dynamic user wishlists config',
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'key' }
+    )
+  } catch {}
+}
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient()
@@ -14,28 +50,26 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ items: [] }, { status: 200 })
     }
 
-    const { data, error } = await (supabase as any)
-      .from('wishlist_items')
-      .select('id, product_id, created_at, products(*, categories(id, name, slug))')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+    const productIds = await getWishlistProductIds(supabase, user.id)
 
-    if (error) {
-      console.warn('[GET /api/wishlist] Supabase warning (falling back to local):', error.message)
+    if (productIds.length === 0) {
       return NextResponse.json({ items: [] }, { status: 200 })
     }
 
-    // Map rows to a clean products array with wishlist metadata
-    const items = (data || [])
-      .map((row: any) => {
-        if (!row.products) return null
-        return {
-          ...row.products,
-          wishlist_item_id: row.id,
-          wishlisted_at: row.created_at,
-        }
-      })
-      .filter(Boolean)
+    const { data: prods, error: prodErr } = await supabase
+      .from('products')
+      .select('*, categories(id, name, slug)')
+      .in('id', productIds)
+
+    if (prodErr || !prods) {
+      return NextResponse.json({ items: [] }, { status: 200 })
+    }
+
+    const items = prods.map((prod: any) => ({
+      ...prod,
+      wishlist_item_id: `wl-${user.id}-${prod.id}`,
+      wishlisted_at: new Date().toISOString(),
+    }))
 
     return NextResponse.json({ items }, { status: 200 })
   } catch (err: unknown) {
@@ -62,24 +96,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'productId is required' }, { status: 400 })
     }
 
-    const { data, error } = await (supabase as any)
-      .from('wishlist_items')
-      .upsert(
-        {
-          user_id: user.id,
-          product_id: productId,
-        },
-        { onConflict: 'user_id,product_id' }
-      )
-      .select()
-      .maybeSingle()
-
-    if (error) {
-      console.warn('[POST /api/wishlist] Supabase warning (falling back to local):', error.message)
-      return NextResponse.json({ success: true, item: { product_id: productId, user_id: user.id } }, { status: 200 })
+    const currentList = await getWishlistProductIds(supabase, user.id)
+    if (!currentList.includes(productId)) {
+      currentList.push(productId)
+      await saveWishlistProductIds(supabase, user.id, currentList)
     }
 
-    return NextResponse.json({ success: true, item: data }, { status: 200 })
+    return NextResponse.json(
+      {
+        success: true,
+        item: {
+          id: `wl-${user.id}-${productId}`,
+          product_id: productId,
+          user_id: user.id,
+          created_at: new Date().toISOString(),
+        },
+      },
+      { status: 200 }
+    )
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: message }, { status: 500 })
@@ -113,16 +147,9 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'productId is required' }, { status: 400 })
     }
 
-    const { error } = await (supabase as any)
-      .from('wishlist_items')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('product_id', productId)
-
-    if (error) {
-      console.warn('[DELETE /api/wishlist] Supabase warning (falling back to local):', error.message)
-      return NextResponse.json({ success: true }, { status: 200 })
-    }
+    const currentList = await getWishlistProductIds(supabase, user.id)
+    const updated = currentList.filter((id) => id !== productId)
+    await saveWishlistProductIds(supabase, user.id, updated)
 
     return NextResponse.json({ success: true }, { status: 200 })
   } catch (err: unknown) {

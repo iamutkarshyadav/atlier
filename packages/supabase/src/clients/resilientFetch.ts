@@ -13,6 +13,7 @@ import {
   DEFAULT_PRODUCT_VARIANTS,
   DEFAULT_BOLT_TIMESLOTS,
   DEFAULT_ORDERS,
+  DEFAULT_COLLECTIONS,
   normalizeCategoryRow,
   type UserRole,
 } from '../utils/index'
@@ -55,6 +56,9 @@ if (!(globalThis as any).__LIVE_PRODUCTS__) {
 }
 if (!(globalThis as any).__LIVE_VARIANTS__) {
   ;(globalThis as any).__LIVE_VARIANTS__ = JSON.parse(JSON.stringify(DEFAULT_PRODUCT_VARIANTS))
+}
+if (!(globalThis as any).__LIVE_COLLECTIONS__) {
+  ;(globalThis as any).__LIVE_COLLECTIONS__ = JSON.parse(JSON.stringify(DEFAULT_COLLECTIONS))
 }
 
 export const DEFAULT_SUPPLIERS = [
@@ -297,6 +301,66 @@ function deleteLocalDbCategory(id: string) {
   })
   if (Array.isArray((globalThis as any).__LIVE_CATEGORIES__)) {
     ;(globalThis as any).__LIVE_CATEGORIES__ = (globalThis as any).__LIVE_CATEGORIES__.filter((c: any) => c.id !== id)
+  }
+}
+
+function loadLocalDbCollections(): any[] {
+  const db = readLocalDb()
+  if (db && Array.isArray(db.collections) && db.collections.length > 0) {
+    const existingIds = new Set(db.collections.map((c: any) => c.id))
+    const existingSlugs = new Set(db.collections.map((c: any) => c.slug))
+    let modified = false
+    for (const def of DEFAULT_COLLECTIONS) {
+      if (!existingIds.has(def.id) && !existingSlugs.has(def.slug)) {
+        db.collections.push(def)
+        modified = true
+      }
+    }
+    if (modified) {
+      updateLocalDb((d) => {
+        d.collections = db.collections
+      })
+    }
+    return db.collections
+  }
+  const mem = (globalThis as any).__LIVE_COLLECTIONS__
+  if (Array.isArray(mem) && mem.length > 0) return mem
+  return DEFAULT_COLLECTIONS
+}
+
+function saveLocalDbCollection(collection: any): any {
+  let saved = collection
+  updateLocalDb((db) => {
+    if (!Array.isArray(db.collections)) db.collections = [...DEFAULT_COLLECTIONS]
+    const idx = db.collections.findIndex((c: any) => c.id === collection.id || c.slug === collection.slug)
+    if (idx !== -1) {
+      db.collections[idx] = { ...db.collections[idx], ...collection }
+      saved = db.collections[idx]
+    } else {
+      db.collections.push(collection)
+      saved = collection
+    }
+  })
+  if (!Array.isArray((globalThis as any).__LIVE_COLLECTIONS__)) {
+    ;(globalThis as any).__LIVE_COLLECTIONS__ = [...loadLocalDbCollections()]
+  }
+  const memIdx = (globalThis as any).__LIVE_COLLECTIONS__.findIndex((c: any) => c.id === collection.id || c.slug === collection.slug)
+  if (memIdx !== -1) {
+    (globalThis as any).__LIVE_COLLECTIONS__[memIdx] = saved
+  } else {
+    (globalThis as any).__LIVE_COLLECTIONS__.push(saved)
+  }
+  return saved
+}
+
+function deleteLocalDbCollection(id: string) {
+  updateLocalDb((db) => {
+    if (Array.isArray(db.collections)) {
+      db.collections = db.collections.filter((c: any) => c.id !== id && c.slug !== id)
+    }
+  })
+  if (Array.isArray((globalThis as any).__LIVE_COLLECTIONS__)) {
+    ;(globalThis as any).__LIVE_COLLECTIONS__ = (globalThis as any).__LIVE_COLLECTIONS__.filter((c: any) => c.id !== id && c.slug !== id)
   }
 }
 
@@ -855,25 +919,45 @@ export function createResilientFetch(options?: { timeoutMs?: number }): typeof f
       const res = await fetch(input, mergedInit)
       clearTimeout(timer)
 
-      // If live Supabase returns 404/400/403 (e.g. table not migrated yet, RLS violation, or offline mock URL)
-      // gracefully fall back to local mock dispatcher
-      if (!res.ok && (res.status === 404 || res.status === 400 || res.status === 403) && urlString.includes('/rest/v1/')) {
+      // Live DB Error handling vs. Offline Mock Fallback
+      if (!res.ok && urlString.includes('/rest/v1/')) {
         try {
           const clone = res.clone()
           const errData = await clone.json().catch(() => null)
-          if (
-            errData?.code === 'PGRST205' ||
-            errData?.code === '42P01' ||
-            errData?.code === 'PGRST200' ||
-            errData?.code === '42501' ||
-            errData?.message?.includes('schema cache') ||
-            errData?.message?.includes('relation') ||
-            errData?.message?.includes('does not exist') ||
-            errData?.message?.includes('relationship') ||
-            errData?.message?.includes('row-level security') ||
-            errData?.message?.includes('policy')
-          ) {
-            return handleOfflineSupabaseRequest(urlString, init)
+
+          // Adjustment 1: Stop silent mock fallbacks on live DB errors.
+          // When hitting a live .supabase.co URL and receiving HTTP 400 or 403, log the error AND return the real error response
+          if (urlString.includes('supabase.co') && (res.status === 400 || res.status === 403)) {
+            console.error(
+              `[ResilientFetch Live DB Error] HTTP ${res.status} on ${urlString}:`,
+              errData || res.statusText
+            )
+            return res
+          }
+
+          if (res.status === 404 || res.status === 400 || res.status === 403) {
+            if (
+              errData?.code === 'PGRST205' ||
+              errData?.code === '42P01' ||
+              errData?.code === 'PGRST200' ||
+              errData?.code === '42501' ||
+              errData?.message?.includes('schema cache') ||
+              errData?.message?.includes('relation') ||
+              errData?.message?.includes('does not exist') ||
+              errData?.message?.includes('relationship') ||
+              errData?.message?.includes('row-level security') ||
+              errData?.message?.includes('policy')
+            ) {
+              if (
+                !urlString.includes('wishlist_items') &&
+                !urlString.includes('collections')
+              ) {
+                console.warn(
+                  `[ResilientFetch Fallback] Falling back to offline mock for ${urlString} (${res.status} ${errData?.code || ''}: ${errData?.message || ''})`
+                )
+              }
+              return handleOfflineSupabaseRequest(urlString, init)
+            }
           }
         } catch {
           // pass through original response
@@ -1250,6 +1334,109 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
         'Content-Range': `0-${result.length ? result.length - 1 : 0}/${result.length}`,
       },
     })
+  }
+
+  // H2.1. PostgREST: collections (/rest/v1/collections)
+  if (url.includes('/rest/v1/collections')) {
+    const diskCollections = loadLocalDbCollections()
+    const idMatch = url.match(/(?:^|[?&])id=eq\.([^&]+)/)
+    const slugMatch = url.match(/(?:^|[?&])slug=eq\.([^&]+)/)
+    const targetId = idMatch ? decodeURIComponent(idMatch[1]) : null
+    const targetSlug = slugMatch ? decodeURIComponent(slugMatch[1]) : null
+
+    if (method === 'POST') {
+      const items = Array.isArray(bodyJson) ? bodyJson : [bodyJson]
+      const inserted: any[] = []
+      for (const item of items) {
+        const colId = item?.id || `col-${Date.now().toString(16).padStart(12, '0')}`
+        const colName = item?.name || 'New Collection'
+        const colSlug = item?.slug || colName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+        const newCol = {
+          id: colId,
+          name: colName,
+          slug: colSlug,
+          group_type: item?.group_type || 'occasion',
+          description: item?.description || null,
+          image_url: item?.image_url || null,
+          display_order: Number(item?.display_order) || diskCollections.length + 1,
+          is_active: item?.is_active ?? true,
+          show_in_navbar: item?.show_in_navbar ?? true,
+          show_on_home: item?.show_on_home ?? true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+        saveLocalDbCollection(newCol)
+        inserted.push(newCol)
+      }
+      const accept = getHeader(init?.headers, 'Accept')
+      const isSingle = accept.includes('vnd.pgrst.object+json')
+      return new Response(JSON.stringify(isSingle ? inserted[0] || null : inserted), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (method === 'PATCH' || method === 'PUT') {
+      const target = diskCollections.find((c: any) => (targetId && c.id === targetId) || (targetSlug && c.slug === targetSlug))
+      if (target) {
+        Object.assign(target, bodyJson, { updated_at: new Date().toISOString() })
+        saveLocalDbCollection(target)
+        const accept = getHeader(init?.headers, 'Accept')
+        const isSingle = accept.includes('vnd.pgrst.object+json')
+        return new Response(JSON.stringify(isSingle ? target : [target]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      return new Response(JSON.stringify({ message: 'Collection not found' }), { status: 404 })
+    }
+
+    if (method === 'DELETE') {
+      if (targetId) {
+        deleteLocalDbCollection(targetId)
+        return new Response(null, { status: 204 })
+      }
+      return new Response(JSON.stringify({ message: 'Missing id for delete' }), { status: 400 })
+    }
+
+    // GET
+    let result = [...diskCollections]
+    if (targetId) {
+      result = result.filter((c: any) => c.id === targetId)
+    } else if (targetSlug) {
+      result = result.filter((c: any) => c.slug === targetSlug)
+    }
+    if (url.includes('is_active=eq.true')) {
+      result = result.filter((c: any) => c.is_active === true)
+    }
+    if (url.includes('show_in_navbar=eq.true')) {
+      result = result.filter((c: any) => c.show_in_navbar === true)
+    }
+    if (url.includes('show_on_home=eq.true')) {
+      result = result.filter((c: any) => c.show_on_home === true)
+    }
+    result.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
+
+    const accept = getHeader(init?.headers, 'Accept')
+    const isSingle = accept.includes('vnd.pgrst.object+json')
+    return new Response(JSON.stringify(isSingle ? result[0] || null : result), {
+      status: isSingle && !result[0] ? 404 : 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Range': `0-${result.length ? result.length - 1 : 0}/${result.length}`,
+      },
+    })
+  }
+
+  // H2.2. PostgREST: collection_categories & collection_products (/rest/v1/collection_*)
+  if (url.includes('/rest/v1/collection_categories') || url.includes('/rest/v1/collection_products')) {
+    if (method === 'POST') {
+      return new Response(JSON.stringify(bodyJson || []), { status: 201, headers: { 'Content-Type': 'application/json' } })
+    }
+    if (method === 'DELETE') {
+      return new Response(null, { status: 204 })
+    }
+    return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }
 
   // I. PostgREST: products (/rest/v1/products)
@@ -2513,6 +2700,52 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
     const orderId = `ord-${Date.now()}`
     const orderNumber = orderData.order_number || `ORD-20261123-${randSeq}`
     const fulfillmentLoc = bodyJson?.p_source_location_id || 'd1000000-0000-0000-0000-000000000001'
+
+    const diskVariants = loadLocalDbProductVariants()
+    const diskProducts = loadLocalDbProducts()
+
+    const orderItems = items.map((it: any, idx: number) => {
+      const v = diskVariants.find((varItem: any) => varItem.id === it.variant_id) || diskVariants[0]
+      const prod = v ? diskProducts.find((p: any) => p.id === v.product_id) || diskProducts[0] : null
+      return {
+        id: `oi-${Date.now()}-${idx}`,
+        order_id: orderId,
+        variant_id: it.variant_id,
+        product_id: it.product_id || (v ? v.product_id : 'e1000000-0000-0000-0000-000000000001'),
+        quantity: it.quantity || 1,
+        unit_price: it.unit_price || 2490,
+        variant: v ? { ...v, product: prod } : null,
+      }
+    })
+
+    const newOrder = {
+      id: orderId,
+      order_number: orderNumber,
+      invoice_number: `INV-${Date.now()}`,
+      tracking_barcode: `ATL-TRK-${randSeq}`,
+      user_id: orderData.user_id || null,
+      status: orderData.status || 'processing',
+      order_type: orderData.order_type || (orderData.delivery_mode === 'try_on' ? 'bolt_try_on' : 'standard'),
+      delivery_mode: orderData.delivery_mode || 'direct',
+      bolt_pincode: orderData.bolt_pincode || null,
+      bolt_timeslot_id: orderData.bolt_timeslot_id || null,
+      bolt_session_status: orderData.bolt_session_status || null,
+      try_on_status: orderData.try_on_status || null,
+      tax_amount: orderData.tax_amount || 0,
+      shipping_fee: orderData.shipping_fee || 0,
+      original_total: orderData.original_total || orderData.total_amount || 2490,
+      total: orderData.total_amount || 2490,
+      shipping_address: typeof orderData.shipping_address === 'string' ? orderData.shipping_address : JSON.stringify(orderData.shipping_address || {}),
+      delivery_notes: orderData.delivery_notes || null,
+      order_items: orderItems,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    saveLocalDbOrder(newOrder)
+    for (const it of orderItems) {
+      saveLocalDbOrderItem(it)
+    }
 
     return new Response(
       JSON.stringify({

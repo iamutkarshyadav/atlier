@@ -1,16 +1,57 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowRight } from 'lucide-react'
-import type { CollectionWithRelations } from '@repo/supabase/utils'
+import { createBrowserClient } from '@repo/supabase/browser'
+import { getCollections, type CollectionWithRelations } from '@repo/supabase/utils'
 
 interface ShopByOccasionProps {
   collections?: CollectionWithRelations[]
 }
 
-export function ShopByOccasion({ collections = [] }: ShopByOccasionProps) {
+export function ShopByOccasion({ collections: initialCollections = [] }: ShopByOccasionProps) {
+  const [collections, setCollections] = useState<CollectionWithRelations[]>(initialCollections)
+
+  useEffect(() => {
+    setCollections(initialCollections)
+  }, [initialCollections])
+
+  useEffect(() => {
+    const supabase = createBrowserClient()
+    const fetchOccasions = async () => {
+      try {
+        const res = await fetch('/api/collections?showOnHome=true', { cache: 'no-store' })
+        const json = await res.json()
+        if (json.success && Array.isArray(json.collections)) {
+          setCollections(json.collections)
+          return
+        }
+      } catch {}
+      try {
+        const cols = await getCollections(supabase, { showOnHome: true, onlyActive: true })
+        if (Array.isArray(cols)) {
+          setCollections(cols)
+        }
+      } catch {}
+    }
+
+    const channel = supabase
+      .channel('home_occasions_realtime_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'collections' }, () => {
+        fetchOccasions()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'storefront_config' }, () => {
+        fetchOccasions()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
   const activeCollections = collections.filter((c) => c.is_active && c.show_on_home)
 
   if (activeCollections.length === 0) return null

@@ -9,6 +9,7 @@ import {
 } from '@repo/supabase/utils'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 const AUTHORIZED_ROLES = ['admin', 'warehouse_manager', 'store_manager', 'pos_cashier']
 
