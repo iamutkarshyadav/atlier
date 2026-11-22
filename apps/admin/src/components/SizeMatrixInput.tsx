@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Minus, Check, Layers, AlertCircle, Sparkles } from 'lucide-react'
 import { Button } from '@repo/ui'
+import { formatINR } from '@repo/supabase/utils'
 
 export interface SizeVariantItem {
   size: string
@@ -160,33 +161,30 @@ export function SizeMatrixInput({
           <button
             type="button"
             onClick={() => handleApplyPreset('alpha')}
-            className={`px-3 py-1.5 text-xs font-medium transition-all ${
-              selectedPreset === 'alpha'
-                ? 'bg-emerald-600 text-white font-semibold'
-                : 'text-zinc-400 hover:text-zinc-100'
-            }`}
+            className={`px-3 py-1.5 text-xs font-medium transition-all ${selectedPreset === 'alpha'
+              ? 'bg-emerald-600 text-white font-semibold'
+              : 'text-zinc-400 hover:text-zinc-100'
+              }`}
           >
             Streetwear (XS–XXL)
           </button>
           <button
             type="button"
             onClick={() => handleApplyPreset('waist')}
-            className={`px-3 py-1.5 text-xs font-medium transition-all ${
-              selectedPreset === 'waist'
-                ? 'bg-emerald-600 text-white font-semibold'
-                : 'text-zinc-400 hover:text-zinc-100'
-            }`}
+            className={`px-3 py-1.5 text-xs font-medium transition-all ${selectedPreset === 'waist'
+              ? 'bg-emerald-600 text-white font-semibold'
+              : 'text-zinc-400 hover:text-zinc-100'
+              }`}
           >
             Denim/Pants (28–36)
           </button>
           <button
             type="button"
             onClick={() => handleApplyPreset('one_size')}
-            className={`px-3 py-1.5 text-xs font-medium transition-all ${
-              selectedPreset === 'one_size'
-                ? 'bg-emerald-600 text-white font-semibold'
-                : 'text-zinc-400 hover:text-zinc-100'
-            }`}
+            className={`px-3 py-1.5 text-xs font-medium transition-all ${selectedPreset === 'one_size'
+              ? 'bg-emerald-600 text-white font-semibold'
+              : 'text-zinc-400 hover:text-zinc-100'
+              }`}
           >
             One Size (OS)
           </button>
@@ -211,7 +209,7 @@ export function SizeMatrixInput({
             Batch Retail Value
           </span>
           <span className="text-xl font-bold text-zinc-100 mt-0.5 block font-mono">
-            ${totalInventoryValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatINR(totalInventoryValue)}
           </span>
         </div>
         <div className="col-span-2 sm:col-span-1 flex items-center sm:justify-end">
@@ -236,22 +234,20 @@ export function SizeMatrixInput({
           {variants.map((v, idx) => (
             <div
               key={v.size}
-              className={`grid grid-cols-1 sm:grid-cols-12 gap-3 p-3.5 items-center border transition-all ${
-                v.enabled
-                  ? 'bg-chrome-950 border-chrome-800 hover:border-chrome-750'
-                  : 'bg-chrome-950/40 border-chrome-850 opacity-40'
-              }`}
+              className={`grid grid-cols-1 sm:grid-cols-12 gap-3 p-3.5 items-center border transition-all ${v.enabled
+                ? 'bg-chrome-950 border-chrome-800 hover:border-chrome-750'
+                : 'bg-chrome-950/40 border-chrome-850 opacity-40'
+                }`}
             >
               {/* Toggle Active */}
               <div className="sm:col-span-1 flex items-center">
                 <button
                   type="button"
                   onClick={() => handleToggleSize(idx)}
-                  className={`w-5 h-5 flex items-center justify-center border transition-colors ${
-                    v.enabled
-                      ? 'bg-emerald-600 border-emerald-600 text-white'
-                      : 'bg-transparent border-chrome-750 text-transparent'
-                  }`}
+                  className={`w-5 h-5 flex items-center justify-center border transition-colors ${v.enabled
+                    ? 'bg-emerald-600 border-emerald-600 text-white'
+                    : 'bg-transparent border-chrome-750 text-transparent'
+                    }`}
                 >
                   <Check className="w-3.5 h-3.5 stroke-[3]" />
                 </button>

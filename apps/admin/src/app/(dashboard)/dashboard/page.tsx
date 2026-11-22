@@ -17,6 +17,7 @@ import { createBrowserClient } from '@repo/supabase/browser'
 import {
   getAllOrders,
   getAllProductsAdmin,
+  formatINR,
   type Order,
   type Product,
 } from '@repo/supabase/utils'
@@ -39,7 +40,7 @@ export default function DashboardOverviewPage() {
         if (data.success && Array.isArray(data.orders)) {
           fetchedOrders = data.orders
         }
-      } catch {}
+      } catch { }
 
       const supabase = createBrowserClient()
       const [allOrders, allProds] = await Promise.all([
@@ -119,7 +120,7 @@ export default function DashboardOverviewPage() {
             Realized Gross
           </span>
           <span className="text-sm font-semibold text-zinc-100 tabular-nums">
-            ${grossRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatINR(grossRevenue)}
           </span>
         </div>
 
@@ -199,7 +200,7 @@ export default function DashboardOverviewPage() {
 
                   <div className="text-right">
                     <p className="font-semibold text-zinc-100 tabular-nums">
-                      ${Number(ord.total).toFixed(2)}
+                      {formatINR(ord.total)}
                     </p>
                     <p className="text-3xs text-zinc-500 tabular-nums">
                       {ord.created_at ? new Date(ord.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}

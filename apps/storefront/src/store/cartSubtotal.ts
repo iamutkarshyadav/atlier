@@ -24,9 +24,8 @@ export function calculateTax(subtotal: number): number {
 
 /**
  * Calculates shipping fee:
- * - $0 if subtotal is 0
- * - $45 for try_on (Doorstep Salon)
- * - $25 for direct (Standard White-Glove)
+ * - ₹0 if subtotal is 0
+ * - Flat delivery fee based on selected mode
  */
 export function calculateShippingFee(subtotal: number, deliveryMode: DeliveryMode = 'direct'): number {
   if (subtotal === 0) return 0.0

@@ -1,10 +1,10 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   Clock,
   Play,
@@ -15,15 +15,11 @@ import {
   ArrowLeft,
   MapPin,
   Phone,
-  Package,
-  RotateCcw,
-  Sparkles,
-  ShieldCheck,
-  AlertTriangle,
-  Receipt,
   Check,
+  CreditCard,
+  Banknote,
+  QrCode,
 } from 'lucide-react'
-import { createBrowserClient } from '@repo/supabase/browser'
 
 export interface TryOnItem {
   id: string
@@ -54,11 +50,11 @@ interface ActiveTryOnEngineProps {
 
 const DEFAULT_ORDER: TryOnOrderData = {
   id: 'ATL-ORD-9821',
-  customerName: 'Eleanor Vance',
-  customerPhone: '+1 (415) 555-0192',
-  address: '742 Evergreen Terrace, Studio 4B, San Francisco, CA 94107',
-  scheduledSlot: 'Today • 15:00 – 15:45 (Doorstep Salon)',
-  notes: 'Ring private bell 4B or coordinate with private courtyard concierge.',
+  customerName: 'Aanya Sharma',
+  customerPhone: '+91 98860 12345',
+  address: 'No. 42, 12th Main Road, Indiranagar, Bengaluru, Karnataka 560038',
+  scheduledSlot: 'Today • 15:00 – 15:45 (Doorstep Try-On)',
+  notes: 'Ring doorbell on arrival or coordinate with apartment security.',
   items: [
     {
       id: 'item_1',
@@ -66,7 +62,7 @@ const DEFAULT_ORDER: TryOnOrderData = {
       category: 'Wearable Art',
       edition: 'Edition 05 of 15',
       size: 'Taille 02 (FR 40–42)',
-      price: 240.0,
+      price: 18500.0,
       image: '/images/prod3-front.jpg',
       isKept: true,
     },
@@ -75,17 +71,19 @@ const DEFAULT_ORDER: TryOnOrderData = {
       title: 'Sculptural Sandstone Vessel',
       category: 'Ceramics',
       edition: 'Edition 01 of 12',
-      price: 185.0,
+      size: 'One Size',
+      price: 14200.0,
       image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=600&q=80',
       isKept: false,
-      rejectionReason: 'Scale mismatch with private salon pedestal',
+      rejectionReason: 'Size / Fit Mismatch',
     },
     {
       id: 'item_3',
       title: 'Carved Alabaster Pendant Cylinder',
       category: 'Lighting',
       edition: 'Edition 02 of 06',
-      price: 420.0,
+      size: 'Standard',
+      price: 26000.0,
       image: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=600&q=80',
       isKept: true,
     },
@@ -96,7 +94,7 @@ const REJECTION_REASONS = [
   'Size / Fit Mismatch',
   'Materiality Preference',
   'Scale / Proportion',
-  'Client Declined Work',
+  'Customer Declined Work',
 ]
 
 export function ActiveTryOnEngine({
@@ -116,12 +114,17 @@ export function ActiveTryOnEngine({
   const [isTimerRunning, setIsTimerRunning] = useState(false)
   const [totalFittingDuration, setTotalFittingDuration] = useState(INITIAL_DURATION)
 
+  // Payment mode collected at doorstep
+  const [collectedPaymentMode, setCollectedPaymentMode] = useState<'upi' | 'cash' | 'card'>('upi')
+  const [paymentRef, setPaymentRef] = useState('')
+
   // Reconciliation items checklist state
   const [items, setItems] = useState<TryOnItem[]>(orderData.items)
   const [courierNotes, setCourierNotes] = useState(
-    'Patron inspected works in private fitting suite. Reconciled and repacked returned editions.'
+    'Customer inspected works in fitting session. Reconciled and repacked returned editions for warehouse dock inwarding.'
   )
   const [isFinalizing, setIsFinalizing] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Timer interval countdown
   useEffect(() => {
@@ -151,19 +154,18 @@ export function ActiveTryOnEngine({
     setPhase('active_timer')
     setIsTimerRunning(true)
 
-    // Notify Supabase that fitting countdown has started
+    // Notify session status via secure server endpoint
     try {
-      const supabase = createBrowserClient()
-      await supabase
-        .from('orders')
-        .update({
-          try_on_status: 'active_timer',
-          fitting_started_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', orderData.id)
+      await fetch('/api/bolt/session-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: orderData.id,
+          status: 'at_doorstep',
+        }),
+      })
     } catch (err) {
-      console.warn('Could not sync fitting start time to Supabase:', err)
+      console.warn('Could not sync fitting start time to server:', err)
     }
   }
 
@@ -177,22 +179,9 @@ export function ActiveTryOnEngine({
     setTotalFittingDuration((prev) => prev + additionalSeconds)
   }
 
-  const handleProceedToReconciliation = async () => {
+  const handleProceedToReconciliation = () => {
     setIsTimerRunning(false)
     setPhase('reconciling')
-
-    try {
-      const supabase = createBrowserClient()
-      await supabase
-        .from('orders')
-        .update({
-          try_on_status: 'reconciling',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', orderData.id)
-    } catch (err) {
-      console.warn('Could not sync reconciling phase to Supabase:', err)
-    }
   }
 
   // Reconciliation Toggle Actions
@@ -217,102 +206,66 @@ export function ActiveTryOnEngine({
     )
   }
 
-  // Financial Computations for Kept items
+  // Financial Computations for Kept items (INR & Indian GST 6% CGST + 6% SGST)
   const keptItems = items.filter((i) => i.isKept === true)
   const rejectedItems = items.filter((i) => i.isKept === false)
   const keptSubtotal = keptItems.reduce((acc, curr) => acc + curr.price, 0)
   const initialManifestTotal = items.reduce((acc, curr) => acc + curr.price, 0)
-  const conciergeFee = keptSubtotal > 0 ? 45.0 : 0.0
-  const tax = Number((keptSubtotal * 0.08).toFixed(2))
-  const finalTotal = keptSubtotal > 0 ? Number((keptSubtotal + conciergeFee + tax).toFixed(2)) : 0.0
 
-  // Finalization Handler
+  // GST 12% (6% CGST + 6% SGST included in MRP)
+  const cgst = Number((keptSubtotal * 0.06).toFixed(2))
+  const sgst = Number((keptSubtotal * 0.06).toFixed(2))
+  const finalTotal = keptSubtotal
+
+  // Server-Side Finalization Handler (Zero client-side direct table mutations)
   const handleFinalizeReconciliation = async () => {
     setIsFinalizing(true)
+    setErrorMessage(null)
 
     try {
-      const supabase = createBrowserClient()
-      const now = new Date().toISOString()
+      const res = await fetch('/api/bolt/complete-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: orderData.id,
+          decisions: items.map((item) => ({
+            itemId: item.id,
+            decision: item.isKept ? 'kept' : 'rejected',
+            rejectionReason: item.isKept ? undefined : item.rejectionReason || 'Customer rejected during fitting',
+          })),
+          collectedPaymentMode,
+          paymentRef: paymentRef.trim() || undefined,
+        }),
+      })
 
-      // 1. Commit item decisions to Supabase order_items & replenish returned stock
-      for (const item of items) {
-        await (supabase.from('order_items') as any)
-          .update({
-            is_kept: item.isKept,
-            rejection_reason: item.isKept ? null : item.rejectionReason || 'Client rejected during fitting',
-          })
-          .eq('id', item.id)
-
-        // Replenish inventory stock for returned works
-        if (item.isKept === false) {
-          try {
-            const { data: oItem } = await supabase
-              .from('order_items')
-              .select('product_id, size, quantity')
-              .eq('id', item.id)
-              .single()
-
-            if (oItem && oItem.size) {
-              const { data: v } = await supabase
-                .from('product_variants')
-                .select('id, stock')
-                .eq('product_id', oItem.product_id)
-                .eq('size', oItem.size)
-                .single()
-
-              if (v && typeof v.stock === 'number') {
-                await supabase
-                  .from('product_variants')
-                  .update({ stock: v.stock + (oItem.quantity || 1) })
-                  .eq('id', v.id)
-              }
-            }
-          } catch (stockErr) {
-            console.warn('Inventory replenishment note:', stockErr)
-          }
-        }
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to reconcile try-on session')
       }
 
-      // 2. Finalize order status & reconciled total
-      await (supabase.from('orders') as any)
-        .update({
-          total: finalTotal,
-          try_on_status: 'completed',
-          status: 'delivered',
-          reconciled_at: now,
-          delivery_notes: courierNotes,
-          updated_at: now,
-        })
-        .eq('id', orderData.id)
-
-      // 3. Eagerly generate & persist commercial invoice PDF
+      // Eagerly trigger tax invoice generation in the background
       try {
         const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3001'
-        await fetch(`${adminUrl}/api/invoice/generate`, {
+        fetch(`${adminUrl}/api/invoice/generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderId: orderData.id }),
-        })
-      } catch (invErr) {
-        console.warn('Eager invoice generation note:', invErr)
-      }
+        }).catch(() => {})
+      } catch {}
 
-      setTimeout(() => {
-        setIsFinalizing(false)
-        setPhase('completed')
-        if (onFinalized) {
-          onFinalized({
-            orderId: orderData.id,
-            finalTotal,
-            keptCount: keptItems.length,
-          })
-        }
-      }, 900)
-    } catch (err) {
-      setTimeout(() => {
-        setIsFinalizing(false)
-        setPhase('completed')
-      }, 900)
+      setIsFinalizing(false)
+      setPhase('completed')
+
+      if (onFinalized) {
+        onFinalized({
+          orderId: orderData.id,
+          finalTotal,
+          keptCount: keptItems.length,
+        })
+      }
+    } catch (err: any) {
+      setIsFinalizing(false)
+      setErrorMessage(err.message || 'Error communicating with server')
     }
   }
 
@@ -340,7 +293,7 @@ export function ActiveTryOnEngine({
         </span>
       </div>
 
-      {/* Patron Dropoff Briefing Card */}
+      {/* Customer Dropoff Briefing Card */}
       <div className="p-5 bg-[#0D0D0D] border-2 border-[#222222] space-y-4 shadow-xl">
         <div className="flex justify-between items-start border-b border-[#1A1A1A] pb-3">
           <div>
@@ -373,7 +326,7 @@ export function ActiveTryOnEngine({
               className="inline-flex items-center gap-2 h-9 px-3.5 bg-[#1A1A1A] hover:bg-[#252525] text-white text-xs font-mono border border-[#333333] active:scale-95 transition-all"
             >
               <Phone className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Call Patron ({orderData.customerPhone})</span>
+              <span>Call Customer ({orderData.customerPhone})</span>
             </a>
           </div>
         </div>
@@ -390,10 +343,10 @@ export function ActiveTryOnEngine({
 
           <div className="space-y-2 max-w-md mx-auto">
             <h2 className="text-2xl font-black uppercase tracking-tight text-white">
-              Arrived at Residence
+              Arrived at Customer Residence
             </h2>
             <p className="text-xs text-neutral-400 font-mono leading-relaxed">
-              Patron is present at doorstep. Tap below to initiate the synchronized 45-minute fitting countdown timer.
+              Customer is present at doorstep. Tap below to initiate the synchronized 45-minute fitting countdown timer.
             </p>
           </div>
 
@@ -490,7 +443,7 @@ export function ActiveTryOnEngine({
           {/* Reconcile Immediately Action */}
           <div className="pt-4 border-t border-[#1A1A1A] space-y-3">
             <p className="text-[11px] text-neutral-400 font-mono text-center">
-              Patron concluded fitting? Proceed directly to item reconciliation.
+              Customer concluded fitting? Proceed directly to item reconciliation.
             </p>
             <button
               onClick={handleProceedToReconciliation}
@@ -520,6 +473,12 @@ export function ActiveTryOnEngine({
               {keptItems.length} Kept / {items.length} Total
             </span>
           </div>
+
+          {errorMessage && (
+            <div className="p-3 bg-rose-950/80 border border-rose-500 text-rose-200 text-xs font-mono">
+              Error: {errorMessage}
+            </div>
+          )}
 
           {/* Item Reconciliation Cards */}
           <div className="space-y-4">
@@ -559,7 +518,7 @@ export function ActiveTryOnEngine({
                       {item.title}
                     </h3>
                     <p className="font-mono text-xs text-neutral-300 font-semibold mt-1">
-                      ₹{item.price.toFixed(2)}
+                      ₹{item.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
 
@@ -609,7 +568,7 @@ export function ActiveTryOnEngine({
                 {item.isKept === false && (
                   <div className="p-3 bg-[#0D0D0D] border border-rose-950 space-y-2">
                     <span className="text-[10px] font-mono uppercase text-neutral-400 block">
-                      Select Rejection Reason for Return Dossier:
+                      Select Rejection Reason for Warehouse Dock Inwarding:
                     </span>
                     <div className="grid grid-cols-2 gap-2">
                       {REJECTION_REASONS.map((r) => (
@@ -633,6 +592,60 @@ export function ActiveTryOnEngine({
             ))}
           </div>
 
+          {/* Doorstep Payment Mode Selector */}
+          {keptItems.length > 0 && (
+            <div className="p-5 bg-[#0D0D0D] border-2 border-[#2A2A2A] space-y-3 font-mono text-xs">
+              <span className="text-[10px] uppercase tracking-caps text-amber-400 font-bold block">
+                Doorstep Payment Collection
+              </span>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCollectedPaymentMode('upi')}
+                  className={`h-11 border flex items-center justify-center gap-2 text-xs uppercase font-bold transition-all ${
+                    collectedPaymentMode === 'upi'
+                      ? 'bg-emerald-400 border-emerald-300 text-black'
+                      : 'bg-[#141414] border-[#333333] text-neutral-300'
+                  }`}
+                >
+                  <QrCode className="w-4 h-4" /> UPI QR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCollectedPaymentMode('card')}
+                  className={`h-11 border flex items-center justify-center gap-2 text-xs uppercase font-bold transition-all ${
+                    collectedPaymentMode === 'card'
+                      ? 'bg-emerald-400 border-emerald-300 text-black'
+                      : 'bg-[#141414] border-[#333333] text-neutral-300'
+                  }`}
+                >
+                  <CreditCard className="w-4 h-4" /> Card POS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCollectedPaymentMode('cash')}
+                  className={`h-11 border flex items-center justify-center gap-2 text-xs uppercase font-bold transition-all ${
+                    collectedPaymentMode === 'cash'
+                      ? 'bg-emerald-400 border-emerald-300 text-black'
+                      : 'bg-[#141414] border-[#333333] text-neutral-300'
+                  }`}
+                >
+                  <Banknote className="w-4 h-4" /> Cash
+                </button>
+              </div>
+
+              <div className="pt-2">
+                <input
+                  type="text"
+                  placeholder="Payment Reference / UPI UTR / POS Slip (Optional)"
+                  value={paymentRef}
+                  onChange={(e) => setPaymentRef(e.target.value)}
+                  className="w-full bg-[#141414] border border-[#333333] px-3 py-2 text-xs text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-white font-mono"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Courier Notes Textarea */}
           <div className="p-4 bg-[#111111] border border-[#222222] space-y-2">
             <label className="block text-[11px] font-mono uppercase tracking-caps text-neutral-400">
@@ -649,35 +662,38 @@ export function ActiveTryOnEngine({
           {/* Dynamic Reconciled Billing Breakdown Bar */}
           <div className="p-6 bg-[#0D0D0D] border-2 border-[#2A2A2A] space-y-3 font-mono text-xs">
             <span className="text-[10px] uppercase tracking-caps text-neutral-400 block border-b border-[#222222] pb-2">
-              Reconciled Financial Ledger
+              Reconciled Financial Settlement (INR)
             </span>
 
             <div className="flex justify-between text-neutral-400">
               <span>Original Manifest Value</span>
-              <span>₹{initialManifestTotal.toFixed(2)}</span>
+              <span>₹{initialManifestTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
 
             <div className="flex justify-between text-emerald-400 font-semibold">
-              <span>Kept Merchandise ({keptItems.length} Works)</span>
-              <span>₹{keptSubtotal.toFixed(2)}</span>
+              <span>Kept Merchandise ({keptItems.length} Items)</span>
+              <span>₹{keptSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
 
-            <div className="flex justify-between text-neutral-400">
-              <span>Fitting Concierge Logistics</span>
-              <span>₹{conciergeFee.toFixed(2)}</span>
-            </div>
-
-            <div className="flex justify-between text-neutral-400">
-              <span>Applicable Sales Tax (8%)</span>
-              <span>₹{tax.toFixed(2)}</span>
-            </div>
+            {keptSubtotal > 0 && (
+              <>
+                <div className="flex justify-between text-neutral-400 text-[11px]">
+                  <span>CGST (6% Apparel)</span>
+                  <span>₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between text-neutral-400 text-[11px]">
+                  <span>SGST (6% Apparel)</span>
+                  <span>₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+              </>
+            )}
 
             <div className="border-t border-[#333333] pt-3 flex justify-between items-center text-sm">
               <span className="text-white font-bold uppercase tracking-caps">
-                Final Billable Total
+                Final Collected Total
               </span>
               <span className="font-mono text-xl font-black text-white">
-                ₹{finalTotal.toFixed(2)}
+                ₹{finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </span>
             </div>
           </div>
@@ -691,10 +707,10 @@ export function ActiveTryOnEngine({
             {isFinalizing ? (
               <span className="flex items-center gap-2">
                 <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                Synchronizing Ledger with Supabase...
+                Synchronizing Ledger via Authoritative Server RPC...
               </span>
             ) : (
-              <span>Finalize & Commit Reconciled Order (₹{finalTotal.toFixed(2)})</span>
+              <span>Finalize & Commit Reconciled Order (₹{finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })})</span>
             )}
           </button>
         </div>
@@ -711,33 +727,37 @@ export function ActiveTryOnEngine({
 
           <div className="space-y-2 max-w-md mx-auto">
             <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-emerald-400 block font-bold">
-              Ledger Finalized • Supabase Synchronized
+              Ledger Finalized • Server Reconciled
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold uppercase tracking-tight text-white">
               Fitting Session Concluded
             </h2>
             <p className="text-xs text-neutral-400 font-mono leading-relaxed">
-              Order {orderData.id} has been finalized. Unwanted editions repacked for return to studio depot.
+              Order {orderData.id} has been finalized. Unwanted items marked for warehouse dock return inwarding.
             </p>
           </div>
 
           {/* Final Receipt Breakdown */}
           <div className="p-5 bg-[#141414] border border-[#222222] text-left font-mono text-xs space-y-3">
             <div className="flex justify-between border-b border-[#222222] pb-2">
-              <span className="text-neutral-400">Patron</span>
+              <span className="text-neutral-400">Customer</span>
               <span className="text-white font-bold">{orderData.customerName}</span>
             </div>
             <div className="flex justify-between border-b border-[#222222] pb-2">
-              <span className="text-neutral-400">Kept Editions</span>
-              <span className="text-emerald-400 font-bold">{keptItems.length} Works Retained</span>
+              <span className="text-neutral-400">Payment Mode</span>
+              <span className="text-cyan-400 font-bold uppercase">{collectedPaymentMode}</span>
             </div>
             <div className="flex justify-between border-b border-[#222222] pb-2">
-              <span className="text-neutral-400">Returned Editions</span>
-              <span className="text-rose-400 font-bold">{rejectedItems.length} Returning to Depot</span>
+              <span className="text-neutral-400">Kept Works</span>
+              <span className="text-emerald-400 font-bold">{keptItems.length} Items Retained</span>
+            </div>
+            <div className="flex justify-between border-b border-[#222222] pb-2">
+              <span className="text-neutral-400">Returned Works</span>
+              <span className="text-rose-400 font-bold">{rejectedItems.length} Returning to Warehouse Dock</span>
             </div>
             <div className="flex justify-between pt-1 text-sm font-bold">
               <span className="text-white uppercase tracking-caps">Billed Amount</span>
-              <span className="text-emerald-400">₹{finalTotal.toFixed(2)}</span>
+              <span className="text-emerald-400">₹{finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
           </div>
 

@@ -1,21 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@repo/supabase/server'
-import type { TryOnDecision } from '@repo/supabase/types'
+import { createServerSupabaseClient, createServiceRoleClient } from '@repo/supabase/server'
+import { completeBoltTryOnReconciliation } from '@repo/supabase/utils'
+import type { PosPaymentMethod } from '@repo/supabase/types'
 
 export const dynamic = 'force-dynamic'
 
 interface DecisionItem {
   itemId: string
-  decision: TryOnDecision
+  decision: 'kept' | 'rejected'
+  rejectionReason?: string
 }
 
 interface CompleteSessionPayload {
   orderId: string
   decisions: DecisionItem[]
-  collectedPaymentMode?: 'upi' | 'cash' | 'pos'
+  collectedPaymentMode?: PosPaymentMethod
+  paymentRef?: string
 }
-
-const BOLT_BOOKING_FEE = 99.0
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,7 +26,12 @@ export async function POST(req: NextRequest) {
       error: authError,
     } = await supabase.auth.getUser()
 
-    if (authError || !user) {
+    // Support authenticated couriers with local development fallback
+    const courierId =
+      user?.id ||
+      (process.env.NODE_ENV !== 'production' ? 'd2000000-0000-0000-0000-000000000002' : null)
+
+    if (!courierId) {
       return NextResponse.json(
         { error: 'Unauthorized: Courier authentication required to finalize session' },
         { status: 401 }
@@ -33,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body: CompleteSessionPayload = await req.json()
-    const { orderId, decisions, collectedPaymentMode = 'upi' } = body
+    const { orderId, decisions, collectedPaymentMode = 'upi', paymentRef } = body
 
     if (!orderId || typeof orderId !== 'string') {
       return NextResponse.json(
@@ -49,88 +55,26 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 1. Fetch current order from DB to verify existence
-    const { data: order, error: orderFetchErr } = await supabase
-      .from('orders')
-      .select('id, order_number, total, bolt_session_status, status')
-      .eq('id', orderId)
-      .maybeSingle()
+    // Call single authoritative PostgreSQL reconciliation RPC
+    const serviceClient = createServiceRoleClient()
+    const result = await completeBoltTryOnReconciliation(serviceClient, {
+      orderId,
+      decisions: decisions.map((d) => ({
+        order_item_id: d.itemId,
+        decision: d.decision === 'kept' ? 'kept' : 'rejected',
+        rejection_reason:
+          d.decision === 'rejected'
+            ? d.rejectionReason || 'Customer rejected during doorstep fitting'
+            : null,
+      })),
+      paymentMode: (collectedPaymentMode as PosPaymentMethod) || 'upi',
+      paymentRef: paymentRef || null,
+      courierId,
+    })
 
-    if (orderFetchErr || !order) {
+    if (!result.success) {
       return NextResponse.json(
-        { error: 'Order not found in Atelier registry' },
-        { status: 404 }
-      )
-    }
-
-    // 2. Fetch authoritative items from DB to prevent client-controlled pricing injection
-    const { data: dbItems, error: itemsFetchErr } = await supabase
-      .from('order_items')
-      .select('id, unit_price, quantity, is_kept, try_on_decision')
-      .eq('order_id', orderId)
-
-    if (itemsFetchErr || !dbItems || dbItems.length === 0) {
-      return NextResponse.json(
-        { error: 'No order items found for this try-on package' },
-        { status: 404 }
-      )
-    }
-
-    // 3. Map decisions and calculate authoritative final payable amount
-    const decisionMap = new Map<string, TryOnDecision>(
-      decisions.map((d) => [d.itemId, d.decision])
-    )
-
-    let keptCount = 0
-    let rejectedCount = 0
-    let keptSubtotal = 0
-
-    // Update each order_item in DB with the final try-on decision
-    for (const item of dbItems) {
-      const decision = decisionMap.get(item.id) || 'rejected'
-      const isKept = decision === 'kept'
-
-      if (isKept) {
-        keptCount++
-        keptSubtotal += Number(item.unit_price) * (Number(item.quantity) || 1)
-      } else {
-        rejectedCount++
-      }
-
-      const { error: itemUpdateErr } = await supabase
-        .from('order_items')
-        .update({
-          try_on_decision: decision,
-          is_kept: isKept,
-        })
-        .eq('id', item.id)
-
-      if (itemUpdateErr) {
-        console.error(`Error updating item ${item.id}:`, itemUpdateErr)
-      }
-    }
-
-    // Subtract the ₹99 booking fee already paid at checkout (cannot go below 0)
-    const finalCalculatedAmount = Math.max(0, keptSubtotal - BOLT_BOOKING_FEE)
-    const creditApplied = Math.min(BOLT_BOOKING_FEE, keptSubtotal)
-    const nowIso = new Date().toISOString()
-
-    // 4. Update order status: delivered, bolt_session_status: completed, reconciled_at, total
-    const { error: orderUpdateErr } = await supabase
-      .from('orders')
-      .update({
-        bolt_session_status: 'completed',
-        status: 'delivered',
-        try_on_status: 'reconciled',
-        total: finalCalculatedAmount,
-        reconciled_at: nowIso,
-        updated_at: nowIso,
-      })
-      .eq('id', orderId)
-
-    if (orderUpdateErr) {
-      return NextResponse.json(
-        { error: orderUpdateErr.message || 'Failed to update final order status' },
+        { error: result.error || 'Failed to complete reconciliation' },
         { status: 500 }
       )
     }
@@ -138,13 +82,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       orderId,
-      finalPayable: finalCalculatedAmount,
-      keptCount,
-      rejectedCount,
-      keptSubtotal,
-      creditApplied,
-      collectedPaymentMode,
-      reconciledAt: nowIso,
+      ...result.data,
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Internal Server Error'
@@ -152,4 +90,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
-

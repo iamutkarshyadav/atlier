@@ -11,7 +11,7 @@ import {
   Sparkles,
   ChevronDown,
 } from 'lucide-react'
-import { type StoreLocation } from '@repo/supabase/utils'
+import { type StoreLocation, formatINR } from '@repo/supabase/utils'
 
 interface PosHeaderProps {
   locations: StoreLocation[]
@@ -121,18 +121,17 @@ export function PosHeader({
         >
           <Banknote className="w-3.5 h-3.5 text-amber-400" />
           <span className="hidden md:inline text-zinc-400">Float:</span>
-          <span className="font-bold tabular-nums text-zinc-100">${openingFloat.toFixed(2)}</span>
+          <span className="font-bold tabular-nums text-zinc-100">{formatINR(openingFloat)}</span>
         </button>
 
         {/* BORIS Mode Switcher */}
         <button
           type="button"
           onClick={onToggleBoris}
-          className={`px-3 py-1.5 text-2xs font-semibold rounded border flex items-center gap-1.5 transition-all ${
-            borisMode
-              ? 'bg-rose-950/80 text-rose-200 border-rose-700 shadow-sm'
-              : 'bg-chrome-950 hover:bg-zinc-800/60 text-zinc-300 border-chrome-800 hover:text-white'
-          }`}
+          className={`px-3 py-1.5 text-2xs font-semibold rounded border flex items-center gap-1.5 transition-all ${borisMode
+            ? 'bg-rose-950/80 text-rose-200 border-rose-700 shadow-sm'
+            : 'bg-chrome-950 hover:bg-zinc-800/60 text-zinc-300 border-chrome-800 hover:text-white'
+            }`}
         >
           <RotateCcw className={`w-3.5 h-3.5 ${borisMode ? 'text-rose-400' : 'text-zinc-400'}`} />
           <span>{borisMode ? 'Exit Returns' : 'BORIS Returns'}</span>

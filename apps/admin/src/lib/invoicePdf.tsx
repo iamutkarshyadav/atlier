@@ -270,23 +270,23 @@ export function LuxuryInvoiceDocument({ order }: { order: OrderWithItems }) {
       })
     : new Date().toLocaleDateString('en-US')
 
-  const recipientName = order.user?.name || (order.shipping_address ? order.shipping_address.split(',')[0] : 'Valued Patron')
-  const recipientAddress = order.shipping_address || '742 Evergreen Terrace, Studio 4B, San Francisco, CA 94107'
+  const recipientName = order.user?.name || (order.shipping_address ? order.shipping_address.split(',')[0] : 'Valued Customer')
+  const recipientAddress = order.shipping_address || 'No. 42, 12th Main Road, Indiranagar, Bengaluru, Karnataka 560038'
   const isTryOn = order.delivery_mode === 'try_on'
 
   return (
-    <Document title={`Invoice-${invoiceNum}`} author="Atelier Gustavo Paris">
+    <Document title={`Invoice-${invoiceNum}`} author="Atelier Luxury Retail">
       <Page size="A4" style={styles.page}>
         {/* Brand Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.brandTitle}>ATELIER GUSTAVO</Text>
+            <Text style={styles.brandTitle}>ATELIER LUXURY RETAIL</Text>
             <Text style={styles.brandSubtitle}>
-              Haute Couture & Curated Wearable Works • Paris
+              Haute Couture & Curated Wearable Works • Bengaluru Atelier
             </Text>
           </View>
           <View style={styles.invoiceMeta}>
-            <Text style={styles.invoiceTitle}>FACTURE / INVOICE</Text>
+            <Text style={styles.invoiceTitle}>TAX INVOICE</Text>
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>Invoice №:</Text>
               <Text style={styles.metaValue}>{invoiceNum}</Text>
@@ -359,11 +359,11 @@ export function LuxuryInvoiceDocument({ order }: { order: OrderWithItems }) {
                 </View>
 
                 <View style={styles.colPrice}>
-                  <Text>${Number(item.unit_price).toFixed(2)}</Text>
+                  <Text>₹{Number(item.unit_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
                 </View>
 
                 <View style={styles.colOutcome}>
-                  {isKept && <Text style={styles.statusKept}>KEPT BY PATRON</Text>}
+                  {isKept && <Text style={styles.statusKept}>KEPT BY CUSTOMER</Text>}
                   {isReturned && (
                     <View>
                       <Text style={styles.statusReturned}>RETURNED</Text>
@@ -377,7 +377,7 @@ export function LuxuryInvoiceDocument({ order }: { order: OrderWithItems }) {
 
                 <View style={styles.colTotal}>
                   <Text style={{ fontFamily: 'Helvetica-Bold' }}>
-                    {isReturned ? '₹0.00' : `₹${lineSubtotal.toFixed(2)}`}
+                    {isReturned ? '₹0.00' : `₹${lineSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
                   </Text>
                 </View>
               </View>
@@ -391,7 +391,7 @@ export function LuxuryInvoiceDocument({ order }: { order: OrderWithItems }) {
             <View style={styles.totalsRow}>
               <Text style={styles.totalsLabel}>Gross Order Value:</Text>
               <Text style={styles.totalsValue}>
-                ${Number(order.original_total || order.total).toFixed(2)}
+                ₹{Number(order.original_total || order.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </Text>
             </View>
 
@@ -399,15 +399,15 @@ export function LuxuryInvoiceDocument({ order }: { order: OrderWithItems }) {
               <View style={styles.totalsRow}>
                 <Text style={styles.totalsLabel}>Returned Items Credit:</Text>
                 <Text style={[styles.totalsValue, { color: '#DC2626' }]}>
-                  -${(Number(order.original_total) - Number(order.total)).toFixed(2)}
+                  -₹{(Number(order.original_total) - Number(order.total)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </Text>
               </View>
             )}
 
             <View style={styles.totalsRow}>
-              <Text style={styles.totalsLabel}>VAT / Sales Tax (8.5%):</Text>
+              <Text style={styles.totalsLabel}>GST (CGST 6% + SGST 6%):</Text>
               <Text style={styles.totalsValue}>
-                ${Number(order.tax_amount || 0).toFixed(2)}
+                ₹{Number(order.tax_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </Text>
             </View>
 
@@ -415,14 +415,14 @@ export function LuxuryInvoiceDocument({ order }: { order: OrderWithItems }) {
               <Text style={styles.totalsLabel}>White-Glove Courier Logistics:</Text>
               <Text style={[styles.totalsValue, { color: '#059669' }]}>
                 {Number(order.shipping_fee) > 0
-                  ? `₹${Number(order.shipping_fee).toFixed(2)}`
+                  ? `₹${Number(order.shipping_fee).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                   : 'Complimentary'}
               </Text>
             </View>
 
             <View style={styles.grandTotalRow}>
               <Text style={styles.grandTotalLabel}>Net Realized Total:</Text>
-              <Text style={styles.grandTotalValue}>₹${Number(order.total).toFixed(2)} INR</Text>
+              <Text style={styles.grandTotalValue}>₹{Number(order.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
             </View>
           </View>
         </View>
@@ -436,9 +436,9 @@ export function LuxuryInvoiceDocument({ order }: { order: OrderWithItems }) {
         {/* Footer */}
         <View style={styles.footer}>
           <Text>
-            Atelier Gustavo SAS • 42 Rue de Sèvres, 75007 Paris • SIRET 849 201 392 00018 • TVA FR 32 849201392
+            Atelier Luxury Retail Pvt Ltd • Indiranagar, Bengaluru, Karnataka 560038 • GSTIN: 29AAAAA0000A1Z5
           </Text>
-          <Text>Official Commercial Invoice • Stored on Atelier Cloud</Text>
+          <Text>Official Commercial Tax Invoice • Stored on Atelier Cloud</Text>
         </View>
       </Page>
     </Document>

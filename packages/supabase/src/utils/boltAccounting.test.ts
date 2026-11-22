@@ -1,5 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import { reconcileBoltDoorstepSession, type TryOnItemRecord } from './boltAccounting'
+import { formatINR } from './index'
+
+describe('formatINR Currency Utility', () => {
+  it('formats numbers with ₹ symbol and en-IN lakh/crore comma grouping', () => {
+    expect(formatINR(27211.2)).toBe('₹27,211.20')
+    expect(formatINR(99)).toBe('₹99.00')
+    expect(formatINR(150000)).toBe('₹1,50,000.00')
+    expect(formatINR(0)).toBe('₹0.00')
+    expect(formatINR(null)).toBe('₹0.00')
+    expect(formatINR(undefined)).toBe('₹0.00')
+    expect(formatINR('26815.20')).toBe('₹26,815.20')
+  })
+})
 
 describe('Bolt Doorstep Try-On Accounting Engine', () => {
   it('deducts ₹99 advance deposit from kept items subtotal', () => {

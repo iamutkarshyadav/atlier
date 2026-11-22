@@ -15,6 +15,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { type CartItem, type ParkedCart } from './PosTypes'
+import { formatINR } from '@repo/supabase/utils'
 
 interface PosCartProps {
   carts: ParkedCart[]
@@ -72,19 +73,17 @@ export function PosCart({
                 key={cart.id}
                 type="button"
                 onClick={() => onSelectCart(idx)}
-                className={`px-3 py-1.5 rounded-t text-2xs font-mono font-semibold transition-all flex items-center gap-1.5 ${
-                  isActive
-                    ? 'bg-chrome-900 text-zinc-100 border-t-2 border-emerald-500 shadow-sm'
-                    : 'bg-chrome-950 hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200'
-                }`}
+                className={`px-3 py-1.5 rounded-t text-2xs font-mono font-semibold transition-all flex items-center gap-1.5 ${isActive
+                  ? 'bg-chrome-900 text-zinc-100 border-t-2 border-emerald-500 shadow-sm'
+                  : 'bg-chrome-950 hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200'
+                  }`}
               >
                 <span>{cart.name}</span>
                 <span
-                  className={`px-1 py-0.2 text-3xs rounded font-bold tabular-nums ${
-                    isActive
-                      ? 'bg-zinc-800 text-emerald-400'
-                      : 'bg-zinc-900 text-zinc-500'
-                  }`}
+                  className={`px-1 py-0.2 text-3xs rounded font-bold tabular-nums ${isActive
+                    ? 'bg-zinc-800 text-emerald-400'
+                    : 'bg-zinc-900 text-zinc-500'
+                    }`}
                 >
                   {cart.items.length}
                 </span>
@@ -194,11 +193,10 @@ export function PosCart({
               key={preset.val}
               type="button"
               onClick={() => onChangeCustomerDiscountPercent(preset.val)}
-              className={`px-2 py-0.5 rounded text-3xs font-mono transition-colors ${
-                customerDiscountPercent === preset.val
-                  ? 'bg-emerald-950 text-emerald-400 border border-emerald-700 font-bold'
-                  : 'bg-chrome-900 text-zinc-400 hover:text-zinc-200 border border-chrome-800'
-              }`}
+              className={`px-2 py-0.5 rounded text-3xs font-mono transition-colors ${customerDiscountPercent === preset.val
+                ? 'bg-emerald-950 text-emerald-400 border border-emerald-700 font-bold'
+                : 'bg-chrome-900 text-zinc-400 hover:text-zinc-200 border border-chrome-800'
+                }`}
             >
               {preset.label}
             </button>
@@ -273,11 +271,11 @@ export function PosCart({
                   {/* Right: Line Subtotal */}
                   <div className="text-right shrink-0">
                     <span className="font-mono font-bold text-sm text-zinc-100 tabular-nums block">
-                      ${lineTotal.toFixed(2)}
+                      {formatINR(lineTotal)}
                     </span>
                     {effectiveDiscount > 0 && (
                       <span className="text-3xs font-mono text-emerald-400 line-through">
-                        ${(item.price * item.quantity).toFixed(2)}
+                        {formatINR(item.price * item.quantity)}
                       </span>
                     )}
                   </div>

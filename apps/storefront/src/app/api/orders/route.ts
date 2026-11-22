@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceRoleClient } from '@repo/supabase/server'
-import { createOrderWithItems } from '@repo/supabase/utils'
+import { atomicCreateOrderAndReserve } from '@repo/supabase/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -227,10 +227,10 @@ export async function POST(req: NextRequest) {
       productPriceMap.set(p.id, Number(p.price))
     }
 
-    // Check product_variants for size price overrides if applicable
+    // Check product_variants for size price overrides and mandatory variant IDs
     const { data: dbVariants } = await supabase
       .from('product_variants')
-      .select('product_id, size, price_override')
+      .select('id, product_id, size, price_override, sku, hsn_code, stock')
       .in('product_id', productIds)
 
     const variantPriceMap = new Map<string, number>()
@@ -245,15 +245,32 @@ export async function POST(req: NextRequest) {
     // 2. Authoritative line items and subtotal computation server-side
     let calculatedSubtotal = 0
     const verifiedItems: Array<{
-      productId: string
+      variant_id: string
+      product_id: string
       quantity: number
-      unitPrice: number
-      size?: string
+      unit_price: number
+      size?: string | null
+      hsn_code?: string
     }> = []
 
     for (const it of items) {
       const pid = it.productId || it.id
       const qty = Math.max(1, Math.floor(Number(it.quantity) || 1))
+
+      // Match authoritative variant
+      let matchedVariant = dbVariants?.find(
+        (v) => v.product_id === pid && (it.size ? v.size === it.size : true)
+      )
+      if (!matchedVariant && dbVariants) {
+        matchedVariant = dbVariants.find((v) => v.product_id === pid)
+      }
+
+      if (!matchedVariant) {
+        return NextResponse.json(
+          { error: `Variant for product "${pid}" (size: ${it.size || 'default'}) does not exist in catalog` },
+          { status: 400 }
+        )
+      }
 
       let authoritativeUnitPrice = productPriceMap.get(pid)
       if (it.size && variantPriceMap.has(`${pid}-${it.size}`)) {
@@ -265,7 +282,7 @@ export async function POST(req: NextRequest) {
           authoritativeUnitPrice = Number(it.unitPrice)
         } else {
           return NextResponse.json(
-            { error: `Product ID "${pid}" does not exist in catalog` },
+            { error: `Product ID "${pid}" does not have valid pricing in catalog` },
             { status: 400 }
           )
         }
@@ -273,10 +290,12 @@ export async function POST(req: NextRequest) {
 
       calculatedSubtotal += authoritativeUnitPrice * qty
       verifiedItems.push({
-        productId: pid,
+        variant_id: matchedVariant.id,
+        product_id: pid,
         quantity: qty,
-        unitPrice: authoritativeUnitPrice,
-        size: it.size || undefined,
+        unit_price: authoritativeUnitPrice,
+        size: it.size || matchedVariant.size || null,
+        hsn_code: matchedVariant.hsn_code || '610910',
       })
     }
 
@@ -284,63 +303,88 @@ export async function POST(req: NextRequest) {
     const isBolt = orderData.order_type === 'bolt_try_on' || orderData.delivery_mode === 'try_on'
 
     let shippingFee = 150.0 // Standard Indian White-Glove delivery (₹150)
-    let taxAmount = Number((calculatedSubtotal * 0.08).toFixed(2))
+    let taxAmount = Number((calculatedSubtotal * 0.12).toFixed(2)) // 12% Indian GST
     let calculatedTotal = Number((calculatedSubtotal + shippingFee + taxAmount).toFixed(2))
-    let originalTotal = calculatedTotal
 
     if (isBolt) {
-      // Bolt ⚡ Doorstep Try-On:
-      // Authorize a nominal ₹99 convenience/booking fee upfront.
-      // The full garment cart value is recorded in original_total ("Payable after Try-On").
+      // Bolt Doorstep Try-On:
+      // Collect ₹99 booking fee upfront; apparel balance settles post fitting.
       shippingFee = 99.0
       taxAmount = 0.0
       calculatedTotal = 99.0
-      originalTotal = calculatedSubtotal
     }
 
-    // 4. Construct secure, validated order record (strictly typed, omitting unexpected client fields like customer_email)
+    // 4. Construct secure, validated order record
     let finalShippingAddress = orderData.shipping_address || 'Bengaluru, Karnataka, India'
     if (customerEmail && !finalShippingAddress.toLowerCase().includes(customerEmail.toLowerCase())) {
       finalShippingAddress = `${finalShippingAddress} [Patron: ${customerEmail}]`
     }
 
-    const secureOrderData = {
-      user_id: customerUserId,
-      order_number: orderData.order_number,
-      invoice_number: orderData.invoice_number,
-      tracking_barcode: orderData.tracking_barcode,
-      order_type: isBolt ? ('bolt_try_on' as const) : ('standard' as const),
-      delivery_mode: isBolt ? ('try_on' as const) : ('direct' as const),
-      bolt_session_status: isBolt ? ('scheduled' as const) : null,
-      bolt_pincode: isBolt ? (orderData.bolt_pincode || null) : null,
-      bolt_timeslot_id: isBolt ? (orderData.bolt_timeslot_id || null) : null,
-      try_on_status: isBolt ? ('pending' as const) : null,
-      shipping_address: finalShippingAddress,
-      delivery_notes: orderData.delivery_notes || null,
-      tax_amount: taxAmount,
-      shipping_fee: shippingFee,
-      original_total: originalTotal,
-      total: calculatedTotal,
-      status: orderData.status || ('pending' as const),
-    }
-
     const adminClient = createServiceRoleClient()
-    const result = await createOrderWithItems(adminClient, secureOrderData, verifiedItems)
+    const result = await atomicCreateOrderAndReserve(adminClient, {
+      orderData: {
+        order_number: orderData.order_number,
+        user_id: customerUserId || null,
+        status: 'pending',
+        payment_status: 'pending',
+        delivery_mode: isBolt ? 'try_on' : 'direct',
+        try_on_status: isBolt ? 'active_timer' : 'pending',
+        order_type: isBolt ? 'bolt_try_on' : 'standard',
+        subtotal: calculatedSubtotal,
+        discount: 0,
+        delivery_fee: shippingFee,
+        tax_amount: taxAmount,
+        total_amount: calculatedTotal,
+        notes: orderData.delivery_notes || null,
+        shipping_address_json: {
+          address: finalShippingAddress,
+          email: customerEmail,
+          phone: orderData.phone || null,
+          bolt_pincode: isBolt ? (orderData.bolt_pincode || null) : null,
+          bolt_timeslot_id: isBolt ? (orderData.bolt_timeslot_id || null) : null,
+          delivery_notes: orderData.delivery_notes || null,
+        },
+        billing_address_json: {
+          address: finalShippingAddress,
+        },
+      },
+      items: verifiedItems,
+      sourceLocationId: null,
+    })
 
-    if (!result.data) {
+    if (!result.success) {
+      const errorMsg = result.error || 'Could not place order'
+      const errorLower = errorMsg.toLowerCase()
+      const isOutOfStock =
+        errorMsg.includes('INSUFFICIENT_STOCK') ||
+        errorLower.includes('insufficient') ||
+        errorLower.includes('out of stock')
+
+      if (isOutOfStock) {
+        return NextResponse.json(
+          {
+            error: 'One or more items in your cart are currently out of stock.',
+            code: 'INSUFFICIENT_STOCK',
+            details: errorMsg,
+          },
+          { status: 409 }
+        )
+      }
+
       return NextResponse.json(
-        { error: result.error || 'Could not place order' },
+        { error: errorMsg },
         { status: 422 }
       )
     }
 
+    const orderDataResult = result.data || {}
     return NextResponse.json({
       success: true,
-      order: result.data,
-      orderNumber: result.data.order_number,
-      invoiceNumber: result.data.invoice_number,
-      trackingBarcode: result.data.tracking_barcode,
-      total: result.data.total,
+      order: orderDataResult,
+      orderNumber: orderDataResult.order_number,
+      invoiceNumber: orderDataResult.invoice_number || `INV-${orderDataResult.order_number}`,
+      trackingBarcode: orderDataResult.tracking_barcode || `ATL-TRK-${orderDataResult.order_number}`,
+      total: orderDataResult.total_amount || calculatedTotal,
     })
   } catch (err: any) {
     return NextResponse.json(

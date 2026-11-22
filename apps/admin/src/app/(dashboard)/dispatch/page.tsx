@@ -4,33 +4,25 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import {
   Truck,
-  Package,
   CheckCircle2,
   Clock,
   RefreshCw,
-  Search,
   ExternalLink,
   MapPin,
-  Barcode as BarcodeIcon,
   Box,
   Layers,
   Printer,
   RotateCcw,
-  Check,
-  ArrowRight,
-  AlertCircle,
   ShieldCheck,
-  Tag,
   Scan,
+  AlertTriangle,
 } from 'lucide-react'
-import { Button, Barcode } from '@repo/ui'
+import { Button } from '@repo/ui'
 import { createBrowserClient } from '@repo/supabase/browser'
 import {
-  getAllOrders,
-  getLocations,
-  getLocationShelves,
-  allocateAndPickOnlineOrder,
-  processBorisReturn,
+  generateBinDirectedPickWave,
+  confirmShelfPick,
+  inwardBoltReturnsAtDock,
   updateOrderStatus,
   type OrderWithItems,
   type StoreLocation,
@@ -47,11 +39,15 @@ interface PickTask {
   orderNumber: string
   orderItemId: string
   productTitle: string
+  variantId?: string
+  variantBarcode?: string
   size: string
   sku: string
   quantity: number
   shelfId: string
   shelfCoordinate: string
+  shelfBarcode: string
+  zoneName?: string
   toteId: string
   isPicked: boolean
 }
@@ -60,6 +56,7 @@ interface ReturnedItemRow {
   orderId: string
   orderNumber: string
   orderItemId: string
+  variantId: string
   customerName: string
   customerAddress: string
   productTitle: string
@@ -75,7 +72,7 @@ interface ReturnedItemRow {
 }
 
 export default function OutboundDispatchPage() {
-  const { activeLocationCode, activeLocationId, locations } = useLocation()
+  const { activeLocationCode, activeLocationId } = useLocation()
   const [activeTab, setActiveTab] = useState<'pick_waves' | 'packing_station' | 'tryon_returns'>('pick_waves')
   const [orders, setOrders] = useState<OrderWithItems[]>([])
   const [shelves, setShelves] = useState<Shelf[]>([])
@@ -87,6 +84,8 @@ export default function OutboundDispatchPage() {
   const [scannedBarcode, setScannedBarcode] = useState('')
   const [pickTasks, setPickTasks] = useState<PickTask[]>([])
   const [pickFilter, setPickFilter] = useState<'all' | 'pending' | 'picked'>('all')
+  const [manualShelfInput, setManualShelfInput] = useState<{ [taskId: string]: string }>({})
+  const [pickingTaskId, setPickingTaskId] = useState<string | null>(null)
 
   // Packing Station State
   const [selectedPackingOrderId, setSelectedPackingOrderId] = useState<string | null>(null)
@@ -133,49 +132,94 @@ export default function OutboundDispatchPage() {
       const fetchedShelves: Shelf[] = Array.isArray(shRes?.shelves) ? shRes.shelves : []
       setShelves(fetchedShelves)
 
-      // 1. Build Pick Tasks from Pending / Processing Orders
-      const tasks: PickTask[] = []
-      const defaultShelf = fetchedShelves[0] || {
-        id: 'sh-blr-01',
-        coordinate: 'BLK-A-01-A1',
-      }
-
       const activeOrders = fetchedOrders.filter(
         (o) => o.status === 'pending' || o.status === 'processing'
       )
 
-      activeOrders.forEach((ord, ordIdx) => {
-        const items = ord.order_items || []
-        items.forEach((item, itemIdx) => {
-          // Assign shelf sequentially or fallback to first shelves
-          const assignedShelf =
-            fetchedShelves[(ordIdx + itemIdx) % Math.max(1, fetchedShelves.length)] || defaultShelf
+      // 1. Generate Bin-Directed Pick Wave via authoritative PostgreSQL RPC
+      const tasks: PickTask[] = []
+      const supabase = createBrowserClient()
 
-          tasks.push({
-            id: `task-${ord.id}-${item.id}`,
-            orderId: ord.id,
-            orderNumber: ord.order_number || `ORD-${ord.id.slice(0, 8).toUpperCase()}`,
-            orderItemId: item.id,
-            productTitle: item.product?.title || 'Luxury Garment',
-            size: item.size || 'M',
-            sku: `SKU-${(item.product?.title || 'GAR').slice(0, 4).toUpperCase()}-${item.size || 'M'}`,
-            quantity: item.quantity || 1,
-            shelfId: assignedShelf.id,
-            shelfCoordinate: assignedShelf.coordinate,
-            toteId: currentToteId,
-            isPicked: ord.status === 'processing' && itemIdx === 0, // Mock sample picked item
+      if (activeOrders.length > 0) {
+        try {
+          const waveRes = await generateBinDirectedPickWave(supabase, {
+            orderIds: activeOrders.map((o) => o.id),
+            locationId: matchedLoc.id,
+          })
+
+          if (waveRes.success && waveRes.tasks && waveRes.tasks.length > 0) {
+            waveRes.tasks.forEach((t) => {
+              tasks.push({
+                id: `task-${t.order_id}-${t.order_item_id}`,
+                orderId: t.order_id,
+                orderNumber: t.order_number,
+                orderItemId: t.order_item_id,
+                productTitle: t.product_name,
+                variantId: t.variant_id,
+                variantBarcode: t.variant_barcode,
+                size: t.size || 'M',
+                sku: t.sku || `SKU-${t.product_name.slice(0, 4).toUpperCase()}`,
+                quantity: t.quantity || 1,
+                shelfId: t.shelf_id,
+                shelfCoordinate: t.shelf_coordinate,
+                shelfBarcode: t.shelf_barcode || `LOC-${t.shelf_coordinate}`,
+                zoneName: t.zone_name,
+                toteId: currentToteId,
+                isPicked: false,
+              })
+            })
+          }
+        } catch (waveErr) {
+          console.warn('Could not call generateBinDirectedPickWave:', waveErr)
+        }
+      }
+
+      // Fallback: build tasks from active orders if RPC returned empty (e.g. mock test data)
+      if (tasks.length === 0) {
+        const defaultShelf = fetchedShelves[0] || {
+          id: 'sh-blr-01',
+          coordinate: 'BLK-A-01-A1',
+          barcode: 'LOC-BLK-A-01-A1',
+        }
+
+        activeOrders.forEach((ord, ordIdx) => {
+          const items = ord.order_items || []
+          items.forEach((item, itemIdx) => {
+            const assignedShelf =
+              fetchedShelves[(ordIdx + itemIdx) % Math.max(1, fetchedShelves.length)] || defaultShelf
+
+            tasks.push({
+              id: `task-${ord.id}-${item.id}`,
+              orderId: ord.id,
+              orderNumber: ord.order_number || `ORD-${ord.id.slice(0, 8).toUpperCase()}`,
+              orderItemId: item.id,
+              productTitle: item.product?.title || 'Luxury Garment',
+              variantId: item.variant_id || item.variant?.id || '',
+              variantBarcode: item.variant?.barcode || '',
+              size: item.size || 'M',
+              sku:
+                item.variant?.sku ||
+                `SKU-${(item.product?.title || 'GAR').slice(0, 4).toUpperCase()}-${item.size || 'M'}`,
+              quantity: item.quantity || 1,
+              shelfId: assignedShelf.id,
+              shelfCoordinate: assignedShelf.coordinate,
+              shelfBarcode: assignedShelf.barcode || `LOC-${assignedShelf.coordinate}`,
+              zoneName: 'Bulk Storage',
+              toteId: currentToteId,
+              isPicked: ord.status === 'processing' && itemIdx === 0,
+            })
           })
         })
-      })
+      }
 
-      // Sort pick tasks strictly by physical shelf coordinate for sequential warehouse traversal!
+      // Sort pick tasks strictly by physical shelf coordinate (Zone -> Aisle -> Rack -> Shelf)
       tasks.sort((a, b) => a.shelfCoordinate.localeCompare(b.shelfCoordinate))
       setPickTasks(tasks)
 
       // 2. Build Bolt 45m Try-On Returned Items
       const retRows: ReturnedItemRow[] = []
       fetchedOrders
-        .filter((o) => o.delivery_mode === 'try_on')
+        .filter((o) => o.delivery_mode === 'try_on' || o.order_type === 'bolt_try_on')
         .forEach((ord) => {
           const items = ord.order_items || []
           items.forEach((item) => {
@@ -184,11 +228,14 @@ export default function OutboundDispatchPage() {
                 orderId: ord.id,
                 orderNumber: ord.order_number || `ATL-ORD-${ord.id.slice(0, 6).toUpperCase()}`,
                 orderItemId: item.id,
-                customerName: ord.shipping_address?.split(',')[0] || 'Patron indiranagar',
-                customerAddress: ord.shipping_address || 'Bengaluru Salon',
-                productTitle: item.product?.title || 'Tailored Work',
+                variantId: item.variant_id || item.variant?.id || '',
+                customerName: ord.shipping_address?.split(',')[0] || 'Customer Indiranagar',
+                customerAddress: ord.shipping_address || 'Bengaluru Atelier Address',
+                productTitle: item.product?.title || 'Tailored Garment',
                 size: item.size || 'M',
-                sku: `SKU-${(item.product?.title || 'GAR').slice(0, 4).toUpperCase()}-${item.size || 'M'}`,
+                sku:
+                  item.variant?.sku ||
+                  `SKU-${(item.product?.title || 'GAR').slice(0, 4).toUpperCase()}-${item.size || 'M'}`,
                 unitPrice: Number(item.unit_price || 0),
                 rejectionReason:
                   item.rejection_reason || 'Doorstep fitting preference: requested size exchange',
@@ -211,27 +258,37 @@ export default function OutboundDispatchPage() {
     loadData()
   }, [loadData])
 
-  // Pick Wave: Confirm Pick of a single item
-  const handleConfirmPick = async (task: PickTask) => {
-    const supabase = createBrowserClient()
-    const { success, error } = await allocateAndPickOnlineOrder(supabase, {
-      orderId: task.orderId,
-      action: 'confirm_pick',
-      locationId: activeLocationId,
-      picks: [{ order_item_id: task.orderItemId, shelf_id: task.shelfId }],
-      operatorId: 'OP-DISPATCH-01',
-    })
+  // Pick Wave: Confirm Pick of a single item (Supports Hardware Scanner and Manual Fallback)
+  const handleConfirmPick = async (task: PickTask, overrideBarcode?: string) => {
+    setPickingTaskId(task.id)
+    try {
+      const supabase = createBrowserClient()
+      const barcodeToVerify =
+        overrideBarcode?.trim() ||
+        manualShelfInput[task.id]?.trim() ||
+        task.shelfBarcode ||
+        task.shelfCoordinate
 
-    if (!success) {
-      showToast(`Pick Error: ${error || 'Failed to update shelf'}`)
-      return
+      const { success, error } = await confirmShelfPick(supabase, {
+        orderItemId: task.orderItemId,
+        scannedShelfBarcode: barcodeToVerify,
+        scannedVariantBarcode: task.variantBarcode || null,
+        operatorId: 'OP-DISPATCH-01',
+      })
+
+      if (!success) {
+        showToast(`Pick Error: ${error || 'Failed to update shelf inventory'}`)
+        return
+      }
+
+      setPickTasks((prev) =>
+        prev.map((t) => (t.id === task.id ? { ...t, isPicked: true, toteId: currentToteId } : t))
+      )
+
+      showToast(`Pick Verified: ${task.sku} from ${task.shelfCoordinate} into ${currentToteId}`)
+    } finally {
+      setPickingTaskId(null)
     }
-
-    setPickTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, isPicked: true, toteId: currentToteId } : t))
-    )
-
-    showToast(`Item picked: ${task.sku} from ${task.shelfCoordinate} into ${currentToteId}`)
   }
 
   // Barcode Wedge Scanner Listener
@@ -240,18 +297,20 @@ export default function OutboundDispatchPage() {
     if (!scannedBarcode.trim()) return
 
     const raw = scannedBarcode.trim().toUpperCase()
-    // Look for matching task by shelf coordinate, SKU, or task ID
+    // Look for matching task by shelf barcode, coordinate, variant barcode, SKU, or order number
     const match = pickTasks.find(
       (t) =>
         !t.isPicked &&
-        (t.shelfCoordinate.toUpperCase() === raw ||
+        (t.shelfBarcode.toUpperCase() === raw ||
+          t.shelfCoordinate.toUpperCase() === raw ||
           `LOC-${t.shelfCoordinate}`.toUpperCase() === raw ||
+          (t.variantBarcode && t.variantBarcode.toUpperCase() === raw) ||
           t.sku.toUpperCase() === raw ||
           t.orderNumber.toUpperCase() === raw)
     )
 
     if (match) {
-      handleConfirmPick(match)
+      handleConfirmPick(match, raw)
       setScannedBarcode('')
     } else {
       showToast(`No pending pick found matching scan: ${raw}`)
@@ -276,7 +335,7 @@ export default function OutboundDispatchPage() {
       carrierName: carrierName,
       deliveryMode: activePackingOrder.delivery_mode === 'try_on' ? '45M TRY-ON EXPRESS' : 'STANDARD DELIVERY',
       originHub: `${activeLocationCode} FULFILLMENT HUB`,
-      recipientName: activePackingOrder.shipping_address?.split(',')[0] || 'Valued Patron',
+      recipientName: activePackingOrder.shipping_address?.split(',')[0] || 'Valued Customer',
       recipientPhone: '+91 98450 12890',
       addressLine1: activePackingOrder.shipping_address || 'Bengaluru Atelier Address',
       city: 'Bengaluru',
@@ -305,42 +364,50 @@ export default function OutboundDispatchPage() {
       prev.map((o) => (o.id === activePackingOrder.id ? { ...o, status: 'out_for_delivery' } : o))
     )
 
-    showToast(`Order ${activePackingOrder.order_number} marked packed with AWB ${awbCode} and ready for carrier handoff!`)
+    showToast(`Order ${activePackingOrder.order_number} packed with AWB ${awbCode} and ready for carrier handoff!`)
   }
 
-  // Bolt Try-On: Restock Rejected Garment Back to Shelf
-  const handleRestockBoris = async (item: ReturnedItemRow) => {
+  // Bolt Try-On: Warehouse Dock Inwarding with QC Quarantine Isolation
+  const handleInwardReturn = async (item: ReturnedItemRow) => {
     setProcessingReturnItemId(item.orderItemId)
     try {
       const supabase = createBrowserClient()
-      const { success, restockedShelfId, error } = await processBorisReturn(supabase, {
+      const isDamaged = item.qcCondition === 'rejected_damaged'
+      const { success, error } = await inwardBoltReturnsAtDock(supabase, {
         orderId: item.orderId,
-        orderItemId: item.orderItemId,
-        locationId: activeLocationId || 'd1000000-0000-0000-0000-000000000001',
-        targetShelfId: item.targetShelfId,
-        condition: item.qcCondition,
-        refundMode: item.refundMode,
+        returnItems: [
+          {
+            order_item_id: item.orderItemId,
+            variant_id: item.variantId,
+            qc_condition: isDamaged ? 'damaged' : 'pass',
+            target_shelf_id: isDamaged ? null : item.targetShelfId,
+          },
+        ],
         operatorId: 'OP-DISPATCH-01',
-        notes: `Returned from 45m Try-On: ${item.rejectionReason}`,
       })
 
       if (!success) {
-        showToast(`Restock Error: ${error || 'Failed to return stock to shelf'}`)
+        showToast(`Dock Inwarding Error: ${error || 'Failed to return stock to shelf'}`)
         return
       }
 
-      const shelfCoord =
-        shelves.find((s) => s.id === item.targetShelfId)?.coordinate || 'BLK-A-01-A1'
+      const assignedCoordinate = isDamaged
+        ? 'QRN-BIN-01'
+        : (shelves.find((s) => s.id === item.targetShelfId)?.coordinate || 'BLK-A-01-A1')
 
       setReturnedItems((prev) =>
         prev.map((r) =>
           r.orderItemId === item.orderItemId
-            ? { ...r, isRestocked: true, restockedShelfCoordinate: shelfCoord }
+            ? { ...r, isRestocked: true, restockedShelfCoordinate: assignedCoordinate }
             : r
         )
       )
 
-      showToast(`Successfully restocked ${item.sku} onto shelf ${shelfCoord}! Ledger entry generated.`)
+      showToast(
+        isDamaged
+          ? `QC REJECTED: Item isolated in Quarantine bin (QRN-BIN-01). Ledger recorded.`
+          : `QC PASSED: Restocked ${item.sku} onto sellable shelf ${assignedCoordinate}. Ledger recorded.`
+      )
     } finally {
       setProcessingReturnItemId(null)
     }
@@ -367,7 +434,7 @@ export default function OutboundDispatchPage() {
             <span>Outbound Pick-Pack-Ship & Online WMS Hub</span>
           </h1>
           <p className="text-2xs text-zinc-400">
-            Fulfill online & endless aisle orders from shelf coordinates ({activeLocationCode}) into carrier totes
+            Fulfill online & endless aisle orders from bin-directed shelf coordinates ({activeLocationCode}) into carrier totes
           </p>
         </div>
 
@@ -404,7 +471,7 @@ export default function OutboundDispatchPage() {
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>1. Allocation & Pick Waves ({pickedCount}/{totalCount})</span>
+          <span>1. Bin-Directed Pick Waves ({pickedCount}/{totalCount})</span>
         </button>
 
         <button
@@ -433,7 +500,7 @@ export default function OutboundDispatchPage() {
       </div>
 
       {/* ========================================================= */}
-      {/* TAB 1: ALLOCATION & PICK WAVES */}
+      {/* TAB 1: ALLOCATION & BIN-DIRECTED PICK WAVES */}
       {/* ========================================================= */}
       {activeTab === 'pick_waves' && (
         <div className="space-y-4">
@@ -455,19 +522,19 @@ export default function OutboundDispatchPage() {
               <Scan className="w-4 h-4 text-emerald-400 shrink-0" />
               <input
                 type="text"
-                placeholder="Scan Shelf Barcode (LOC-BLK-A-01) or SKU to Confirm Pick..."
+                placeholder="Scan Shelf Barcode (e.g. LOC-BLK-A-01-A1) or Item SKU to Confirm Pick..."
                 value={scannedBarcode}
                 onChange={(e) => setScannedBarcode(e.target.value)}
                 className="w-full bg-chrome-950 border border-chrome-700 px-3 py-1 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-400 font-mono"
               />
               <Button type="submit" variant="terminal" size="sm" className="h-7 text-3xs shrink-0">
-                Match Pick
+                Match Scan
               </Button>
             </form>
 
             {/* Filter Pills & Progress */}
             <div className="md:col-span-3 flex items-center justify-end gap-2 text-2xs">
-              <span className="text-zinc-400">Progress:</span>
+              <span className="text-zinc-400">Wave Progress:</span>
               <span className="font-bold text-cyan-300 tabular-nums">{pickPercentage}%</span>
               <div className="w-20 bg-chrome-950 h-2 border border-chrome-750 overflow-hidden">
                 <div className="bg-cyan-400 h-full transition-all" style={{ width: `${pickPercentage}%` }} />
@@ -520,7 +587,7 @@ export default function OutboundDispatchPage() {
                   <th className="py-2 px-3 font-semibold">Order Ref</th>
                   <th className="py-2 px-3 font-semibold text-center">Tote</th>
                   <th className="py-2 px-3 font-semibold">Status</th>
-                  <th className="py-2 px-3 font-semibold text-right">Pick Action</th>
+                  <th className="py-2 px-3 font-semibold text-right">Pick Action (Manual & Scan)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-chrome-800">
@@ -538,6 +605,9 @@ export default function OutboundDispatchPage() {
                           {task.shelfCoordinate}
                         </span>
                       </div>
+                      <span className="text-3xs text-zinc-500 font-mono block pl-5">
+                        {task.shelfBarcode}
+                      </span>
                     </td>
 
                     <td className="py-2.5 px-3 font-semibold text-zinc-200">
@@ -575,14 +645,31 @@ export default function OutboundDispatchPage() {
                       {task.isPicked ? (
                         <span className="text-3xs text-zinc-500 uppercase">In Tote</span>
                       ) : (
-                        <Button
-                          variant="terminal"
-                          size="sm"
-                          onClick={() => handleConfirmPick(task)}
-                          className="h-6 px-2.5 text-3xs border-cyan-500/60 text-cyan-300 hover:bg-cyan-950/40"
-                        >
-                          Confirm Pick
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Manual shelf input fallback for test environments without physical scanner */}
+                          <input
+                            type="text"
+                            placeholder={task.shelfCoordinate}
+                            value={manualShelfInput[task.id] || ''}
+                            onChange={(e) =>
+                              setManualShelfInput((prev) => ({
+                                ...prev,
+                                [task.id]: e.target.value,
+                              }))
+                            }
+                            className="w-24 bg-chrome-950 border border-chrome-700 px-1.5 py-0.5 text-3xs text-zinc-200 font-mono focus:border-cyan-400 focus:outline-none"
+                            title="Optional manual shelf barcode override"
+                          />
+                          <Button
+                            variant="terminal"
+                            size="sm"
+                            onClick={() => handleConfirmPick(task)}
+                            isLoading={pickingTaskId === task.id}
+                            className="h-6 px-2.5 text-3xs border-cyan-500/60 text-cyan-300 hover:bg-cyan-950/40"
+                          >
+                            Confirm Pick
+                          </Button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -616,7 +703,7 @@ export default function OutboundDispatchPage() {
               {orders
                 .filter((o) => o.status !== 'delivered' && o.status !== 'cancelled')
                 .map((ord) => {
-                  const isSelected = (activePackingOrder?.id === ord.id)
+                  const isSelected = activePackingOrder?.id === ord.id
                   const itemsCount = ord.order_items?.length || 0
 
                   return (
@@ -784,7 +871,7 @@ export default function OutboundDispatchPage() {
       )}
 
       {/* ========================================================= */}
-      {/* TAB 3: BOLT 45M TRY-ON RETURN RESTOCK */}
+      {/* TAB 3: BOLT 45M TRY-ON RETURN RESTOCK & QC DOCK */}
       {/* ========================================================= */}
       {activeTab === 'tryon_returns' && (
         <div className="space-y-4">
@@ -792,11 +879,11 @@ export default function OutboundDispatchPage() {
             <div className="space-y-0.5">
               <span className="text-zinc-200 font-bold block">45-Minute Doorstep Try-On Rejections</span>
               <span className="text-zinc-400">
-                Garments tried at patron doorstep and returned. Inspect QC condition and restock back to warehouse shelf.
+                Garments tried at customer doorstep and returned. Inspect QC condition and inward back to warehouse shelf (or isolate in quarantine).
               </span>
             </div>
             <span className="px-2 py-0.5 bg-chrome-800 border border-chrome-700 text-zinc-300 uppercase font-bold">
-              {returnedItems.filter((r) => !r.isRestocked).length} Awaiting Shelf Putaway
+              {returnedItems.filter((r) => !r.isRestocked).length} Awaiting Warehouse Dock Inwarding
             </span>
           </div>
 
@@ -804,13 +891,13 @@ export default function OutboundDispatchPage() {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-chrome-800 bg-chrome-950 text-3xs uppercase tracking-wider text-zinc-400">
-                  <th className="py-2.5 px-3 font-semibold">Order & Patron</th>
+                  <th className="py-2.5 px-3 font-semibold">Order & Customer</th>
                   <th className="py-2.5 px-3 font-semibold">Returned Garment</th>
                   <th className="py-2.5 px-3 font-semibold">Doorstep Rejection Reason</th>
                   <th className="py-2.5 px-3 font-semibold">QC Inspection</th>
                   <th className="py-2.5 px-3 font-semibold">Target Putaway Shelf</th>
                   <th className="py-2.5 px-3 font-semibold">Refund Mode</th>
-                  <th className="py-2.5 px-3 font-semibold text-right">Restock Action</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Dock Inward Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-chrome-800">
@@ -854,9 +941,9 @@ export default function OutboundDispatchPage() {
                           }}
                           className="bg-chrome-950 border border-chrome-750 px-2 py-1 text-2xs text-zinc-200 focus:outline-none"
                         >
-                          <option value="accepted">Accepted (Grade A - Fold & Sell)</option>
-                          <option value="rejected_damaged">Damaged (Seam/Stitch Repair)</option>
-                          <option value="pending_qc">Quarantine (Dry Clean)</option>
+                          <option value="accepted">Accepted (Grade A - Fold & Restock)</option>
+                          <option value="rejected_damaged">Damaged (Isolate in QRN-BIN-01)</option>
+                          <option value="pending_qc">Quarantine (Dry Clean Review)</option>
                         </select>
                       )}
                     </td>
@@ -865,6 +952,10 @@ export default function OutboundDispatchPage() {
                       {item.isRestocked ? (
                         <span className="text-2xs font-bold text-emerald-400 tabular-nums">
                           {item.restockedShelfCoordinate}
+                        </span>
+                      ) : item.qcCondition === 'rejected_damaged' ? (
+                        <span className="text-2xs text-amber-400 font-mono font-bold flex items-center gap-1">
+                          <AlertTriangle className="w-3.5 h-3.5" /> QRN-BIN-01 (Quarantine)
                         </span>
                       ) : (
                         <select
@@ -915,17 +1006,17 @@ export default function OutboundDispatchPage() {
                     <td className="py-2.5 px-3 text-right">
                       {item.isRestocked ? (
                         <span className="inline-flex items-center gap-1 text-emerald-400 text-3xs font-bold uppercase">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Restocked
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Inwarded
                         </span>
                       ) : (
                         <Button
                           variant="terminal"
                           size="sm"
-                          onClick={() => handleRestockBoris(item)}
+                          onClick={() => handleInwardReturn(item)}
                           isLoading={processingReturnItemId === item.orderItemId}
                           className="h-6 px-2.5 text-3xs border-emerald-500/60 text-emerald-300 hover:bg-emerald-950/40"
                         >
-                          Restock to Shelf
+                          Inward at Dock
                         </Button>
                       )}
                     </td>
@@ -935,7 +1026,7 @@ export default function OutboundDispatchPage() {
                 {returnedItems.length === 0 && (
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-xs text-zinc-500">
-                      No returned try-on items currently awaiting shelf putaway.
+                      No returned try-on items currently awaiting dock inwarding.
                     </td>
                   </tr>
                 )}

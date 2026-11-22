@@ -11,6 +11,8 @@ import {
   AlertCircle,
   Warehouse,
   Store,
+  Layers,
+  Package,
 } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { createBrowserClient } from '@repo/supabase/browser'
@@ -20,19 +22,32 @@ import {
   executeStockTransfer,
   type StockTransfer,
   type StoreLocation,
+  type Shelf,
 } from '@repo/supabase/utils'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { SlideOverDrawer } from '@/components/ui/SlideOverDrawer'
 
+interface VariantOption {
+  id: string
+  sku: string
+  size: string | null
+  title: string
+}
+
 export default function StockTransfersPage() {
-  const [transfers, setTransfers] = useState<StockTransfer[]>([])
+  const [transfers, setTransfers] = useState<any[]>([])
   const [locations, setLocations] = useState<StoreLocation[]>([])
+  const [variants, setVariants] = useState<VariantOption[]>([])
+  const [shelvesByLocation, setShelvesByLocation] = useState<Record<string, Shelf[]>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   // New Transfer Form State
   const [sourceLocationId, setSourceLocationId] = useState('')
   const [destLocationId, setDestLocationId] = useState('')
+  const [selectedVariantId, setSelectedVariantId] = useState('')
+  const [selectedSourceShelfId, setSelectedSourceShelfId] = useState('')
+  const [transferQty, setTransferQty] = useState(1)
   const [ewayBill, setEwayBill] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -41,19 +56,52 @@ export default function StockTransfersPage() {
   const loadData = async () => {
     setIsLoading(true)
     try {
-      const [tRes, locRes] = await Promise.all([
+      const supabase = createBrowserClient()
+      const [tRes, locRes, { data: varData }] = await Promise.all([
         fetch('/api/admin/transfers').then((r) => r.json()).catch(() => ({ transfers: [] })),
         fetch('/api/admin/locations').then((r) => r.json()).catch(() => ({ locations: [] })),
+        supabase
+          .from('product_variants')
+          .select('id, sku, size, product:products(title)')
+          .limit(100),
       ])
-      const tList: StockTransfer[] = Array.isArray(tRes?.transfers) ? tRes.transfers : []
+
+      const tList: any[] = Array.isArray(tRes?.transfers) ? tRes.transfers : []
       const locs: StoreLocation[] = Array.isArray(locRes?.locations) ? locRes.locations : []
+
+      const vList: VariantOption[] = (varData || []).map((v: any) => ({
+        id: v.id,
+        sku: v.sku,
+        size: v.size,
+        title: `${v.product?.title || 'Garment'} (${v.size || 'OS'} / ${v.sku})`,
+      }))
 
       setTransfers(tList)
       setLocations(locs)
-      if (locs.length >= 2) {
-        setSourceLocationId(locs[0]?.id || '')
-        setDestLocationId(locs[1]?.id || '')
+      setVariants(vList)
+
+      if (vList.length > 0 && !selectedVariantId) {
+        setSelectedVariantId(vList[0].id)
       }
+
+      if (locs.length >= 2) {
+        if (!sourceLocationId) setSourceLocationId(locs[0]?.id || '')
+        if (!destLocationId) setDestLocationId(locs[1]?.id || '')
+      }
+
+      // Fetch shelves for all active locations
+      const shelfMap: Record<string, Shelf[]> = {}
+      await Promise.all(
+        locs.map(async (l) => {
+          try {
+            const shRes = await fetch(`/api/admin/shelves?locationId=${l.id}`).then((r) => r.json()).catch(() => ({ shelves: [] }))
+            shelfMap[l.id] = Array.isArray(shRes?.shelves) ? shRes.shelves : []
+          } catch {
+            shelfMap[l.id] = []
+          }
+        })
+      )
+      setShelvesByLocation(shelfMap)
     } finally {
       setIsLoading(false)
     }
@@ -63,6 +111,15 @@ export default function StockTransfersPage() {
     loadData()
   }, [])
 
+  // Auto-update source shelf when source location changes
+  useEffect(() => {
+    if (sourceLocationId && shelvesByLocation[sourceLocationId]?.length) {
+      setSelectedSourceShelfId(shelvesByLocation[sourceLocationId][0].id)
+    } else {
+      setSelectedSourceShelfId('')
+    }
+  }, [sourceLocationId, shelvesByLocation])
+
   const handleCreateTransfer = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!sourceLocationId || !destLocationId) {
@@ -71,6 +128,14 @@ export default function StockTransfersPage() {
     }
     if (sourceLocationId === destLocationId) {
       setFormError('Source and destination locations cannot be identical.')
+      return
+    }
+    if (!selectedVariantId) {
+      setFormError('Please select an apparel SKU / variant to transfer.')
+      return
+    }
+    if (transferQty <= 0) {
+      setFormError('Transfer quantity must be at least 1 unit.')
       return
     }
 
@@ -92,6 +157,13 @@ export default function StockTransfersPage() {
           destination_location_id: destLocationId,
           status: 'draft',
           eway_bill_number: ewayBill.trim() || null,
+          items: [
+            {
+              variant_id: selectedVariantId,
+              source_shelf_id: selectedSourceShelfId || null,
+              quantity_requested: transferQty,
+            },
+          ],
         }),
       })
 
@@ -129,13 +201,18 @@ export default function StockTransfersPage() {
     }
   }
 
-  const handleReceive = async (transferId: string) => {
+  const handleReceive = async (transferId: string, destLocId: string) => {
     setActionLoadingId(transferId)
     try {
       const supabase = createBrowserClient()
+      // Resolve destination shelf
+      const destShelves = shelvesByLocation[destLocId] || []
+      const targetShelf = destShelves.find((s) => s.coordinate === 'BLK-A-01-A1' || s.is_active) || destShelves[0]
+
       const res = await executeStockTransfer(supabase, {
         transferId,
         action: 'receive',
+        targetShelfId: targetShelf?.id || null,
         notes: 'Received and verified at destination boutique',
       })
       if (!res.success) {
@@ -191,6 +268,7 @@ export default function StockTransfersPage() {
               <th className="py-2.5 px-3 font-semibold">Transfer #</th>
               <th className="py-2.5 px-3 font-semibold">Origin Node</th>
               <th className="py-2.5 px-3 font-semibold">Destination Node</th>
+              <th className="py-2.5 px-3 font-semibold">Manifest Items</th>
               <th className="py-2.5 px-3 font-semibold">Status</th>
               <th className="py-2.5 px-3 font-semibold">e-Way Bill #</th>
               <th className="py-2.5 px-3 font-semibold">Created Date</th>
@@ -235,6 +313,23 @@ export default function StockTransfersPage() {
                     </span>
                   </td>
 
+                  {/* Manifest Items */}
+                  <td className="py-2.5 px-3">
+                    {trf.stock_transfer_items && trf.stock_transfer_items.length > 0 ? (
+                      <div className="space-y-0.5">
+                        {trf.stock_transfer_items.map((it: any, idx: number) => (
+                          <div key={idx} className="text-2xs text-zinc-200 font-mono flex items-center gap-1">
+                            <span className="font-semibold text-amber-400">{it.variant?.sku || 'SKU'}</span>
+                            <span className="text-zinc-500">×</span>
+                            <span className="text-zinc-100 font-bold">{it.quantity_requested}u</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-3xs text-zinc-500 italic">Unassigned Units</span>
+                    )}
+                  </td>
+
                   {/* Status Badge */}
                   <td className="py-2.5 px-3">
                     <StatusBadge variant={trf.status} dot />
@@ -265,7 +360,7 @@ export default function StockTransfersPage() {
 
                       {trf.status === 'in_transit' && (
                         <button
-                          onClick={() => handleReceive(trf.id)}
+                          onClick={() => handleReceive(trf.id, trf.destination_location_id)}
                           disabled={isActionLoading}
                           className="px-2.5 py-1 text-2xs bg-emerald-950/40 text-emerald-400 border border-emerald-800/60 hover:bg-emerald-900/40 transition-colors font-semibold"
                         >
@@ -286,7 +381,7 @@ export default function StockTransfersPage() {
 
             {transfers.length === 0 && !isLoading && (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-xs text-zinc-500">
+                <td colSpan={8} className="py-12 text-center text-xs text-zinc-500">
                   No stock transfers found. Click &quot;New Stock Transfer&quot; to initiate relocation between nodes.
                 </td>
               </tr>
@@ -345,6 +440,60 @@ export default function StockTransfersPage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Garment SKU / Variant Selection */}
+          <div className="space-y-1">
+            <label className="text-2xs uppercase tracking-wider text-zinc-400 font-semibold block">
+              Garment Variant / SKU *
+            </label>
+            <select
+              value={selectedVariantId}
+              onChange={(e) => setSelectedVariantId(e.target.value)}
+              required
+              className="w-full bg-chrome-950 border border-chrome-800 px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-400"
+            >
+              {variants.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Source Shelf & Quantity */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-2xs uppercase tracking-wider text-zinc-400 font-semibold block">
+                Source Shelf (Pick Bin)
+              </label>
+              <select
+                value={selectedSourceShelfId}
+                onChange={(e) => setSelectedSourceShelfId(e.target.value)}
+                className="w-full bg-chrome-950 border border-chrome-800 px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-400"
+              >
+                <option value="">Auto / Any Shelf</option>
+                {(shelvesByLocation[sourceLocationId] || []).map((sh) => (
+                  <option key={sh.id} value={sh.id}>
+                    {sh.coordinate} ({sh.barcode})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-2xs uppercase tracking-wider text-zinc-400 font-semibold block">
+                Transfer Quantity (Units) *
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={transferQty}
+                onChange={(e) => setTransferQty(Math.max(1, parseInt(e.target.value) || 1))}
+                required
+                className="w-full bg-chrome-950 border border-chrome-800 px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-400 font-mono"
+              />
+            </div>
           </div>
 
           <div className="space-y-1">

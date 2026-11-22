@@ -8,6 +8,7 @@ import {
   getAllProductsAdmin,
   processPosCheckout,
   processBorisReturn,
+  getVariantByBarcodeOrSku,
   type StoreLocation,
   type Shelf,
   type Product,
@@ -47,6 +48,12 @@ export default function PosTerminalPage() {
   // 2. Hardware Scanner Heartbeat
   const [scannerActive, setScannerActive] = useState(false)
   const [lastScannedBarcode, setLastScannedBarcode] = useState<string | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg)
+    setTimeout(() => setToastMessage(null), 4000)
+  }
 
   // 3. Modals & Mode Controls
   const [borisModalOpen, setBorisModalOpen] = useState(false)
@@ -188,51 +195,50 @@ export default function PosTerminalPage() {
     )
   }
 
-  // Hardware Scanner Integration
-  useBarcodeScanner({
-    onScan: (scanned) => {
+  // Authoritative Barcode-First Scanner Resolution (Direct product_variants.barcode / sku lookup)
+  const handleBarcodeScan = useCallback(
+    async (scanned: string) => {
       const code = scanned.trim().toUpperCase()
+      if (!code) return
+
       setScannerActive(true)
       setLastScannedBarcode(code)
       setTimeout(() => setScannerActive(false), 1500)
 
-      // Try matching against product titles or SKUs
-      const matched = products.find(
-        (p) =>
-          p.title.toUpperCase().includes(code) ||
-          p.id.toUpperCase().includes(code)
-      )
+      try {
+        const supabase = createBrowserClient()
+        const result = await getVariantByBarcodeOrSku(supabase, code)
 
-      if (matched) {
-        handleAddToCart(
-          `v-${matched.id}-M`,
-          matched.id,
-          matched.title,
-          'M',
-          `SKU-${matched.title.slice(0, 4).toUpperCase()}-M`,
-          Number(matched.price) || 1200,
-          matched.image_url,
-          matched.category,
-          matched.material,
-          false,
-          activeLocationCode
-        )
-      } else {
-        // Fallback generic garment item
-        handleAddToCart(
-          `v-${code}`,
-          `p-${code}`,
-          `Atelier Piece [${code}]`,
-          'M',
-          code,
-          1450.0,
-          undefined,
-          'Atelier',
-          undefined,
-          false,
-          activeLocationCode
-        )
+        if (result.success && result.variant) {
+          const v = result.variant
+          const p = v.product || {}
+          handleAddToCart(
+            v.id,
+            v.product_id,
+            p.title || 'Atelier Luxury Piece',
+            v.size || 'M',
+            v.sku,
+            Number(v.price_override || p.price) || 1200,
+            p.image_url,
+            p.category,
+            p.material,
+            false,
+            activeLocationCode
+          )
+          showToast(`Added to cart: ${p.title} (${v.sku}) - Size ${v.size || 'M'}`)
+        } else {
+          showToast(`Barcode not found: "${code}". No matching product variant in catalog.`)
+        }
+      } catch (err) {
+        showToast(`Lookup error for barcode: "${code}"`)
       }
+    },
+    [activeLocationCode, floorShelfCoordinate, floorShelfId]
+  )
+
+  useBarcodeScanner({
+    onScan: (scanned) => {
+      handleBarcodeScan(scanned)
     },
   })
 
@@ -610,6 +616,15 @@ export default function PosTerminalPage() {
         onOpenShortcutsModal={() => setShortcutsModalOpen(true)}
       />
 
+      {toastMessage && (
+        <div className="p-2.5 bg-chrome-850 border border-cyan-500/60 text-cyan-300 text-xs flex justify-between items-center shadow-lg font-mono">
+          <span className="font-semibold">{toastMessage}</span>
+          <button onClick={() => setToastMessage(null)} className="text-zinc-400 hover:text-white font-bold ml-4">
+            ×
+          </button>
+        </div>
+      )}
+
       {/* 2. Main High-Speed Split View */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
         {/* Left Column: Garment Catalog & Filter Matrix (60% width) */}
@@ -619,25 +634,7 @@ export default function PosTerminalPage() {
             boutiqueShelves={boutiqueShelves}
             activeLocationCode={activeLocationCode}
             onAddToCart={handleAddToCart}
-            onBarcodeScanSubmit={(code) => {
-              setScannerActive(true)
-              setLastScannedBarcode(code)
-              setTimeout(() => setScannerActive(false), 1200)
-
-              handleAddToCart(
-                `v-${code}`,
-                `p-${code}`,
-                `Atelier Garment [${code}]`,
-                'M',
-                code,
-                1450.0,
-                undefined,
-                'Atelier',
-                undefined,
-                false,
-                activeLocationCode
-              )
-            }}
+            onBarcodeScanSubmit={handleBarcodeScan}
           />
         </div>
 

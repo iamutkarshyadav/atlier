@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -31,14 +31,18 @@ import { useLocation } from '@/context/LocationContext'
 import { useBarcodeScanner } from '@/lib/useBarcodeScanner'
 import { useTheme } from '@/context/ThemeContext'
 
+interface NavItem {
+  href: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  exact?: boolean
+  badgeKey?: 'openOrdersCount' | 'lowStockCount' | 'pendingTransfersCount'
+  isPos?: boolean
+}
+
 interface NavGroup {
   label: string
-  items: Array<{
-    href: string
-    label: string
-    icon: React.ComponentType<{ className?: string }>
-    exact?: boolean
-  }>
+  items: NavItem[]
 }
 
 const NAV_GROUPS: NavGroup[] = [
@@ -46,18 +50,18 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Operations',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-      { href: '/pos', label: 'POS Terminal', icon: Store },
-      { href: '/orders', label: 'Orders', icon: ShoppingBag },
+      { href: '/pos', label: 'POS Terminal', icon: Store, isPos: true },
+      { href: '/orders', label: 'Orders', icon: ShoppingBag, badgeKey: 'openOrdersCount' },
       { href: '/dispatch', label: 'Outbound Dispatch', icon: Truck },
-      { href: '/bolt', label: 'Bolt Try-On Engine', icon: Zap },
+      { href: '/bolt', label: 'Bolt Try-On', icon: Zap },
     ],
   },
   {
     label: 'Inventory & WMS',
     items: [
-      { href: '/inventory', label: 'Inventory Matrix', icon: Boxes, exact: true },
+      { href: '/inventory', label: 'Inventory Matrix', icon: Boxes, exact: true, badgeKey: 'lowStockCount' },
       { href: '/locations', label: 'Locations & Shelves', icon: Warehouse },
-      { href: '/inventory/transfers', label: 'Stock Transfers', icon: ArrowLeftRight },
+      { href: '/inventory/transfers', label: 'Stock Transfers', icon: ArrowLeftRight, badgeKey: 'pendingTransfersCount' },
       { href: '/inventory/ledger', label: 'Audit Ledger', icon: FileText },
     ],
   },
@@ -69,7 +73,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: 'Catalog & Tools',
+    label: 'Catalog & CMS',
     items: [
       { href: '/categories', label: 'Categories', icon: FolderTree },
       { href: '/barcodes', label: 'Barcode Studio', icon: BarcodeIcon },
@@ -83,11 +87,42 @@ export function AdminSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+
   const { activeLocationCode } = useLocation()
-  const { theme, toggleTheme, isLight } = useTheme()
+  const { toggleTheme, isLight } = useTheme()
   const { isListening } = useBarcodeScanner({
     onScan: () => {},
   })
+
+  // Server-backed live sidebar metrics
+  const [metrics, setMetrics] = useState<{
+    openOrdersCount: number
+    lowStockCount: number
+    pendingTransfersCount: number
+  }>({ openOrdersCount: 0, lowStockCount: 0, pendingTransfersCount: 0 })
+
+  useEffect(() => {
+    let isMounted = true
+    const fetchMetrics = async () => {
+      try {
+        const res = await fetch('/api/admin/metrics')
+        if (res.ok) {
+          const json = await res.json()
+          if (json.success && json.metrics && isMounted) {
+            setMetrics(json.metrics)
+          }
+        }
+      } catch {
+        // Fallback gracefully
+      }
+    }
+    fetchMetrics()
+    const interval = setInterval(fetchMetrics, 30000)
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
+  }, [])
 
   const handleLogout = async () => {
     try {
@@ -112,14 +147,14 @@ export function AdminSidebar() {
           {!collapsed ? (
             <Link href="/dashboard" className="flex items-center gap-2">
               <span className="text-sm font-bold tracking-widest text-zinc-100 font-mono">
-                ATELIER
+                MAISON TG
               </span>
-              <span className="text-2xs font-mono uppercase bg-chrome-900 text-zinc-400 px-1 py-0.5 border border-chrome-800">
-                ERP
+              <span className="text-2xs font-mono uppercase bg-chrome-900 text-zinc-400 px-1.5 py-0.5 border border-chrome-800 font-semibold tracking-wider">
+                OMS / WMS
               </span>
             </Link>
           ) : (
-            <span className="font-mono text-sm text-zinc-100 font-bold mx-auto">A</span>
+            <span className="font-mono text-sm text-zinc-100 font-bold mx-auto">TG</span>
           )}
 
           <button
@@ -137,7 +172,7 @@ export function AdminSidebar() {
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="space-y-0.5">
               {!collapsed && (
-                <div className="px-2 pt-1 pb-1 text-3xs font-mono uppercase tracking-widest text-zinc-600 dark:text-zinc-500 font-bold">
+                <div className="px-2 pt-1 pb-1 text-3xs font-mono uppercase tracking-widest text-zinc-500 font-bold">
                   {group.label}
                 </div>
               )}
@@ -147,20 +182,46 @@ export function AdminSidebar() {
                   ? pathname === item.href
                   : pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
 
+                const badgeValue = item.badgeKey ? metrics[item.badgeKey] : 0
+
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-mono transition-colors group relative ${
+                    className={`flex items-center justify-between px-2.5 py-1.5 text-xs font-mono transition-colors group relative ${
                       isActive
-                        ? 'bg-chrome-850 text-zinc-900 dark:text-white font-semibold border-l-2 border-emerald-500'
-                        : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-chrome-850 border-l-2 border-transparent'
+                        ? 'bg-chrome-850 text-zinc-100 font-semibold border-l-2 border-emerald-500'
+                        : 'text-zinc-400 hover:text-zinc-100 hover:bg-chrome-850 border-l-2 border-transparent'
                     }`}
                     title={collapsed ? item.label : undefined}
                   >
-                    <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100'}`} />
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          isActive
+                            ? 'text-emerald-400'
+                            : 'text-zinc-400 group-hover:text-zinc-100'
+                        }`}
+                      />
+                      {!collapsed && (
+                        <span className="truncate">{item.label}</span>
+                      )}
+                    </div>
+
                     {!collapsed && (
-                      <span className="truncate">{item.label}</span>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        {item.isPos && (
+                          <span
+                            className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"
+                            title="Live POS Stream active"
+                          />
+                        )}
+                        {badgeValue > 0 && (
+                          <span className="px-1.5 py-0.5 text-3xs font-mono rounded bg-chrome-900 border border-chrome-750 text-zinc-300 tabular-nums">
+                            {badgeValue}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </Link>
                 )
@@ -179,7 +240,7 @@ export function AdminSidebar() {
               <span className="text-zinc-200 font-semibold">{activeLocationCode}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1 text-zinc-500">
+              <span className="flex items-center gap-1.5 text-zinc-500">
                 <Scan className="w-3 h-3 text-emerald-400" /> Scanner
               </span>
               <span className={isListening ? 'text-emerald-400 font-medium' : 'text-zinc-500'}>
@@ -195,20 +256,22 @@ export function AdminSidebar() {
 
         <div className="flex items-center gap-1 pt-1 border-t border-chrome-800">
           <button
+            type="button"
             onClick={toggleTheme}
             className="flex items-center gap-2 flex-1 px-2 py-1 text-2xs font-mono text-zinc-400 hover:text-zinc-100 hover:bg-chrome-900 transition-colors rounded"
             title={isLight ? 'Switch to Dark Theme' : 'Switch to Light Theme'}
           >
-            {isLight ? <Moon className="w-3.5 h-3.5 text-amber-500" /> : <Sun className="w-3.5 h-3.5 text-amber-400" />}
+            {isLight ? <Moon className="w-3.5 h-3.5 text-zinc-400" /> : <Sun className="w-3.5 h-3.5 text-zinc-400" />}
             {!collapsed && <span>{isLight ? 'Dark Mode' : 'Light Mode'}</span>}
           </button>
 
           <button
+            type="button"
             onClick={handleLogout}
             className="flex items-center gap-2 px-2 py-1 text-2xs font-mono text-zinc-400 hover:text-rose-400 hover:bg-rose-950/20 transition-colors rounded"
-            title={collapsed ? 'End Session' : undefined}
+            title={collapsed ? 'Sign Out' : undefined}
           >
-            <LogOut className="w-3.5 h-3.5 shrink-0" />
+            <LogOut className="w-3.5 h-3.5 shrink-0 text-zinc-400 hover:text-rose-400" />
             {!collapsed && <span>Sign Out</span>}
           </button>
         </div>

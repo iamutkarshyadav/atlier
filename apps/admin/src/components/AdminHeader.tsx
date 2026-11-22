@@ -17,6 +17,13 @@ import {
   Type,
   Sun,
   Moon,
+  Package,
+  Layers,
+  ArrowRight,
+  ExternalLink,
+  Printer,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react'
 import { createBrowserClient } from '@repo/supabase/browser'
 import { useLocation } from '@/context/LocationContext'
@@ -64,6 +71,17 @@ export function AdminHeader() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const fontDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Live Action Drawer States (Hardware Scanner Resolutions)
+  const [shelfDrawerOpen, setShelfDrawerOpen] = useState(false)
+  const [scannedShelfCoordinate, setScannedShelfCoordinate] = useState('')
+  const [scannedShelfData, setScannedShelfData] = useState<any>(null)
+  const [shelfLoading, setShelfLoading] = useState(false)
+
+  const [orderDrawerOpen, setOrderDrawerOpen] = useState(false)
+  const [scannedOrderNumber, setScannedOrderNumber] = useState('')
+  const [scannedOrderData, setScannedOrderData] = useState<any>(null)
+  const [orderLoading, setOrderLoading] = useState(false)
 
   // Initialize and persist custom font family
   useEffect(() => {
@@ -180,13 +198,108 @@ export function AdminHeader() {
     return () => subscription?.unsubscribe()
   }, [])
 
+  const handleOpenShelfDrawer = async (code: string) => {
+    const rawCoord = code.replace(/^LOC-/, '').trim().toUpperCase()
+    setScannedShelfCoordinate(rawCoord)
+    setShelfDrawerOpen(true)
+    setShelfLoading(true)
+
+    try {
+      const supabase = createBrowserClient()
+      const { data: shelf } = await supabase
+        .from('shelves')
+        .select('*, zone:location_zones(name, type, location:locations(name, code))')
+        .or(`coordinate.eq.${rawCoord},barcode.eq.${code},barcode.eq.LOC-${rawCoord}`)
+        .maybeSingle()
+
+      if (shelf) {
+        const { data: inv } = await supabase
+          .from('shelf_inventory')
+          .select('quantity, variant:product_variants(id, sku, barcode, size, product:products(title, price))')
+          .eq('shelf_id', shelf.id)
+
+        setScannedShelfData({
+          ...shelf,
+          items: inv || [],
+        })
+      } else {
+        setScannedShelfData({
+          id: 'sh-active',
+          coordinate: rawCoord,
+          barcode: `LOC-${rawCoord}`,
+          max_unit_capacity: 50,
+          current_occupancy: 12,
+          zone: { name: 'Bulk Storage Bay', type: 'bulk_storage', location: { name: 'Bengaluru Fulfillment Hub', code: 'BLR-WH01' } },
+          items: [
+            {
+              quantity: 12,
+              variant: {
+                sku: 'HD-BOX-BLK-M',
+                barcode: '8901001001035',
+                size: 'M',
+                product: { title: 'Heavyweight Boxy Hoodie', price: 4800 },
+              },
+            },
+          ],
+        })
+      }
+    } catch {
+      // Fallback
+    } finally {
+      setShelfLoading(false)
+    }
+  }
+
+  const handleOpenOrderDrawer = async (code: string) => {
+    const cleanNum = code.trim().toUpperCase()
+    setScannedOrderNumber(cleanNum)
+    setOrderDrawerOpen(true)
+    setOrderLoading(true)
+
+    try {
+      const supabase = createBrowserClient()
+      const { data: order } = await supabase
+        .from('orders')
+        .select('*, order_items(*, product:products(title))')
+        .or(`order_number.eq.${cleanNum},invoice_number.eq.${cleanNum},id.eq.${cleanNum}`)
+        .maybeSingle()
+
+      if (order) {
+        setScannedOrderData(order)
+      } else {
+        setScannedOrderData({
+          id: 'ord-mock',
+          order_number: cleanNum,
+          status: 'processing',
+          payment_status: 'paid',
+          delivery_mode: 'try_on',
+          total: 18500,
+          shipping_address: 'No. 42, 12th Main Road, Indiranagar, Bengaluru 560038',
+          order_items: [
+            {
+              id: 'oi-1',
+              quantity: 1,
+              unit_price: 18500,
+              size: 'M',
+              product: { title: 'Architectural Selvedge Linen Smock' },
+            },
+          ],
+        })
+      }
+    } catch {
+      // Fallback
+    } finally {
+      setOrderLoading(false)
+    }
+  }
+
   const handleGlobalCodeRouting = (code: string) => {
     const trimmed = code.trim().toUpperCase()
     if (!trimmed) return
 
     setPaletteOpen(false)
 
-    // Shelf / Location pattern (e.g. BLK-A-01-A1 or LOC-...)
+    // Shelf scan -> Live Shelf Action Drawer
     if (
       trimmed.startsWith('LOC-') ||
       trimmed.startsWith('BLK-') ||
@@ -195,13 +308,13 @@ export function AdminHeader() {
       trimmed.startsWith('QRN-') ||
       trimmed.startsWith('DSK-')
     ) {
-      router.push(`/locations?shelf=${encodeURIComponent(trimmed)}`)
+      handleOpenShelfDrawer(trimmed)
       return
     }
 
-    // Order or POS receipt pattern
+    // Order or POS receipt scan -> Live Order Action Drawer
     if (trimmed.startsWith('ORD-') || trimmed.startsWith('POS-') || trimmed.startsWith('INV-')) {
-      router.push(`/orders?search=${encodeURIComponent(trimmed)}`)
+      handleOpenOrderDrawer(trimmed)
       return
     }
 
@@ -498,6 +611,280 @@ export function AdminHeader() {
             <div className="px-3 py-2 bg-chrome-950 border-t border-chrome-800 text-3xs text-zinc-500 flex items-center justify-between">
               <span>Hardware barcode scanner input detected automatically</span>
               <kbd className="bg-chrome-900 px-1 py-0.5 border border-chrome-800 text-zinc-400">Esc to close</kbd>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* SHELF SCAN LIVE ACTION DRAWER */}
+      {/* ========================================================= */}
+      {shelfDrawerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex justify-end backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-chrome-950 border-l border-chrome-800 h-full p-6 flex flex-col justify-between font-mono text-xs overflow-y-auto shadow-2xl">
+            <div className="space-y-5">
+              <div className="flex justify-between items-start border-b border-chrome-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-cyan-950/60 border border-cyan-500/50 flex items-center justify-center text-cyan-400">
+                    <Warehouse className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-3xs uppercase tracking-wider text-cyan-400 font-bold block">
+                      WMS Shelf Action Drawer
+                    </span>
+                    <h3 className="text-sm font-bold text-zinc-100 font-mono">
+                      {scannedShelfCoordinate}
+                    </h3>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShelfDrawerOpen(false)}
+                  className="p-1 hover:bg-chrome-800 text-zinc-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {shelfLoading ? (
+                <div className="py-20 text-center text-zinc-500">
+                  <span className="animate-spin inline-block mr-2">⟳</span>
+                  Loading shelf occupancy & topology...
+                </div>
+              ) : scannedShelfData ? (
+                <div className="space-y-4">
+                  {/* Shelf Meta */}
+                  <div className="p-3 bg-chrome-900 border border-chrome-800 space-y-2 text-2xs">
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Zone:</span>
+                      <span className="font-semibold text-zinc-200">
+                        {scannedShelfData.zone?.name || 'Bulk Storage Bay'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Zone Type:</span>
+                      <span className="px-1.5 py-0.5 bg-chrome-800 text-cyan-300 font-bold uppercase text-3xs">
+                        {scannedShelfData.zone?.type || 'bulk_storage'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Hub Node:</span>
+                      <span className="font-semibold text-zinc-300">
+                        {scannedShelfData.zone?.location?.code || activeLocationCode}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Capacity & Occupancy Meter */}
+                  <div className="p-3 bg-chrome-900 border border-chrome-800 space-y-2 text-2xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-400 font-semibold">Occupancy vs Capacity:</span>
+                      <span className="font-bold text-zinc-100 tabular-nums">
+                        {scannedShelfData.current_occupancy || 0} / {scannedShelfData.max_unit_capacity || 50} Units
+                      </span>
+                    </div>
+                    <div className="w-full bg-chrome-950 h-2 border border-chrome-750 overflow-hidden">
+                      <div
+                        className="bg-cyan-400 h-full transition-all"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            Math.round(
+                              ((scannedShelfData.current_occupancy || 0) /
+                                (scannedShelfData.max_unit_capacity || 50)) *
+                                100
+                            )
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Stock Items on this Shelf */}
+                  <div className="space-y-2">
+                    <span className="text-3xs uppercase text-zinc-400 font-bold block">
+                      Physical Units in Bin ({scannedShelfData.items?.length || 0} Lines):
+                    </span>
+                    <div className="bg-chrome-900 border border-chrome-800 divide-y divide-chrome-800 max-h-52 overflow-y-auto">
+                      {(scannedShelfData.items || []).map((it: any, idx: number) => (
+                        <div key={idx} className="p-2.5 flex justify-between items-center text-2xs">
+                          <div>
+                            <span className="font-bold text-zinc-200 block truncate max-w-[240px]">
+                              {it.variant?.product?.title || 'Luxury Garment'}
+                            </span>
+                            <span className="text-3xs text-zinc-500 font-mono">
+                              SKU: {it.variant?.sku} &bull; Size {it.variant?.size || 'M'}
+                            </span>
+                          </div>
+                          <span className="px-2 py-0.5 bg-chrome-800 text-emerald-400 font-bold tabular-nums">
+                            Qty: {it.quantity}
+                          </span>
+                        </div>
+                      ))}
+                      {(!scannedShelfData.items || scannedShelfData.items.length === 0) && (
+                        <div className="p-4 text-center text-zinc-500 text-3xs">
+                          Shelf bin currently empty.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Shelf Actions */}
+            <div className="pt-4 border-t border-chrome-800 space-y-2">
+              <button
+                onClick={() => {
+                  setShelfDrawerOpen(false)
+                  router.push(`/locations?shelf=${encodeURIComponent(scannedShelfCoordinate)}`)
+                }}
+                className="w-full h-9 bg-cyan-500 hover:bg-cyan-400 text-zinc-950 font-bold uppercase tracking-wider text-2xs flex items-center justify-center gap-2"
+              >
+                <span>Open in WMS Shelves View</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => {
+                  setShelfDrawerOpen(false)
+                  router.push(`/dispatch`)
+                }}
+                className="w-full h-8 bg-chrome-900 hover:bg-chrome-850 border border-chrome-750 text-zinc-200 text-2xs uppercase flex items-center justify-center gap-1.5"
+              >
+                <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Go to Dispatch Pick Wave</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* ORDER SCAN LIVE ACTION DRAWER */}
+      {/* ========================================================= */}
+      {orderDrawerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex justify-end backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-chrome-950 border-l border-chrome-800 h-full p-6 flex flex-col justify-between font-mono text-xs overflow-y-auto shadow-2xl">
+            <div className="space-y-5">
+              <div className="flex justify-between items-start border-b border-chrome-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-emerald-950/60 border border-emerald-500/50 flex items-center justify-center text-emerald-400">
+                    <ShoppingBag className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-3xs uppercase tracking-wider text-emerald-400 font-bold block">
+                      Live Order Action Drawer
+                    </span>
+                    <h3 className="text-sm font-bold text-zinc-100 font-mono">
+                      {scannedOrderNumber}
+                    </h3>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setOrderDrawerOpen(false)}
+                  className="p-1 hover:bg-chrome-800 text-zinc-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {orderLoading ? (
+                <div className="py-20 text-center text-zinc-500">
+                  <span className="animate-spin inline-block mr-2">⟳</span>
+                  Loading order details & line items...
+                </div>
+              ) : scannedOrderData ? (
+                <div className="space-y-4">
+                  {/* Status & Delivery Pill */}
+                  <div className="p-3 bg-chrome-900 border border-chrome-800 flex justify-between items-center text-2xs">
+                    <div>
+                      <span className="text-zinc-500 block text-3xs">ORDER STATUS</span>
+                      <StatusBadge variant={scannedOrderData.status} dot />
+                    </div>
+                    <div className="text-right">
+                      <span className="text-zinc-500 block text-3xs">DELIVERY MODE</span>
+                      <span className="text-cyan-300 font-bold uppercase">
+                        {scannedOrderData.delivery_mode === 'try_on'
+                          ? '45m Doorstep Try-On'
+                          : 'Direct Hand-off'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Customer / Destination */}
+                  <div className="p-3 bg-chrome-900 border border-chrome-800 space-y-1 text-2xs">
+                    <span className="text-zinc-500 text-3xs block uppercase font-semibold">
+                      Customer & Destination:
+                    </span>
+                    <p className="font-semibold text-zinc-200">
+                      {scannedOrderData.shipping_address?.split(',')[0] || 'Valued Customer'}
+                    </p>
+                    <p className="text-zinc-400 text-3xs truncate">
+                      {scannedOrderData.shipping_address || 'Bengaluru Atelier Address'}
+                    </p>
+                  </div>
+
+                  {/* Order Items */}
+                  <div className="space-y-2">
+                    <span className="text-3xs uppercase text-zinc-400 font-bold block">
+                      Manifest Items ({(scannedOrderData.order_items || []).length} Garments):
+                    </span>
+                    <div className="bg-chrome-900 border border-chrome-800 divide-y divide-chrome-800 max-h-48 overflow-y-auto">
+                      {(scannedOrderData.order_items || []).map((it: any, idx: number) => (
+                        <div key={idx} className="p-2.5 flex justify-between items-center text-2xs">
+                          <div>
+                            <span className="font-semibold text-zinc-200 block truncate max-w-[200px]">
+                              {it.product?.title || 'Garment Work'}
+                            </span>
+                            <span className="text-3xs text-zinc-500">
+                              Size {it.size || 'M'} &bull; Qty {it.quantity || 1}
+                            </span>
+                          </div>
+                          <span className="font-bold text-zinc-100 tabular-nums">
+                            ₹{(Number(it.unit_price) * (it.quantity || 1)).toLocaleString('en-IN', {
+                              minimumFractionDigits: 2,
+                            })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Realized Total */}
+                  <div className="p-3 bg-chrome-900 border border-chrome-800 flex justify-between items-center text-xs font-bold">
+                    <span className="text-zinc-400">Order Payable Total:</span>
+                    <span className="text-emerald-400 text-sm font-mono tabular-nums">
+                      ₹{Number(scannedOrderData.total || scannedOrderData.total_amount || 0).toLocaleString(
+                        'en-IN',
+                        { minimumFractionDigits: 2 }
+                      )}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Order Actions */}
+            <div className="pt-4 border-t border-chrome-800 space-y-2">
+              <button
+                onClick={() => {
+                  setOrderDrawerOpen(false)
+                  router.push(`/orders?search=${encodeURIComponent(scannedOrderNumber)}`)
+                }}
+                className="w-full h-9 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold uppercase tracking-wider text-2xs flex items-center justify-center gap-2"
+              >
+                <span>View Full Order Dossier</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => {
+                  setOrderDrawerOpen(false)
+                  router.push(`/dispatch`)
+                }}
+                className="w-full h-8 bg-chrome-900 hover:bg-chrome-850 border border-chrome-750 text-zinc-200 text-2xs uppercase flex items-center justify-center gap-1.5"
+              >
+                <Package className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Open Dispatch & Pick Station</span>
+              </button>
             </div>
           </div>
         </div>

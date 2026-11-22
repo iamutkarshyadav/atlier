@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { Button, Barcode } from '@repo/ui'
 import { createBrowserClient } from '@repo/supabase/browser'
-import { getOrderById, type OrderWithItems } from '@repo/supabase/utils'
+import { getOrderById, formatINR, type OrderWithItems } from '@repo/supabase/utils'
 
 interface InvoicePageProps {
   params: { id: string }
@@ -117,7 +117,7 @@ export default function LuxuryInvoicePage({ params }: InvoicePageProps) {
 
       {/* Printable Invoice Container (Monochrome Ultra-Luxury Sheet) */}
       <div className="max-w-4xl mx-auto bg-white text-black p-8 sm:p-12 shadow-2xl border border-neutral-300 print:border-none print:shadow-none print:p-0 print:max-w-none">
-        
+
         {/* Header */}
         <div className="border-b-2 border-black pb-8 flex flex-col sm:flex-row justify-between items-start gap-6">
           <div>
@@ -141,7 +141,7 @@ export default function LuxuryInvoicePage({ params }: InvoicePageProps) {
               ORDER REF: {order.order_number || `ATL-${order.id.slice(0, 6).toUpperCase()}`}
             </p>
             <p className="text-neutral-600 text-[11px]">
-              DATE: {order.created_at ? new Date(order.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'October 25, 2026'}
+              DATE: {order.created_at ? new Date(order.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : '25 October 2026'}
             </p>
           </div>
         </div>
@@ -242,13 +242,13 @@ export default function LuxuryInvoicePage({ params }: InvoicePageProps) {
                     </td>
 
                     <td className="p-3 text-right font-mono text-neutral-800">
-                      ${Number(item.unit_price).toFixed(2)}
+                      {formatINR(item.unit_price)}
                     </td>
 
                     <td className="p-3 text-center font-mono">
                       {isKept ? (
                         <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-300 text-[10px] font-bold uppercase tracking-wider">
-                          ✓ Kept by Patron
+                          ✓ Kept by Customer
                         </span>
                       ) : isReturned ? (
                         <div className="space-y-0.5">
@@ -272,7 +272,7 @@ export default function LuxuryInvoicePage({ params }: InvoicePageProps) {
                       {isReturned ? (
                         <span className="text-neutral-400 line-through">₹0</span>
                       ) : (
-                        `₹${lineTotal.toLocaleString("en-IN")}`
+                        formatINR(lineTotal)
                       )}
                     </td>
                   </tr>
@@ -287,33 +287,33 @@ export default function LuxuryInvoicePage({ params }: InvoicePageProps) {
           <div className="w-full sm:w-80 space-y-2 text-xs font-mono border-t-2 border-black pt-4">
             <div className="flex justify-between text-neutral-600">
               <span>Gross Order Value:</span>
-              <span className="font-bold">${Number(order.original_total || order.total).toFixed(2)}</span>
+              <span className="font-bold">{formatINR(order.original_total || order.total)}</span>
             </div>
 
             {order.original_total && order.original_total > order.total && (
               <div className="flex justify-between text-rose-600">
                 <span>Returned Items Credit:</span>
                 <span className="font-bold">
-                  -${(Number(order.original_total) - Number(order.total)).toFixed(2)}
+                  -{formatINR(Number(order.original_total) - Number(order.total))}
                 </span>
               </div>
             )}
 
             <div className="flex justify-between text-neutral-600">
-              <span>VAT / Sales Tax (8.5%):</span>
-              <span className="font-bold">${Number(order.tax_amount || 0).toFixed(2)}</span>
+              <span>GST (CGST 6% + SGST 6%):</span>
+              <span className="font-bold">{formatINR(order.tax_amount || 0)}</span>
             </div>
 
             <div className="flex justify-between text-neutral-600">
               <span>White-Glove Courier Logistics:</span>
               <span className="font-bold text-emerald-700">
-                {Number(order.shipping_fee) > 0 ? `₹${Number(order.shipping_fee).toLocaleString("en-IN")}` : 'Complimentary'}
+                {Number(order.shipping_fee) > 0 ? formatINR(order.shipping_fee) : 'Complimentary'}
               </span>
             </div>
 
             <div className="flex justify-between border-t-2 border-black pt-3 text-sm font-black text-black">
               <span className="uppercase">Net Realized Total:</span>
-              <span className="text-base">₹${Number(order.total).toLocaleString("en-IN")} INR</span>
+              <span className="text-base">{formatINR(order.total)}</span>
             </div>
           </div>
         </div>

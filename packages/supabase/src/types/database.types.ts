@@ -46,6 +46,9 @@ export type ZoneType =
   | 'fitting_room_quarantine'
   | 'packing_bay'
   | 'dispatch_bay'
+  | 'quarantine'
+  | 'damaged_quarantine'
+  | 'courier_transit'
 
 export type InventoryMovementType =
   | 'inbound_grn'
@@ -61,6 +64,11 @@ export type InventoryMovementType =
   | 'tryon_return_restock'
   | 'cycle_count_adjustment'
   | 'damaged_quarantine'
+  | 'in_transit_return'
+  | 'allocation_reserved'
+  | 'outbound_pick'
+  | 'try_on_restock'
+  | 'quarantine_isolate'
 
 export type PoStatus = 'draft' | 'issued' | 'partially_received' | 'received' | 'cancelled'
 export type QcStatus = 'accepted' | 'rejected_damaged' | 'pending_qc'
@@ -1689,6 +1697,58 @@ export interface Database {
           p_condition: QcStatus
           p_refund_mode: string
           p_operator_id: string
+          p_notes?: string | null
+        }
+        Returns: Json
+      }
+      atomic_create_order_and_reserve: {
+        Args: {
+          p_order_data: Json
+          p_items: Json
+          p_source_location_id?: string | null
+        }
+        Returns: Json
+      }
+      generate_bin_directed_pick_wave: {
+        Args: {
+          p_order_ids: string[]
+          p_location_id?: string | null
+        }
+        Returns: Json
+      }
+      confirm_shelf_pick: {
+        Args: {
+          p_order_item_id: string
+          p_scanned_shelf_barcode: string
+          p_scanned_variant_barcode?: string | null
+          p_operator_id?: string | null
+        }
+        Returns: Json
+      }
+      complete_bolt_try_on_reconciliation: {
+        Args: {
+          p_order_id: string
+          p_decisions: Json
+          p_payment_mode: string
+          p_payment_ref?: string | null
+          p_courier_id?: string | null
+        }
+        Returns: Json
+      }
+      inward_bolt_returns_at_dock: {
+        Args: {
+          p_order_id: string
+          p_return_items: Json
+          p_operator_id?: string | null
+        }
+        Returns: Json
+      }
+      execute_stock_transfer_lifecycle: {
+        Args: {
+          p_transfer_id: string
+          p_action: string
+          p_target_shelf_id?: string | null
+          p_operator_id?: string | null
           p_notes?: string | null
         }
         Returns: Json

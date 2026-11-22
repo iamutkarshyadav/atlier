@@ -99,6 +99,24 @@ function ShopContent() {
     return { parentCategories: parents, subcategoriesMap: subMap }
   }, [categories])
 
+  // Active Parent Category resolution for cascading pills
+  const activeParentCategory = useMemo(() => {
+    if (selectedCategory === 'All') return null
+    const sel = selectedCategory.toLowerCase()
+    const parent = parentCategories.find(
+      (p) => p.name.toLowerCase() === sel || p.slug.toLowerCase() === sel
+    )
+    if (parent) return parent
+
+    const child = categories.find(
+      (c) => c.slug.toLowerCase() === sel || c.name.toLowerCase() === sel
+    )
+    if (child?.parent_id) {
+      return parentCategories.find((p) => p.id === child.parent_id) || null
+    }
+    return null
+  }, [selectedCategory, parentCategories, categories])
+
   const getCategoryCount = (cat: Category) => {
     const ids = new Set<string>([cat.id])
     const names = new Set<string>([cat.name.toLowerCase()])
@@ -242,7 +260,7 @@ function ShopContent() {
         if (!matchesQuery) return false
       }
 
-      // 2. Category Filter (Hierarchical: parent includes all child subcategories)
+      // 2. Category Filter (Hierarchical: parent includes all child subcategories; child narrows to itself)
       if (selectedCategory !== 'All') {
         const sel = selectedCategory.toLowerCase()
         const catName = (product.category || '').toLowerCase()
@@ -250,18 +268,28 @@ function ShopContent() {
           (c) => c.slug.toLowerCase() === sel || c.name.toLowerCase() === sel
         )
         if (matchCat) {
-          const matchedIds = new Set<string>([matchCat.id])
-          const matchedNames = new Set<string>([matchCat.name.toLowerCase()])
-          categories.forEach((c) => {
-            if (c.parent_id === matchCat.id) {
-              matchedIds.add(c.id)
-              matchedNames.add(c.name.toLowerCase())
-            }
-          })
-          const matchesCategory =
-            (product.category_id && matchedIds.has(product.category_id)) ||
-            matchedNames.has(catName)
-          if (!matchesCategory) return false
+          if (!matchCat.parent_id) {
+            // It is a parent category: include parent ID AND all child subcategories!
+            const matchedIds = new Set<string>([matchCat.id])
+            const matchedNames = new Set<string>([matchCat.name.toLowerCase()])
+            categories.forEach((c) => {
+              if (c.parent_id === matchCat.id) {
+                matchedIds.add(c.id)
+                matchedNames.add(c.name.toLowerCase())
+              }
+            })
+            const matchesCategory =
+              (product.category_id && matchedIds.has(product.category_id)) ||
+              matchedNames.has(catName)
+            if (!matchesCategory) return false
+          } else {
+            // It is a specific subcategory: narrow to this child only!
+            const matchesCategory =
+              (product.category_id && product.category_id === matchCat.id) ||
+              catName === matchCat.name.toLowerCase() ||
+              catName === matchCat.slug.toLowerCase()
+            if (!matchesCategory) return false
+          }
         } else {
           if (catName !== sel) return false
         }
@@ -716,6 +744,42 @@ function ShopContent() {
           {/* PRODUCT GRID (3-Col when Sidebar Open, 4-Col Fullwidth)   */}
           {/* ========================================================= */}
           <main className="flex-1 min-w-0">
+            {/* Cascading Subcategory Filter Pills */}
+            {activeParentCategory && (subcategoriesMap[activeParentCategory.id] || []).length > 0 && (
+              <div className="mb-6 pb-3 border-b border-[#e5e7eb] flex items-center gap-2 overflow-x-auto">
+                <button
+                  onClick={() => setSelectedCategory(activeParentCategory.name)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-sans whitespace-nowrap transition-colors cursor-pointer border ${
+                    selectedCategory.toLowerCase() === activeParentCategory.name.toLowerCase() ||
+                    selectedCategory.toLowerCase() === activeParentCategory.slug.toLowerCase()
+                      ? 'bg-[#14293a] text-white border-[#14293a] font-bold shadow-xs'
+                      : 'bg-white text-[#14293a] border-[#d3d6db] hover:border-[#14293a] font-medium'
+                  }`}
+                >
+                  All {activeParentCategory.name}
+                </button>
+                {subcategoriesMap[activeParentCategory.id].map((sub) => {
+                  const isSubSelected =
+                    selectedCategory.toLowerCase() === sub.name.toLowerCase() ||
+                    selectedCategory.toLowerCase() === sub.slug.toLowerCase()
+
+                  return (
+                    <button
+                      key={sub.id}
+                      onClick={() => setSelectedCategory(sub.name)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-sans whitespace-nowrap transition-colors cursor-pointer border ${
+                        isSubSelected
+                          ? 'bg-[#14293a] text-white border-[#14293a] font-bold shadow-xs'
+                          : 'bg-white text-[#14293a] border-[#d3d6db] hover:border-[#14293a] font-medium'
+                      }`}
+                    >
+                      {sub.name}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
             {isLoading ? (
               <div className="py-24 text-center space-y-3">
                 <div className="w-8 h-8 border-2 border-[#d3d6db] border-t-[#b91c1c] rounded-full animate-spin mx-auto" />

@@ -265,7 +265,7 @@ export default function BarcodeStudioPage() {
               >
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.title} (${Number(p.price).toFixed(2)})
+                    {p.title} (₹{Number(p.price).toLocaleString('en-IN', { minimumFractionDigits: 2 })})
                   </option>
                 ))}
               </select>
@@ -458,7 +458,7 @@ export default function BarcodeStudioPage() {
               <div className="border-t border-black pt-1 flex justify-between items-center text-[9px]">
                 <span className="font-bold">MRP (INCL. ALL TAXES)</span>
                 <span className="font-black text-xs font-mono tabular-nums">
-                  ${Number(selectedProduct?.price || 165).toFixed(2)}
+                  ₹{Number(selectedProduct?.price || 165).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -772,7 +772,7 @@ export default function BarcodeStudioPage() {
                     <div className="font-bold truncate text-[8.5px]">{selectedProduct?.title}</div>
                     <div className="flex justify-between text-[8px] font-mono">
                       <span>SIZE: {selectedVariant?.size || 'M'}</span>
-                      <span>${Number(selectedProduct?.price || 165).toFixed(2)}</span>
+                      <span>₹{Number(selectedProduct?.price || 165).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                   <div className="flex flex-col items-center justify-center">

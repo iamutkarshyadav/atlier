@@ -18,6 +18,7 @@ import type {
   OrderItemInsert,
   DeliveryMode,
   TryOnStatus,
+  OrderType,
   ProductMedia,
   ProductMediaInsert,
   ProductVariant,
@@ -64,11 +65,35 @@ export * from './barcode'
 export * from './boltAccounting'
 import { generateStandardBarcode, generateBarcodeDataUrl, generateOrderTrackingBarcode } from './barcode'
 
+/**
+ * Formats any monetary figure into standard Indian Rupee notation (₹ / INR).
+ * Applies Indian lakh/crore comma grouping (en-IN) and two decimal places.
+ * Example: 27211.2 -> "₹27,211.20" | 150000 -> "₹1,50,000.00"
+ */
+export function formatINR(amount: number | string | null | undefined): string {
+  const num = Number(amount) || 0
+  return `₹${num.toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
+}
+
 // ==========================================
 // 1. STARTER FALLBACK DATA (For resilient UX)
 // ==========================================
 export const DEFAULT_CATEGORIES: Category[] = [
   // Parent Categories (parent_id: null)
+  {
+    id: 'c1000000-0000-0000-0000-000000000005',
+    parent_id: null,
+    name: 'Kurta Sets',
+    slug: 'kurta-sets',
+    description: 'Artisanal hand-embroidered, chanderi silk, and architectural silhouette kurta ensembles.',
+    image_url: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=1200&q=85',
+    display_order: 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
   {
     id: 'c1000000-0000-0000-0000-000000000001',
     parent_id: null,
@@ -76,7 +101,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     slug: 'hoodies',
     description: 'Heavyweight 480 GSM French Terry and loopback brushed cotton fleece hoodies.',
     image_url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
-    display_order: 1,
+    display_order: 2,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -87,7 +112,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     slug: 'tees',
     description: 'Overdyed 280 GSM combed cotton vintage drop-shoulder tees and thermal waffle tops.',
     image_url: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85',
-    display_order: 2,
+    display_order: 3,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -98,7 +123,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     slug: 'outerwear',
     description: 'Weatherproof cropped flight bombers, heavy canvas chore coats, and sculptural overcoats.',
     image_url: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1200&q=85',
-    display_order: 3,
+    display_order: 4,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -109,7 +134,64 @@ export const DEFAULT_CATEGORIES: Category[] = [
     slug: 'pants',
     description: '14oz Japanese raw selvedge denim, pleated wide-leg trousers, and heavyweight sweatpants.',
     image_url: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=1200&q=85',
+    display_order: 5,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+
+  // Subcategories for Kurta Sets
+  {
+    id: 'c1000000-0000-0000-0000-000000000051',
+    parent_id: 'c1000000-0000-0000-0000-000000000005',
+    name: 'Anarkali Sets',
+    slug: 'anarkali-sets',
+    description: 'Flared floor-length kalidar kurtas with churidar and hand-woven dupattas.',
+    image_url: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=85',
+    display_order: 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'c1000000-0000-0000-0000-000000000052',
+    parent_id: 'c1000000-0000-0000-0000-000000000005',
+    name: 'Straight Cut Sets',
+    slug: 'straight-cut-sets',
+    description: 'Clean-lined raw silk and chanderi kurtas paired with cigarette trousers.',
+    image_url: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800&q=85',
+    display_order: 2,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'c1000000-0000-0000-0000-000000000053',
+    parent_id: 'c1000000-0000-0000-0000-000000000005',
+    name: 'Bandhani & Banarasi Sets',
+    slug: 'bandhani-banarasi-sets',
+    description: 'Heritage zari brocades and tie-dye artisanal silk ensembles.',
+    image_url: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=800&q=85',
+    display_order: 3,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'c1000000-0000-0000-0000-000000000054',
+    parent_id: 'c1000000-0000-0000-0000-000000000005',
+    name: 'Velvet & Festive Sets',
+    slug: 'velvet-festive-sets',
+    description: 'Plush micro-velvet kurtas embellished with zardozi and antique tilla embroidery.',
+    image_url: 'https://images.unsplash.com/photo-1596783074918-c84cb06531ca?auto=format&fit=crop&w=800&q=85',
     display_order: 4,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'c1000000-0000-0000-0000-000000000055',
+    parent_id: 'c1000000-0000-0000-0000-000000000005',
+    name: 'Short Kurta & Sharara Sets',
+    slug: 'sharara-sets',
+    description: 'Contemporary peplum short kurtas with tiered flared sharara bottoms.',
+    image_url: 'https://images.unsplash.com/photo-1609357605129-26f69add5d6e?auto=format&fit=crop&w=800&q=85',
+    display_order: 5,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -121,7 +203,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: 'Boxy Hoodies',
     slug: 'boxy-hoodies',
     description: '480 GSM architectural cut loopback hoodies.',
-    image_url: null,
+    image_url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=800&q=85',
     display_order: 1,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -132,7 +214,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: 'Zip-Up Hoodies',
     slug: 'zip-hoodies',
     description: 'Heavyweight two-way zip fleece hoodies.',
-    image_url: null,
+    image_url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=800&q=85',
     display_order: 2,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -143,7 +225,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: 'Crewneck Sweatshirts',
     slug: 'crewnecks',
     description: 'Classic crew neck fleece pullovers.',
-    image_url: null,
+    image_url: 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=800&q=85',
     display_order: 3,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -156,7 +238,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: 'Boxy T-Shirts',
     slug: 'boxy-tees',
     description: '280 GSM heavyweight vintage washed tees.',
-    image_url: null,
+    image_url: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=85',
     display_order: 1,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -167,7 +249,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: 'Oversized Tees',
     slug: 'oversized-tees',
     description: 'Dropped-shoulder relaxed fit tees.',
-    image_url: null,
+    image_url: 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?auto=format&fit=crop&w=800&q=85',
     display_order: 2,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -178,7 +260,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: 'Linen Tops',
     slug: 'linen-tops',
     description: 'Belgian flax linen breathable summer tops.',
-    image_url: null,
+    image_url: 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&w=800&q=85',
     display_order: 3,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -191,7 +273,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: 'Flight Bombers',
     slug: 'bombers',
     description: 'Cropped technical flight jackets.',
-    image_url: null,
+    image_url: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=800&q=85',
     display_order: 1,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -202,7 +284,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: 'Chore Coats',
     slug: 'chore-coats',
     description: 'Heavyweight duck canvas utility coats.',
-    image_url: null,
+    image_url: 'https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=800&q=85',
     display_order: 2,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -213,7 +295,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: 'Tailored Overcoats',
     slug: 'overcoats',
     description: 'Sculptural wool and twill outerwear.',
-    image_url: null,
+    image_url: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=800&q=85',
     display_order: 3,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -226,7 +308,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: 'Selvedge Denim',
     slug: 'selvedge-denim',
     description: '14oz Okayama shuttle-loomed raw denim.',
-    image_url: null,
+    image_url: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=800&q=85',
     display_order: 1,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -237,7 +319,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: 'Carpenter Pants',
     slug: 'carpenter-pants',
     description: 'Heavy double-knee carpenter trousers.',
-    image_url: null,
+    image_url: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=800&q=85',
     display_order: 2,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -248,7 +330,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: 'Pleated Trousers',
     slug: 'pleated-trousers',
     description: 'Double front pleat wide-leg tailored bottoms.',
-    image_url: null,
+    image_url: 'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&w=800&q=85',
     display_order: 3,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -350,40 +432,40 @@ export const DEFAULT_PRODUCTS: Product[] = [
 
 export const DEFAULT_PRODUCT_VARIANTS: ProductVariant[] = [
   // Heavyweight Boxy Hoodie
-  { id: 'v101', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-XS', size: 'XS', color: 'Faded Onyx', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 850, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v102', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-S',  size: 'S',  color: 'Faded Onyx', stock: 25, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 870, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v103', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-M',  size: 'M',  color: 'Faded Onyx', stock: 45, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 900, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v104', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-L',  size: 'L',  color: 'Faded Onyx', stock: 25, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 930, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v105', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-XL', size: 'XL', color: 'Faded Onyx', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 960, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v101', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-XS', size: 'XS', color: 'Faded Onyx', stock: 10, price_override: null, barcode: '8901001001011', barcode_data: null, barcode_url: null, weight_grams: 850, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v102', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-S', size: 'S', color: 'Faded Onyx', stock: 25, price_override: null, barcode: '8901001001028', barcode_data: null, barcode_url: null, weight_grams: 870, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v103', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-M', size: 'M', color: 'Faded Onyx', stock: 45, price_override: null, barcode: '8901001001035', barcode_data: null, barcode_url: null, weight_grams: 900, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v104', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-L', size: 'L', color: 'Faded Onyx', stock: 25, price_override: null, barcode: '8901001001042', barcode_data: null, barcode_url: null, weight_grams: 930, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v105', product_id: 'b1000000-0000-0000-0000-000000000001', sku: 'HD-BOX-BLK-XL', size: 'XL', color: 'Faded Onyx', stock: 10, price_override: null, barcode: '8901001001059', barcode_data: null, barcode_url: null, weight_grams: 960, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 
   // Vintage Washed Boxy Tee
-  { id: 'v201', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-XS', size: 'XS', color: 'Chalk White', stock: 15, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 310, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v202', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-S',  size: 'S',  color: 'Chalk White', stock: 30, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 325, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v203', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-M',  size: 'M',  color: 'Chalk White', stock: 50, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 340, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v204', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-L',  size: 'L',  color: 'Chalk White', stock: 35, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 355, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v205', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-XL', size: 'XL', color: 'Chalk White', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 370, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v201', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-XS', size: 'XS', color: 'Chalk White', stock: 15, price_override: null, barcode: '8901001002018', barcode_data: null, barcode_url: null, weight_grams: 310, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v202', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-S', size: 'S', color: 'Chalk White', stock: 30, price_override: null, barcode: '8901001002025', barcode_data: null, barcode_url: null, weight_grams: 325, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v203', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-M', size: 'M', color: 'Chalk White', stock: 50, price_override: null, barcode: '8901001002032', barcode_data: null, barcode_url: null, weight_grams: 340, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v204', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-L', size: 'L', color: 'Chalk White', stock: 35, price_override: null, barcode: '8901001002049', barcode_data: null, barcode_url: null, weight_grams: 355, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v205', product_id: 'b1000000-0000-0000-0000-000000000002', sku: 'TEE-VNTG-WHT-XL', size: 'XL', color: 'Chalk White', stock: 10, price_override: null, barcode: '8901001002056', barcode_data: null, barcode_url: null, weight_grams: 370, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 
   // Cropped Flight Bomber
-  { id: 'v301', product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-S',  size: 'S',  color: 'Pitch Black', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 1100, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v302', product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-M',  size: 'M',  color: 'Pitch Black', stock: 25, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 1150, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v303', product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-L',  size: 'L',  color: 'Pitch Black', stock: 15, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 1200, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v304', product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-XL', size: 'XL', color: 'Pitch Black', stock: 5,  price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 1250, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v301', product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-S', size: 'S', color: 'Pitch Black', stock: 10, price_override: null, barcode: '8901001003015', barcode_data: null, barcode_url: null, weight_grams: 1100, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v302', product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-M', size: 'M', color: 'Pitch Black', stock: 25, price_override: null, barcode: '8901001003022', barcode_data: null, barcode_url: null, weight_grams: 1150, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v303', product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-L', size: 'L', color: 'Pitch Black', stock: 15, price_override: null, barcode: '8901001003039', barcode_data: null, barcode_url: null, weight_grams: 1200, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v304', product_id: 'b1000000-0000-0000-0000-000000000003', sku: 'BMB-CR-BLK-XL', size: 'XL', color: 'Pitch Black', stock: 5, price_override: null, barcode: '8901001003046', barcode_data: null, barcode_url: null, weight_grams: 1250, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 
   // Pleated Carpenter Pant
-  { id: 'v401', product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-30', size: '30', color: 'Raw Black', stock: 15, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 780, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v402', product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-32', size: '32', color: 'Raw Black', stock: 30, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 800, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v403', product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-34', size: '34', color: 'Raw Black', stock: 20, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 820, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v404', product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-36', size: '36', color: 'Raw Black', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 840, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v401', product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-30', size: '30', color: 'Raw Black', stock: 15, price_override: null, barcode: '8901001004012', barcode_data: null, barcode_url: null, weight_grams: 780, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v402', product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-32', size: '32', color: 'Raw Black', stock: 30, price_override: null, barcode: '8901001004029', barcode_data: null, barcode_url: null, weight_grams: 800, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v403', product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-34', size: '34', color: 'Raw Black', stock: 20, price_override: null, barcode: '8901001004036', barcode_data: null, barcode_url: null, weight_grams: 820, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v404', product_id: 'b1000000-0000-0000-0000-000000000004', sku: 'PNT-SLV-36', size: '36', color: 'Raw Black', stock: 10, price_override: null, barcode: '8901001004043', barcode_data: null, barcode_url: null, weight_grams: 840, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 
   // Architectural Raw Linen Smock
-  { id: 'v501', product_id: 'b1000000-0000-0000-0000-000000000005', sku: 'SMK-LNN-T1', size: 'Taille 01 (S/M)', color: 'Natural Ecru', stock: 20, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 520, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v502', product_id: 'b1000000-0000-0000-0000-000000000005', sku: 'SMK-LNN-T2', size: 'Taille 02 (L/XL)', color: 'Natural Ecru', stock: 25, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 560, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v501', product_id: 'b1000000-0000-0000-0000-000000000005', sku: 'SMK-LNN-T1', size: 'Taille 01 (S/M)', color: 'Natural Ecru', stock: 20, price_override: null, barcode: '8901001005019', barcode_data: null, barcode_url: null, weight_grams: 520, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v502', product_id: 'b1000000-0000-0000-0000-000000000005', sku: 'SMK-LNN-T2', size: 'Taille 02 (L/XL)', color: 'Natural Ecru', stock: 25, price_override: null, barcode: '8901001005026', barcode_data: null, barcode_url: null, weight_grams: 560, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 
   // Relaxed Flared Minimalist Track Pant
-  { id: 'v601', product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-S',  size: 'S',  color: 'Washed Ink', stock: 15, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 650, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v602', product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-M',  size: 'M',  color: 'Washed Ink', stock: 35, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 670, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v603', product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-L',  size: 'L',  color: 'Washed Ink', stock: 20, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 690, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'v604', product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-XL', size: 'XL', color: 'Washed Ink', stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 710, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v601', product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-S', size: 'S', color: 'Washed Ink', stock: 15, price_override: null, barcode: '8901001006016', barcode_data: null, barcode_url: null, weight_grams: 650, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v602', product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-M', size: 'M', color: 'Washed Ink', stock: 35, price_override: null, barcode: '8901001006023', barcode_data: null, barcode_url: null, weight_grams: 670, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v603', product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-L', size: 'L', color: 'Washed Ink', stock: 20, price_override: null, barcode: '8901001006030', barcode_data: null, barcode_url: null, weight_grams: 690, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'v604', product_id: 'b1000000-0000-0000-0000-000000000006', sku: 'TRK-FLR-BLK-XL', size: 'XL', color: 'Washed Ink', stock: 10, price_override: null, barcode: '8901001006047', barcode_data: null, barcode_url: null, weight_grams: 710, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 ]
 
 export const DEFAULT_BOLT_TIMESLOTS: BoltTimeslot[] = [
@@ -670,6 +752,31 @@ export const DEFAULT_ORDERS: OrderWithItems[] = [
 // ==========================================
 
 /**
+ * Normalizes category rows to ensure parent_id is reliably populated
+ * across all database environments (including when parent_id is encoded in description fallback).
+ */
+export function normalizeCategoryRow(row: any): Category {
+  if (!row) return row
+  let parentId: string | null = row.parent_id ? String(row.parent_id).trim() : null
+  let description: string | null = row.description || null
+
+  if (!parentId && typeof description === 'string') {
+    const match = description.match(/<!--parent_id:([a-zA-Z0-9_-]+)-->/)
+    if (match) {
+      parentId = match[1].trim()
+      description = description.replace(/<!--parent_id:[a-zA-Z0-9_-]+-->/g, '').trim() || null
+    }
+  }
+
+  return {
+    ...row,
+    parent_id: parentId,
+    description,
+    display_order: Number(row.display_order) || 1,
+  }
+}
+
+/**
  * Fetch all dynamic parent categories ordered by display_order.
  */
 export async function getCategories(supabase: SupabaseClient<Database>): Promise<Category[]> {
@@ -680,11 +787,11 @@ export async function getCategories(supabase: SupabaseClient<Database>): Promise
       .order('display_order', { ascending: true })
 
     if (error || !data || data.length === 0) {
-      return DEFAULT_CATEGORIES
+      return DEFAULT_CATEGORIES.map(normalizeCategoryRow)
     }
-    return data
+    return data.map(normalizeCategoryRow)
   } catch (err) {
-    return DEFAULT_CATEGORIES
+    return DEFAULT_CATEGORIES.map(normalizeCategoryRow)
   }
 }
 
@@ -702,9 +809,25 @@ export async function createCategory(
     .single()
 
   if (error) {
+    // If column parent_id does not exist on remote Supabase (code 42703 or schema cache), fallback to embedding in description
+    if (category.parent_id && (error.code === '42703' || error.code === 'PGRST204' || error.message.includes('parent_id') || error.message.includes('schema cache'))) {
+      const cleanDesc = (category.description || '').replace(/<!--parent_id:[a-zA-Z0-9_-]+-->/g, '').trim()
+      const fallbackDesc = `${cleanDesc ? cleanDesc + ' ' : ''}<!--parent_id:${category.parent_id}-->`
+      const fallbackPayload: any = {
+        ...category,
+        description: fallbackDesc,
+      }
+      delete fallbackPayload.parent_id
+
+      const retryRes = await supabase.from('categories').insert(fallbackPayload).select().single()
+      if (retryRes.data) {
+        return { data: normalizeCategoryRow(retryRes.data) }
+      }
+      return { data: null, error: retryRes.error?.message || error.message }
+    }
     return { data: null, error: error.message }
   }
-  return { data }
+  return { data: normalizeCategoryRow(data) }
 }
 
 /**
@@ -721,6 +844,24 @@ export async function updateCategory(
     .eq('id', id)
 
   if (error) {
+    if (updates.parent_id !== undefined && (error.code === '42703' || error.code === 'PGRST204' || error.message.includes('parent_id') || error.message.includes('schema cache'))) {
+      const cleanDesc = (updates.description || '').replace(/<!--parent_id:[a-zA-Z0-9_-]+-->/g, '').trim()
+      const fallbackDesc = updates.parent_id
+        ? `${cleanDesc ? cleanDesc + ' ' : ''}<!--parent_id:${updates.parent_id}-->`
+        : cleanDesc || null
+      const fallbackPayload: any = {
+        ...updates,
+        description: fallbackDesc,
+        updated_at: new Date().toISOString(),
+      }
+      delete fallbackPayload.parent_id
+
+      const retryRes = await supabase.from('categories').update(fallbackPayload).eq('id', id)
+      if (!retryRes.error) {
+        return { success: true }
+      }
+      return { success: false, error: retryRes.error.message }
+    }
     return { success: false, error: error.message }
   }
   return { success: true }
@@ -733,6 +874,11 @@ export async function deleteCategory(
   supabase: SupabaseClient<Database>,
   id: string
 ): Promise<{ success: boolean; error?: string }> {
+  try {
+    await supabase.from('categories').update({ parent_id: null }).eq('parent_id', id)
+  } catch {
+    // Ignore if column parent_id is missing in remote db
+  }
   const { error } = await supabase.from('categories').delete().eq('id', id)
   if (error) {
     return { success: false, error: error.message }
@@ -1644,9 +1790,9 @@ export async function getProductVariants(
       // Return default size run if none pre-defined
       return [
         { id: `v-${productId}-xs`, product_id: productId, sku: `GAR-${productId.slice(0, 4)}-XS`, size: 'XS', color: null, stock: 10, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 500, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-        { id: `v-${productId}-s`,  product_id: productId, sku: `GAR-${productId.slice(0, 4)}-S`,  size: 'S',  color: null, stock: 25, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 520, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-        { id: `v-${productId}-m`,  product_id: productId, sku: `GAR-${productId.slice(0, 4)}-M`,  size: 'M',  color: null, stock: 45, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 540, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-        { id: `v-${productId}-l`,  product_id: productId, sku: `GAR-${productId.slice(0, 4)}-L`,  size: 'L',  color: null, stock: 30, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 560, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+        { id: `v-${productId}-s`, product_id: productId, sku: `GAR-${productId.slice(0, 4)}-S`, size: 'S', color: null, stock: 25, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 520, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+        { id: `v-${productId}-m`, product_id: productId, sku: `GAR-${productId.slice(0, 4)}-M`, size: 'M', color: null, stock: 45, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 540, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+        { id: `v-${productId}-l`, product_id: productId, sku: `GAR-${productId.slice(0, 4)}-L`, size: 'L', color: null, stock: 30, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 560, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
         { id: `v-${productId}-xl`, product_id: productId, sku: `GAR-${productId.slice(0, 4)}-XL`, size: 'XL', color: null, stock: 15, price_override: null, barcode: null, barcode_data: null, barcode_url: null, weight_grams: 580, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
       ]
     }
@@ -2691,6 +2837,252 @@ export async function processBorisReturn(
     }
   } catch (err: any) {
     return { success: false, error: err?.message || 'Error processing in-store return' }
+  }
+}
+
+export interface AtomicOrderCreationParams {
+  orderData: {
+    order_number?: string
+    user_id?: string | null
+    status?: OrderStatus
+    payment_status?: string
+    delivery_mode?: DeliveryMode
+    try_on_status?: TryOnStatus
+    order_type?: OrderType
+    subtotal?: number
+    discount?: number
+    delivery_fee?: number
+    tax_amount?: number
+    total_amount?: number
+    notes?: string | null
+    shipping_address_json?: any
+    billing_address_json?: any
+  }
+  items: Array<{
+    variant_id: string
+    product_id: string
+    quantity: number
+    unit_price: number
+    size?: string | null
+    hsn_code?: string
+  }>
+  sourceLocationId?: string | null
+}
+
+export async function atomicCreateOrderAndReserve(
+  supabase: SupabaseClient<Database>,
+  params: AtomicOrderCreationParams
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const { data, error } = await supabase.rpc('atomic_create_order_and_reserve', {
+      p_order_data: params.orderData as any,
+      p_items: params.items as any,
+      p_source_location_id: params.sourceLocationId ?? null,
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error executing atomic order reservation' }
+  }
+}
+
+export interface BinDirectedPickTask {
+  order_id: string
+  order_number: string
+  order_item_id: string
+  product_id: string
+  product_name: string
+  variant_id: string
+  variant_title: string
+  variant_barcode: string
+  sku: string
+  size: string | null
+  quantity: number
+  shelf_id: string
+  shelf_coordinate: string
+  shelf_barcode: string
+  zone_name: string
+  available_on_shelf: number
+}
+
+export async function generateBinDirectedPickWave(
+  supabase: SupabaseClient<Database>,
+  params: {
+    orderIds: string[]
+    locationId?: string | null
+  }
+): Promise<{ success: boolean; tasks: BinDirectedPickTask[]; error?: string }> {
+  try {
+    const { data, error } = await supabase.rpc('generate_bin_directed_pick_wave', {
+      p_order_ids: params.orderIds,
+      p_location_id: params.locationId ?? null,
+    })
+
+    if (error) {
+      return { success: false, tasks: [], error: error.message }
+    }
+
+    return { success: true, tasks: (data as any) || [] }
+  } catch (err: any) {
+    return { success: false, tasks: [], error: err?.message || 'Error generating pick wave' }
+  }
+}
+
+export async function confirmShelfPick(
+  supabase: SupabaseClient<Database>,
+  params: {
+    orderItemId: string
+    scannedShelfBarcode: string
+    scannedVariantBarcode?: string | null
+    operatorId?: string | null
+  }
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const { data, error } = await supabase.rpc('confirm_shelf_pick', {
+      p_order_item_id: params.orderItemId,
+      p_scanned_shelf_barcode: params.scannedShelfBarcode,
+      p_scanned_variant_barcode: params.scannedVariantBarcode ?? null,
+      p_operator_id: params.operatorId ?? null,
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error confirming shelf pick' }
+  }
+}
+
+export async function completeBoltTryOnReconciliation(
+  supabase: SupabaseClient<Database>,
+  params: {
+    orderId: string
+    decisions: Array<{
+      order_item_id: string
+      decision: 'kept' | 'rejected'
+      rejection_reason?: string | null
+    }>
+    paymentMode: 'cash' | 'upi' | 'card' | 'store_credit' | 'split'
+    paymentRef?: string | null
+    courierId?: string | null
+  }
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const { data, error } = await supabase.rpc('complete_bolt_try_on_reconciliation', {
+      p_order_id: params.orderId,
+      p_decisions: params.decisions as any,
+      p_payment_mode: params.paymentMode,
+      p_payment_ref: params.paymentRef ?? null,
+      p_courier_id: params.courierId ?? null,
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error reconciling try-on' }
+  }
+}
+
+export async function inwardBoltReturnsAtDock(
+  supabase: SupabaseClient<Database>,
+  params: {
+    orderId: string
+    returnItems: Array<{
+      order_item_id: string
+      variant_id: string
+      qc_condition: 'pass' | 'damaged'
+      target_shelf_id?: string | null
+    }>
+    operatorId?: string | null
+  }
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const { data, error } = await supabase.rpc('inward_bolt_returns_at_dock', {
+      p_order_id: params.orderId,
+      p_return_items: params.returnItems as any,
+      p_operator_id: params.operatorId ?? null,
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error inwarding returns at dock' }
+  }
+}
+
+export async function executeStockTransferLifecycle(
+  supabase: SupabaseClient<Database>,
+  params: {
+    transferId: string
+    action: 'dispatch' | 'receive'
+    targetShelfId?: string | null
+    operatorId?: string | null
+    notes?: string | null
+  }
+): Promise<{ success: boolean; status?: string; error?: string }> {
+  try {
+    const { data, error } = await supabase.rpc('execute_stock_transfer_lifecycle', {
+      p_transfer_id: params.transferId,
+      p_action: params.action,
+      p_target_shelf_id: params.targetShelfId ?? null,
+      p_operator_id: params.operatorId ?? null,
+      p_notes: params.notes ?? null,
+    })
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, status: (data as any)?.status }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error executing stock transfer lifecycle' }
+  }
+}
+
+export async function getVariantByBarcodeOrSku(
+  supabase: SupabaseClient<Database>,
+  code: string
+): Promise<{ success: boolean; variant?: any; error?: string }> {
+  try {
+    const clean = code.trim()
+    const { data, error } = await supabase
+      .from('product_variants')
+      .select('id, product_id, sku, barcode, size, color, stock, price_override, product:products(id, title, price, category, image_url, material)')
+      .or(`barcode.eq.${clean},sku.eq.${clean}`)
+      .maybeSingle()
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+    if (data) {
+      const prod = Array.isArray((data as any).product) ? (data as any).product[0] : (data as any).product
+      return { success: true, variant: { ...(data as any), product: prod } }
+    }
+
+    // Resilient fallback against starter catalog in testing/offline
+    const fallback = DEFAULT_PRODUCT_VARIANTS.find(
+      (v) => v.barcode === clean || v.sku?.toUpperCase() === clean.toUpperCase()
+    )
+    if (fallback) {
+      const prod = DEFAULT_PRODUCTS.find((p) => p.id === fallback.product_id)
+      return { success: true, variant: { ...fallback, product: prod } }
+    }
+
+    return { success: false, error: 'NOT_FOUND' }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error looking up barcode' }
   }
 }
 

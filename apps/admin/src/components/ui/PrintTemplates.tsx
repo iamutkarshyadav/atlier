@@ -110,12 +110,12 @@ export function PosReceiptModal({
                   <span className="w-1/2 font-semibold truncate">{item.title}</span>
                   <span className="w-1/6 text-center tabular-nums">{item.quantity}</span>
                   <span className="w-1/3 text-right tabular-nums font-bold">
-                    ${(item.price * item.quantity).toFixed(2)}
+                    ₹{(item.price * item.quantity).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
                 <div className="text-[8px] text-zinc-600 flex justify-between">
                   <span>Size {item.size} &bull; {item.sku}</span>
-                  <span>@ ${item.price.toFixed(2)}</span>
+                  <span>@ ₹{item.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             ))}
@@ -125,19 +125,19 @@ export function PosReceiptModal({
           <div className="space-y-0.5 text-[9px] border-b border-dashed border-zinc-400 pb-1.5">
             <div className="flex justify-between">
               <span>Subtotal:</span>
-              <span className="tabular-nums">${data.subtotal.toFixed(2)}</span>
+              <span className="tabular-nums">₹{data.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between text-zinc-600">
               <span>CGST (6%):</span>
-              <span className="tabular-nums">${data.cgst.toFixed(2)}</span>
+              <span className="tabular-nums">₹{data.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between text-zinc-600">
               <span>SGST (6%):</span>
-              <span className="tabular-nums">${data.sgst.toFixed(2)}</span>
+              <span className="tabular-nums">₹{data.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between text-xs font-black border-t border-black pt-1">
               <span>GRAND TOTAL:</span>
-              <span className="tabular-nums">${data.grandTotal.toFixed(2)}</span>
+              <span className="tabular-nums">₹{data.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
           </div>
 
@@ -151,11 +151,11 @@ export function PosReceiptModal({
               <>
                 <div className="flex justify-between text-zinc-600">
                   <span>Cash Tendered:</span>
-                  <span className="tabular-nums">${data.tenderedAmount.toFixed(2)}</span>
+                  <span className="tabular-nums">₹{data.tenderedAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between font-bold">
                   <span>Change Return:</span>
-                  <span className="tabular-nums">${(data.changeDue || 0).toFixed(2)}</span>
+                  <span className="tabular-nums">₹{(data.changeDue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
               </>
             )}
@@ -434,9 +434,9 @@ export function PurchaseOrderPrintModal({
                     <td className="py-2">{it.size}</td>
                     <td className="py-2">{it.hsn}</td>
                     <td className="py-2 text-center font-bold tabular-nums">{it.quantity}</td>
-                    <td className="py-2 text-right tabular-nums">${it.unitCost.toFixed(2)}</td>
+                    <td className="py-2 text-right tabular-nums">₹{it.unitCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                     <td className="py-2 text-center tabular-nums">{it.gstPercent}%</td>
-                    <td className="py-2 text-right font-bold tabular-nums">${it.lineTotal.toFixed(2)}</td>
+                    <td className="py-2 text-right font-bold tabular-nums">₹{it.lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
               </tbody>
@@ -448,15 +448,15 @@ export function PurchaseOrderPrintModal({
             <div className="w-64 space-y-1 font-mono text-xs">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
-                <span className="tabular-nums">${data.subtotal.toFixed(2)}</span>
+                <span className="tabular-nums">₹{data.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               </div>
               <div className="flex justify-between text-zinc-600 text-2xs">
                 <span>GST Tax (IGST/CGST+SGST):</span>
-                <span className="tabular-nums">${data.taxAmount.toFixed(2)}</span>
+                <span className="tabular-nums">₹{data.taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               </div>
               <div className="flex justify-between font-bold text-sm border-t border-black pt-1">
                 <span>GRAND TOTAL:</span>
-                <span className="tabular-nums">${data.totalAmount.toFixed(2)}</span>
+                <span className="tabular-nums">₹{data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
           </div>

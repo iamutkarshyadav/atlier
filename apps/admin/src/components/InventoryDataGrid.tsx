@@ -8,19 +8,16 @@ import {
   ChevronRight,
   Plus,
   Minus,
-  RefreshCw,
   Printer,
   Search,
-  SlidersHorizontal,
-  ExternalLink,
   Edit,
-  Tag,
   Copy,
   Check,
   Warehouse,
+  Store,
   ArrowRightLeft,
-  X,
   MapPin,
+  Globe,
 } from 'lucide-react'
 import {
   Button,
@@ -29,14 +26,15 @@ import {
 import { createBrowserClient } from '@repo/supabase/browser'
 import {
   adjustVariantStock,
-  getLocations,
   getInventoryLevels,
   getVariantShelfPlacements,
   moveShelfStock,
+  formatINR,
+  DEFAULT_CATEGORIES,
   type CompleteInventoryProduct,
   type CompleteInventoryVariant,
   type StoreLocation,
-  type InventoryLevel,
+  type Category,
   type ShelfInventory,
   type Shelf,
 } from '@repo/supabase/utils'
@@ -46,20 +44,33 @@ import { SlideOverDrawer } from '@/components/ui/SlideOverDrawer'
 
 interface InventoryDataGridProps {
   initialProducts: CompleteInventoryProduct[]
+  initialCategories?: Category[]
+  initialLocations?: StoreLocation[]
 }
 
-export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
-  const { locations, activeLocation, activeLocationCode } = useLocation()
+export function InventoryDataGrid({
+  initialProducts,
+  initialCategories = DEFAULT_CATEGORIES,
+  initialLocations = [],
+}: InventoryDataGridProps) {
+  const { locations: contextLocations } = useLocation()
+  const activeLocationsList = contextLocations && contextLocations.length > 0 ? contextLocations : initialLocations
+
   const [products, setProducts] = useState<CompleteInventoryProduct[]>(initialProducts)
+  const [categoriesList, setCategoriesList] = useState<Category[]>(initialCategories)
   const [expandedProductIds, setExpandedProductIds] = useState<Set<string>>(
     new Set(initialProducts.slice(0, 3).map((p) => p.id))
   )
+
+  // Filters
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [subcategoryFilter, setSubcategoryFilter] = useState<string>('all')
+  const [channelFilter, setChannelFilter] = useState<string>('all')
   const [stockStatusFilter, setStockStatusFilter] = useState<'all' | 'low' | 'depleted' | 'optimal'>('all')
+
   const [adjustingVariantId, setAdjustingVariantId] = useState<string | null>(null)
   const [copiedBarcode, setCopiedBarcode] = useState<string | null>(null)
-  const [isRefreshing, startRefresh] = useTransition()
 
   // Variant Shelf Details Cache
   const [variantShelves, setVariantShelves] = useState<
@@ -69,6 +80,121 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
 
   // Real inventory levels indexed by variantId -> locationCode -> available stock
   const [inventoryLevels, setInventoryLevels] = useState<Record<string, Record<string, number>>>({})
+
+  // Dynamic location partitioning from LocationContext
+  const onlineLocations = useMemo(() => {
+    return activeLocationsList.filter(
+      (l) => l.type === 'warehouse' || (l.type as string) === 'dark_store' || l.code.toUpperCase().includes('WH')
+    )
+  }, [activeLocationsList])
+
+  const physicalLocations = useMemo(() => {
+    return activeLocationsList.filter(
+      (l) =>
+        l.type === 'boutique' ||
+        (l.type as string) === 'retail_store' ||
+        (l.type as string) === 'store' ||
+        (!l.code.toUpperCase().includes('WH') && l.type !== 'warehouse')
+    )
+  }, [activeLocationsList])
+
+  // Build category hierarchy lookup using real categories.parent_id
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, Category>()
+    categoriesList.forEach((c) => map.set(c.id, c))
+    return map
+  }, [categoriesList])
+
+  // Top-level root categories (parent_id is null)
+  const rootCategories = useMemo(() => {
+    return categoriesList.filter((c) => !c.parent_id)
+  }, [categoriesList])
+
+  // Subcategories (parent_id is not null)
+  const allSubcategories = useMemo(() => {
+    return categoriesList.filter((c) => !!c.parent_id)
+  }, [categoriesList])
+
+  // Dynamic cascading subcategories for current category filter
+  const availableSubcategories = useMemo(() => {
+    if (categoryFilter === 'all') {
+      return allSubcategories
+    }
+    // Match either by id or name
+    const selectedCategory = categoriesList.find(
+      (c) => c.id === categoryFilter || c.name === categoryFilter
+    )
+    if (!selectedCategory) return allSubcategories
+    return allSubcategories.filter((s) => s.parent_id === selectedCategory.id)
+  }, [categoryFilter, categoriesList, allSubcategories])
+
+  // Reset subcategory filter when category filter changes
+  const handleCategoryFilterChange = (newCat: string) => {
+    setCategoryFilter(newCat)
+    setSubcategoryFilter('all')
+  }
+
+  // Resolve garment's category & subcategory dynamically from categories table
+  const resolveGarmentCategory = (product: CompleteInventoryProduct) => {
+    // 1. Try resolving via category_id
+    if (product.category_id && categoryMap.has(product.category_id)) {
+      const cat = categoryMap.get(product.category_id)!
+      if (cat.parent_id && categoryMap.has(cat.parent_id)) {
+        const parent = categoryMap.get(cat.parent_id)!
+        return {
+          parentCategory: parent.name,
+          parentId: parent.id,
+          subcategory: cat.name,
+          subcategoryId: cat.id,
+        }
+      }
+      return {
+        parentCategory: cat.name,
+        parentId: cat.id,
+        subcategory: null,
+        subcategoryId: null,
+      }
+    }
+
+    // 2. Try resolving via product.category string matching against live categories
+    if (product.category) {
+      const found = categoriesList.find(
+        (c) =>
+          c.name.toLowerCase() === product.category!.toLowerCase() ||
+          c.slug.toLowerCase() === product.category!.toLowerCase()
+      )
+      if (found) {
+        if (found.parent_id && categoryMap.has(found.parent_id)) {
+          const parent = categoryMap.get(found.parent_id)!
+          return {
+            parentCategory: parent.name,
+            parentId: parent.id,
+            subcategory: found.name,
+            subcategoryId: found.id,
+          }
+        }
+        return {
+          parentCategory: found.name,
+          parentId: found.id,
+          subcategory: null,
+          subcategoryId: null,
+        }
+      }
+      return {
+        parentCategory: product.category,
+        parentId: null,
+        subcategory: null,
+        subcategoryId: null,
+      }
+    }
+
+    return {
+      parentCategory: 'General',
+      parentId: null,
+      subcategory: null,
+      subcategoryId: null,
+    }
+  }
 
   useEffect(() => {
     const fetchLevels = async () => {
@@ -99,6 +225,31 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
       }
     }
     return found ? total : 0
+  }
+
+  const getVariantLocationStock = (variantId: string, locationCode: string) => {
+    return inventoryLevels[variantId]?.[locationCode] ?? 0
+  }
+
+  // Calculate dynamic Online ATP (Warehouse / Hub aggregate)
+  const getProductOnlineATP = (product: CompleteInventoryProduct) => {
+    if (onlineLocations.length === 0) return product.stock
+    let sum = 0
+    let hasLevel = false
+    for (const wh of onlineLocations) {
+      const stock = getProductLocationStock(product, wh.code)
+      if (stock > 0) hasLevel = true
+      sum += stock
+    }
+    return hasLevel ? sum : product.stock
+  }
+
+  // Calculate dynamic Physical Stores total ATP
+  const getProductPhysicalATP = (product: CompleteInventoryProduct) => {
+    return physicalLocations.reduce(
+      (sum, loc) => sum + getProductLocationStock(product, loc.code),
+      0
+    )
   }
 
   // Drawer: Relocate Shelf Stock
@@ -150,7 +301,7 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
     setExpandedProductIds(new Set())
   }
 
-  // Fetch variant shelf placements when expanded or requested
+  // Fetch variant shelf placements when requested
   const fetchVariantShelves = async (variantId: string) => {
     if (variantShelves[variantId]) return
     setLoadingShelvesVariantId(variantId)
@@ -196,10 +347,10 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
     try {
       const supabase = createBrowserClient()
       const qty = parseInt(moveQuantity, 10) || 1
+      const defaultLocId = activeLocationsList[0]?.id || 'd1000000-0000-0000-0000-000000000001'
 
-      const locId = activeLocation === 'ALL' ? (locations[0]?.id || 'd1000000-0000-0000-0000-000000000001') : activeLocation.id
       await moveShelfStock(supabase, {
-        locationId: locId,
+        locationId: defaultLocId,
         fromShelfId: selectedVariantForMove.sourceShelfId,
         toShelfId: destShelfId,
         variantId: selectedVariantForMove.variant.id,
@@ -208,7 +359,6 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
         notes: 'reorganization',
       })
 
-      // Invalidate variant shelf cache
       const freshPlacements = await getVariantShelfPlacements(supabase, selectedVariantForMove.variant.id)
       setVariantShelves((prev) => ({ ...prev, [selectedVariantForMove.variant.id]: freshPlacements }))
       setRelocateModalOpen(false)
@@ -318,19 +468,51 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
   // Filtered dataset
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
+      const hierarchy = resolveGarmentCategory(p)
+
+      // Category filter
       if (categoryFilter !== 'all') {
-        const pCat = (p.category || '').toLowerCase()
-        if (!pCat.includes(categoryFilter.toLowerCase())) return false
+        const matchesCategory =
+          hierarchy.parentId === categoryFilter ||
+          hierarchy.parentCategory.toLowerCase() === categoryFilter.toLowerCase()
+        if (!matchesCategory) return false
       }
 
+      // Subcategory filter
+      if (subcategoryFilter !== 'all') {
+        const matchesSubcategory =
+          hierarchy.subcategoryId === subcategoryFilter ||
+          (hierarchy.subcategory &&
+            hierarchy.subcategory.toLowerCase() === subcategoryFilter.toLowerCase())
+        if (!matchesSubcategory) return false
+      }
+
+      // Channel filter
+      if (channelFilter === 'online_only') {
+        const onlineStock = getProductOnlineATP(p)
+        if (onlineStock <= 0) return false
+      } else if (channelFilter === 'physical_only') {
+        const physicalStock = getProductPhysicalATP(p)
+        if (physicalStock <= 0) return false
+      } else if (channelFilter !== 'all') {
+        // Specific store location code/id
+        const locStock = getProductLocationStock(p, channelFilter)
+        if (locStock <= 0) return false
+      }
+
+      // Stock status filter
       if (stockStatusFilter === 'depleted' && p.stock > 0) return false
       if (stockStatusFilter === 'low' && (p.stock === 0 || p.stock > 15)) return false
       if (stockStatusFilter === 'optimal' && p.stock <= 15) return false
 
+      // Search query
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim()
         const matchesTitle = p.title.toLowerCase().includes(query)
-        const matchesCategory = (p.category || '').toLowerCase().includes(query)
+        const matchesParentCat = hierarchy.parentCategory.toLowerCase().includes(query)
+        const matchesSubcat = hierarchy.subcategory
+          ? hierarchy.subcategory.toLowerCase().includes(query)
+          : false
         const matchesMaterial = (p.material || '').toLowerCase().includes(query)
         const matchesVariant = p.variants.some(
           (v) =>
@@ -339,26 +521,37 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
             (v.barcode && v.barcode.toLowerCase().includes(query)) ||
             (v.barcode_data && v.barcode_data.toLowerCase().includes(query))
         )
-        return matchesTitle || matchesCategory || matchesMaterial || matchesVariant
+        return (
+          matchesTitle ||
+          matchesParentCat ||
+          matchesSubcat ||
+          matchesMaterial ||
+          matchesVariant
+        )
       }
 
       return true
     })
-  }, [products, categoryFilter, stockStatusFilter, searchQuery])
+  }, [
+    products,
+    categoryFilter,
+    subcategoryFilter,
+    channelFilter,
+    stockStatusFilter,
+    searchQuery,
+    categoriesList,
+    inventoryLevels,
+    onlineLocations,
+    physicalLocations,
+  ])
 
-  // Extract unique categories
-  const categories = useMemo(() => {
-    const set = new Set<string>()
-    products.forEach((p) => {
-      if (p.category) set.add(p.category)
-    })
-    return Array.from(set)
-  }, [products])
+  // Total columns for colSpan
+  const totalColumns = 7 + physicalLocations.length
 
   return (
     <div className="space-y-3 font-mono">
       {/* Dense Controls Ribbon */}
-      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-2 p-2 bg-chrome-900 border border-chrome-800 text-xs">
+      <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-2 p-2 bg-chrome-900 border border-chrome-800 text-xs">
         {/* Search */}
         <div className="flex-1 max-w-sm relative">
           <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2.5" />
@@ -366,24 +559,61 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search SKU, Barcode, Title..."
+            placeholder="Search SKU, Barcode, Garment Title..."
             className="w-full bg-chrome-950 border border-chrome-800 pl-8 pr-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-400"
           />
         </div>
 
-        {/* Filters */}
+        {/* Dynamic Cascading Filters */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Parent Category Filter */}
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => handleCategoryFilterChange(e.target.value)}
             className="bg-chrome-950 border border-chrome-800 px-2.5 py-1.5 text-2xs text-zinc-300 focus:outline-none"
+            title="Filter by Root Category"
           >
             <option value="all">All Categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>{c}</option>
+            {rootCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
 
+          {/* Subcategory Filter (Dynamically populated from public.categories via parent_id) */}
+          <select
+            value={subcategoryFilter}
+            onChange={(e) => setSubcategoryFilter(e.target.value)}
+            className="bg-chrome-950 border border-chrome-800 px-2.5 py-1.5 text-2xs text-zinc-300 focus:outline-none"
+            title="Filter by Subcategory (Derived from Category Hierarchy)"
+          >
+            <option value="all">All Subcategories</option>
+            {availableSubcategories.map((sc) => (
+              <option key={sc.id} value={sc.id}>
+                {sc.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Channel Filter (Online vs Physical Stores) */}
+          <select
+            value={channelFilter}
+            onChange={(e) => setChannelFilter(e.target.value)}
+            className="bg-chrome-950 border border-chrome-800 px-2.5 py-1.5 text-2xs text-zinc-300 focus:outline-none"
+            title="Filter by Fulfillment Channel"
+          >
+            <option value="all">All Channels</option>
+            <option value="online_only">Online Store Available</option>
+            <option value="physical_only">Physical Stores Available</option>
+            {physicalLocations.map((loc) => (
+              <option key={loc.id} value={loc.code}>
+                Store: {loc.code} ({loc.city || loc.name})
+              </option>
+            ))}
+          </select>
+
+          {/* Stock Status Filter */}
           <select
             value={stockStatusFilter}
             onChange={(e) => setStockStatusFilter(e.target.value as any)}
@@ -395,12 +625,13 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
             <option value="depleted">Depleted (0)</option>
           </select>
 
+          {/* Expansion & Print Controls */}
           <div className="flex items-center gap-1 border-l border-chrome-800 pl-2">
             <button
               onClick={expandAll}
               className="px-2 py-1 bg-chrome-950 hover:bg-chrome-850 text-zinc-400 hover:text-zinc-200 border border-chrome-800 text-3xs"
             >
-              Expand All
+              Expand
             </button>
             <button
               onClick={collapseAll}
@@ -426,12 +657,20 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
             <tr className="border-b border-chrome-800 bg-chrome-950 text-3xs uppercase tracking-wider text-zinc-400">
               <th className="py-2 px-3 w-8"></th>
               <th className="py-2 px-3 font-semibold">SKU / Garment</th>
-              <th className="py-2 px-3 font-semibold">Category</th>
-              <th className="py-2 px-3 font-semibold text-right">MSRP</th>
+              <th className="py-2 px-3 font-semibold">Category & Subcategory</th>
+              <th className="py-2 px-3 font-semibold text-right">Price / MRP</th>
               <th className="py-2 px-3 font-semibold text-center">Global ATP</th>
-              <th className="py-2 px-3 font-semibold text-center">BLR-WH01</th>
-              <th className="py-2 px-3 font-semibold text-center">BLR-ST01</th>
-              <th className="py-2 px-3 font-semibold text-center">BOM-ST01</th>
+              <th className="py-2 px-3 font-semibold text-center">Online Store (ATP)</th>
+              {/* Dynamic Physical Store Columns populated from LocationContext */}
+              {physicalLocations.map((loc) => (
+                <th
+                  key={loc.id}
+                  className="py-2 px-3 font-semibold text-center text-zinc-400"
+                  title={`${loc.name} (${loc.city || 'Store'})`}
+                >
+                  {loc.code}
+                </th>
+              ))}
               <th className="py-2 px-3 font-semibold">Status</th>
               <th className="py-2 px-3 font-semibold text-right">Actions</th>
             </tr>
@@ -442,6 +681,8 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
               const firstImage = product.media?.[0]?.url || product.image_url
               const isLow = product.stock <= 15 && product.stock > 0
               const isDepleted = product.stock === 0
+              const hierarchy = resolveGarmentCategory(product)
+              const onlineATP = getProductOnlineATP(product)
 
               return (
                 <React.Fragment key={product.id}>
@@ -499,14 +740,25 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
                       </div>
                     </td>
 
-                    {/* Category */}
-                    <td className="py-2 px-3 text-zinc-400 text-2xs uppercase">
-                      {product.category || 'Atelier Garment'}
+                    {/* Dynamic Category & Subcategory Hierarchy */}
+                    <td className="py-2 px-3">
+                      <div className="space-y-0.5">
+                        <span className="text-zinc-200 text-xs font-medium block">
+                          {hierarchy.parentCategory}
+                        </span>
+                        {hierarchy.subcategory ? (
+                          <span className="inline-block px-1.5 py-0.5 text-3xs font-mono bg-chrome-950 text-zinc-400 border border-chrome-800">
+                            {hierarchy.subcategory}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-600 text-3xs font-mono">—</span>
+                        )}
+                      </div>
                     </td>
 
-                    {/* Price */}
+                    {/* Price / MRP (Standardized Indian Rupee) */}
                     <td className="py-2 px-3 text-right font-semibold text-zinc-200 tabular-nums">
-                      ${Number(product.price).toFixed(2)}
+                      {formatINR(product.price)}
                     </td>
 
                     {/* Global ATP (Available To Promise) */}
@@ -516,20 +768,23 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
                       </span>
                     </td>
 
-                    {/* BLR-WH01 Warehouse stock */}
-                    <td className="py-2 px-3 text-center tabular-nums text-2xs text-zinc-300">
-                      {getProductLocationStock(product, 'BLR-WH01')}
+                    {/* Online Store (ATP) Aggregated Stock */}
+                    <td className="py-2 px-3 text-center tabular-nums text-xs text-zinc-200 font-medium">
+                      {onlineATP}
                     </td>
 
-                    {/* BLR-ST01 Indiranagar boutique stock */}
-                    <td className="py-2 px-3 text-center tabular-nums text-2xs text-zinc-400">
-                      {getProductLocationStock(product, 'BLR-ST01')}
-                    </td>
-
-                    {/* BOM-ST01 Kala Ghoda boutique stock */}
-                    <td className="py-2 px-3 text-center tabular-nums text-2xs text-zinc-400">
-                      {getProductLocationStock(product, 'BOM-ST01')}
-                    </td>
+                    {/* Dynamic Physical Store Columns */}
+                    {physicalLocations.map((loc) => {
+                      const storeStock = getProductLocationStock(product, loc.code)
+                      return (
+                        <td
+                          key={loc.id}
+                          className="py-2 px-3 text-center tabular-nums text-2xs text-zinc-400"
+                        >
+                          {storeStock}
+                        </td>
+                      )
+                    })}
 
                     {/* Stock Status */}
                     <td className="py-2 px-3">
@@ -612,10 +867,10 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
 
                           {/* Price Override */}
                           <td className="py-1.5 px-3 text-right text-3xs text-zinc-500 tabular-nums">
-                            {variant.price_override ? `₹${variant.price_override.toLocaleString("en-IN")}` : '—'}
+                            {variant.price_override ? formatINR(variant.price_override) : '—'}
                           </td>
 
-                          {/* Stock Count & Inline Atomic Adjuster */}
+                          {/* Global Variant Stock Count & Inline Atomic Adjuster */}
                           <td className="py-1.5 px-3 text-center">
                             <div className="inline-flex items-center gap-1 bg-chrome-900 border border-chrome-800 px-1 py-0.5">
                               <button
@@ -640,9 +895,26 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
                             </div>
                           </td>
 
+                          {/* Online Variant Stock */}
+                          <td className="py-1.5 px-3 text-center tabular-nums text-2xs text-zinc-300">
+                            {onlineLocations[0]
+                              ? getVariantLocationStock(variant.id, onlineLocations[0].code)
+                              : variant.stock}
+                          </td>
+
+                          {/* Physical Store Variant Stocks */}
+                          {physicalLocations.map((loc) => (
+                            <td
+                              key={loc.id}
+                              className="py-1.5 px-3 text-center tabular-nums text-2xs text-zinc-400"
+                            >
+                              {getVariantLocationStock(variant.id, loc.code)}
+                            </td>
+                          ))}
+
                           {/* Multi-Location Shelf Allocations */}
-                          <td colSpan={3} className="py-1.5 px-3">
-                            <div className="flex items-center gap-2">
+                          <td className="py-1.5 px-3">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               {placements && placements.length > 0 ? (
                                 placements.map((pl) => (
                                   <span
@@ -651,7 +923,9 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
                                   >
                                     <MapPin className="w-2.5 h-2.5 text-emerald-400" />
                                     <span>{pl.shelf?.coordinate || 'BLK-A-01-A1'}</span>
-                                    <span className="text-emerald-400 font-semibold tabular-nums">({pl.quantity})</span>
+                                    <span className="text-emerald-400 font-semibold tabular-nums">
+                                      ({pl.quantity})
+                                    </span>
                                   </span>
                                 ))
                               ) : (
@@ -659,17 +933,12 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
                                   onClick={() => fetchVariantShelves(variant.id)}
                                   className="text-3xs text-zinc-500 hover:text-zinc-300 underline"
                                 >
-                                  {loadingShelvesVariantId === variant.id ? 'Loading Bins...' : 'Show Shelf Allocations'}
+                                  {loadingShelvesVariantId === variant.id
+                                    ? 'Loading Bins...'
+                                    : 'Show Bins'}
                                 </button>
                               )}
                             </div>
-                          </td>
-
-                          {/* Status */}
-                          <td className="py-1.5 px-3">
-                            <span className="text-3xs font-mono text-zinc-500 tabular-nums">
-                              Reorder: 5
-                            </span>
                           </td>
 
                           {/* Actions */}
@@ -687,13 +956,13 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
                                 className="px-1.5 py-0.5 text-3xs bg-chrome-900 hover:bg-chrome-800 text-zinc-300 border border-chrome-800 flex items-center gap-1"
                                 title="Relocate stock between shelves"
                               >
-                                <ArrowRightLeft className="w-2.5 h-2.5 text-amber-400" />
+                                <ArrowRightLeft className="w-2.5 h-2.5 text-zinc-400" />
                                 <span>Move</span>
                               </button>
                               <button
                                 onClick={() => printSingleVariantLabel(product, variant)}
                                 className="p-1 text-zinc-500 hover:text-zinc-200"
-                                title="Print 50x30mm Variant Barcode Label"
+                                title="Print Variant Barcode Label"
                               >
                                 <Printer className="w-3 h-3" />
                               </button>
@@ -708,7 +977,7 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
 
             {filteredProducts.length === 0 && (
               <tr>
-                <td colSpan={10} className="py-12 text-center text-xs text-zinc-500">
+                <td colSpan={totalColumns} className="py-12 text-center text-xs text-zinc-500">
                   No products or variants matching filter criteria.
                 </td>
               </tr>
@@ -819,8 +1088,8 @@ export function InventoryDataGrid({ initialProducts }: InventoryDataGridProps) {
                   className="p-3 bg-white text-black border border-zinc-300 font-mono space-y-1.5 select-none shadow-sm"
                 >
                   <div className="flex justify-between items-center text-[10px] border-b border-black pb-0.5">
-                    <span className="font-bold">ATELIER HAUTE</span>
-                    <span className="font-bold uppercase">${lbl.productPrice.toFixed(2)}</span>
+                    <span className="font-bold">MAISON TG</span>
+                    <span className="font-bold uppercase">{formatINR(lbl.productPrice)}</span>
                   </div>
                   <div>
                     <span className="text-xs font-bold block truncate">{lbl.productTitle}</span>

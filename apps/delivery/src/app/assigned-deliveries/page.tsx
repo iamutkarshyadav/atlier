@@ -24,7 +24,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { createBrowserClient } from '@repo/supabase/browser'
-import { updateOrderStatus, getAllOrders } from '@repo/supabase/utils'
+import { updateOrderStatus, getAllOrders, formatINR } from '@repo/supabase/utils'
 import type { DeliveryMode, TryOnStatus, OrderStatus } from '@repo/supabase/types'
 
 export interface DeliveryTask {
@@ -622,7 +622,7 @@ export default function LuxuryAssignedDeliveriesPage() {
                 <Clock className="w-3.5 h-3.5 text-amber-400" />
                 {task.scheduledSlot || task.eta}
               </span>
-              <span className="text-white font-bold">${task.total.toFixed(2)}</span>
+              <span className="text-white font-bold">{formatINR(task.total)}</span>
             </div>
 
             {/* Items Summary */}

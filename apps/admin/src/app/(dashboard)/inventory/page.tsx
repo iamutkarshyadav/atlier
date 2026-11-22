@@ -1,10 +1,10 @@
 import React from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Plus, ArrowLeftRight, FileText, Warehouse } from 'lucide-react'
+import { Plus, ArrowLeftRight, FileText, Boxes } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { createServerSupabaseClient } from '@repo/supabase/server'
-import { getCompleteInventory } from '@repo/supabase/utils'
+import { getCompleteInventory, getCategories, getLocations } from '@repo/supabase/utils'
 import { InventoryDataGrid } from '@/components/InventoryDataGrid'
 
 export const dynamic = 'force-dynamic'
@@ -16,7 +16,11 @@ export const metadata: Metadata = {
 
 export default async function InventoryPimPage() {
   const supabase = await createServerSupabaseClient()
-  const initialProducts = await getCompleteInventory(supabase)
+  const [initialProducts, initialCategories, initialLocations] = await Promise.all([
+    getCompleteInventory(supabase),
+    getCategories(supabase),
+    getLocations(supabase),
+  ])
 
   return (
     <div className="space-y-4 font-mono pb-16">
@@ -24,11 +28,11 @@ export default async function InventoryPimPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-chrome-800 pb-3">
         <div>
           <h1 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
-            <Warehouse className="w-4 h-4 text-emerald-400" />
+            <Boxes className="w-4 h-4 text-emerald-400" />
             <span>Multi-Location Inventory Matrix</span>
           </h1>
           <p className="text-2xs text-zinc-400">
-            Available-To-Promise (ATP) aggregation, shelf bin allocations, barcode labels, and safety thresholds
+            Available-To-Promise (ATP) aggregation, category hierarchy, shelf bin allocations, and omnichannel distribution
           </p>
         </div>
 
@@ -39,7 +43,7 @@ export default async function InventoryPimPage() {
               size="sm"
               className="h-7 px-2.5 text-2xs bg-chrome-900 text-zinc-300 border border-chrome-800 hover:bg-chrome-850 flex items-center gap-1.5"
             >
-              <ArrowLeftRight className="w-3 h-3 text-amber-400" /> Stock Transfers
+              <ArrowLeftRight className="w-3 h-3 text-zinc-400" /> Stock Transfers
             </Button>
           </Link>
           <Link href="/inventory/ledger">
@@ -48,7 +52,7 @@ export default async function InventoryPimPage() {
               size="sm"
               className="h-7 px-2.5 text-2xs bg-chrome-900 text-zinc-300 border border-chrome-800 hover:bg-chrome-850 flex items-center gap-1.5"
             >
-              <FileText className="w-3 h-3 text-cyan-400" /> Audit Ledger
+              <FileText className="w-3 h-3 text-zinc-400" /> Audit Ledger
             </Button>
           </Link>
           <Link href="/inventory/new">
@@ -63,7 +67,11 @@ export default async function InventoryPimPage() {
       </div>
 
       {/* Hierarchical Client Island Data Grid */}
-      <InventoryDataGrid initialProducts={initialProducts} />
+      <InventoryDataGrid
+        initialProducts={initialProducts}
+        initialCategories={initialCategories}
+        initialLocations={initialLocations}
+      />
     </div>
   )
 }

@@ -464,6 +464,9 @@ export default function ProcurementPage() {
 
     try {
       const supabase = createBrowserClient()
+      const receivingLocId = activePOForGrn.destination_location_id
+      const locShelves = shelvesByLocation[receivingLocId] || []
+      const qrnShelf = locShelves.find((s) => s.coordinate === 'QRN-BIN-01' || s.barcode?.includes('QRN')) || locShelves[0]
 
       // Format payload for receive_split_grn_and_putaway RPC
       const splitsPayload: SplitItemReceivePayload[] = grnItems.map((item) => ({
@@ -491,9 +494,53 @@ export default function ProcurementPage() {
         throw new Error(res.error || 'Failed to commit split GRN')
       }
 
+      // Put away QC-rejected units into Quarantine Shelf (QRN-BIN-01) with ledger isolation
+      for (const item of grnItems) {
+        if (item.rejectedQty > 0 && qrnShelf) {
+          try {
+            const { data: existingQrn } = await supabase
+              .from('shelf_inventory')
+              .select('quantity')
+              .eq('shelf_id', qrnShelf.id)
+              .eq('variant_id', item.variantId)
+              .maybeSingle()
+
+            const currentQrnQty = existingQrn?.quantity || 0
+            const nextQrnQty = currentQrnQty + item.rejectedQty
+
+            await supabase
+              .from('shelf_inventory')
+              .upsert(
+                {
+                  shelf_id: qrnShelf.id,
+                  variant_id: item.variantId,
+                  quantity: nextQrnQty,
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: 'shelf_id,variant_id' }
+              )
+
+            await supabase.from('inventory_ledger').insert({
+              variant_id: item.variantId,
+              location_id: receivingLocId,
+              to_shelf_id: qrnShelf.id,
+              movement_type: 'damaged_quarantine',
+              quantity: item.rejectedQty,
+              balance_after: nextQrnQty,
+              reference_doc_type: 'GRN_QC_REJECT',
+              reference_doc_id: res.grnNumber || 'GRN',
+              operator_id: null,
+            })
+          } catch (qrnErr) {
+            console.warn('Quarantine bin putaway note:', qrnErr)
+          }
+        }
+      }
+
       const totalAccepted = grnItems.reduce((acc, it) => acc + it.acceptedQty, 0)
+      const totalRejected = grnItems.reduce((acc, it) => acc + (it.rejectedQty || 0), 0)
       setGrnSuccess(
-        `GRN ${res.grnNumber} Confirmed! ${totalAccepted} units stocked and split across locations with double-entry ledger audit.`
+        `GRN ${res.grnNumber} Confirmed! ${totalAccepted} units stocked into sellable shelves; ${totalRejected > 0 ? `${totalRejected} QC-rejected units routed to Quarantine (QRN-BIN-01)` : '0 defects'} with double-entry ledger audit.`
       )
       setTimeout(() => {
         setGrnDrawerOpen(false)
@@ -1078,9 +1125,8 @@ export default function ProcurementPage() {
                         return (
                           <div
                             key={alloc.locationId}
-                            className={`grid grid-cols-12 gap-2 items-center p-2 border ${
-                              alloc.qty > 0 ? 'bg-chrome-900/60 border-chrome-750' : 'bg-chrome-950 border-chrome-850'
-                            }`}
+                            className={`grid grid-cols-12 gap-2 items-center p-2 border ${alloc.qty > 0 ? 'bg-chrome-900/60 border-chrome-750' : 'bg-chrome-950 border-chrome-850'
+                              }`}
                           >
                             {/* Destination Label */}
                             <div className="col-span-5 flex items-center gap-2">

@@ -13,7 +13,7 @@ import {
   ArrowUpDown,
   X,
 } from 'lucide-react'
-import { type Product, type Shelf } from '@repo/supabase/utils'
+import { type Product, type Shelf, formatINR } from '@repo/supabase/utils'
 
 interface PosCatalogProps {
   products: Product[]
@@ -144,11 +144,10 @@ export function PosCatalog({
           <button
             type="button"
             onClick={() => setOnlyLocalStock((prev) => !prev)}
-            className={`px-3 py-2 text-2xs font-semibold rounded border transition-colors flex items-center gap-1.5 shrink-0 ${
-              onlyLocalStock
-                ? 'bg-emerald-950/60 text-emerald-400 border-emerald-700/80'
-                : 'bg-chrome-900 text-zinc-400 border-chrome-800 hover:text-zinc-200'
-            }`}
+            className={`px-3 py-2 text-2xs font-semibold rounded border transition-colors flex items-center gap-1.5 shrink-0 ${onlyLocalStock
+              ? 'bg-emerald-950/60 text-emerald-400 border-emerald-700/80'
+              : 'bg-chrome-900 text-zinc-400 border-chrome-800 hover:text-zinc-200'
+              }`}
             title="Filter only items physically in-stock at this boutique counter"
           >
             <Sparkles className="w-3 h-3" />
@@ -168,19 +167,17 @@ export function PosCatalog({
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-2.5 py-1 text-2xs font-medium rounded-full transition-all shrink-0 flex items-center gap-1 ${
-                  selectedCategory === cat
-                    ? 'bg-zinc-100 text-zinc-950 font-bold shadow-sm'
-                    : 'bg-chrome-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-chrome-800'
-                }`}
+                className={`px-2.5 py-1 text-2xs font-medium rounded-full transition-all shrink-0 flex items-center gap-1 ${selectedCategory === cat
+                  ? 'bg-zinc-100 text-zinc-950 font-bold shadow-sm'
+                  : 'bg-chrome-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-chrome-800'
+                  }`}
               >
                 <span>{cat === 'ALL' ? 'All Pieces' : cat}</span>
                 <span
-                  className={`text-3xs font-mono px-1 rounded-full ${
-                    selectedCategory === cat
-                      ? 'bg-zinc-300 text-zinc-900'
-                      : 'bg-zinc-800 text-zinc-400'
-                  }`}
+                  className={`text-3xs font-mono px-1 rounded-full ${selectedCategory === cat
+                    ? 'bg-zinc-300 text-zinc-900'
+                    : 'bg-zinc-800 text-zinc-400'
+                    }`}
                 >
                   {count}
                 </span>
@@ -275,7 +272,7 @@ export function PosCatalog({
                     <div className="flex items-center justify-between">
                       <span className="text-3xs text-zinc-400">Unit Price</span>
                       <span className="font-mono font-bold text-sm text-zinc-100 tabular-nums">
-                        ${priceNum.toFixed(2)}
+                        {formatINR(priceNum)}
                       </span>
                     </div>
 
@@ -290,13 +287,12 @@ export function PosCatalog({
                             key={sz}
                             type="button"
                             onClick={() => handleSizeClick(prod, sz, isLocalInStock)}
-                            className={`py-1 rounded text-3xs font-mono font-bold border transition-all flex items-center justify-center gap-0.5 ${
-                              wasJustAdded
-                                ? 'bg-emerald-500 text-black border-emerald-400 scale-95'
-                                : isLocalInStock
+                            className={`py-1 rounded text-3xs font-mono font-bold border transition-all flex items-center justify-center gap-0.5 ${wasJustAdded
+                              ? 'bg-emerald-500 text-black border-emerald-400 scale-95'
+                              : isLocalInStock
                                 ? 'bg-zinc-900 hover:bg-emerald-950/60 border-zinc-800 hover:border-emerald-700 text-zinc-200 hover:text-emerald-300'
                                 : 'bg-zinc-950/60 hover:bg-cyan-950/60 border-dashed border-zinc-800/80 hover:border-cyan-700 text-zinc-500 hover:text-cyan-300'
-                            }`}
+                              }`}
                             title={
                               isLocalInStock
                                 ? `In Stock at ${activeLocationCode} (Sales Floor FLR)`

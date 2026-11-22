@@ -39,6 +39,7 @@ import {
   getDeliveryCouriers,
   updateOrderStatus,
   assignOrderCourier,
+  formatINR,
   type OrderWithItems,
   type UserProfile,
   type OrderStatus,
@@ -90,7 +91,7 @@ export default function LuxuryAdminOrdersPage() {
         if (data.success && Array.isArray(data.orders)) {
           fetchedOrders = data.orders
         }
-      } catch {}
+      } catch { }
 
       // 2. Fetch couriers via server route and fallback orders
       let allCouriers: UserProfile[] = []
@@ -100,7 +101,7 @@ export default function LuxuryAdminOrdersPage() {
         if (Array.isArray(cData?.users)) {
           allCouriers = cData.users
         }
-      } catch {}
+      } catch { }
 
       const supabase = createBrowserClient()
       const [dbOrders] = await Promise.all([
@@ -193,10 +194,10 @@ export default function LuxuryAdminOrdersPage() {
       prev.map((ord) =>
         ord.id === orderId
           ? {
-              ...ord,
-              delivery_partner_id: assignedCourierId,
-              status: assignedCourierId && ord.status === 'pending' ? 'processing' : ord.status,
-            }
+            ...ord,
+            delivery_partner_id: assignedCourierId,
+            status: assignedCourierId && ord.status === 'pending' ? 'processing' : ord.status,
+          }
           : ord
       )
     )
@@ -336,22 +337,20 @@ export default function LuxuryAdminOrdersPage() {
         <div className="flex flex-wrap items-center gap-1.5 text-2xs">
           <button
             onClick={() => setSelectedChannel('all')}
-            className={`px-2.5 py-1 border transition-colors ${
-              selectedChannel === 'all'
-                ? 'bg-chrome-800 text-zinc-100 border-chrome-600 font-bold'
-                : 'bg-chrome-950 text-zinc-400 border-chrome-800 hover:text-zinc-200'
-            }`}
+            className={`px-2.5 py-1 border transition-colors ${selectedChannel === 'all'
+              ? 'bg-chrome-800 text-zinc-100 border-chrome-600 font-bold'
+              : 'bg-chrome-950 text-zinc-400 border-chrome-800 hover:text-zinc-200'
+              }`}
           >
             All Channels ({channelCounts.all})
           </button>
 
           <button
             onClick={() => setSelectedChannel('online_direct')}
-            className={`flex items-center gap-1 px-2.5 py-1 border transition-colors ${
-              selectedChannel === 'online_direct'
-                ? 'bg-cyan-950/40 text-cyan-300 border-cyan-800 font-bold'
-                : 'bg-chrome-950 text-zinc-400 border-chrome-800 hover:text-zinc-200'
-            }`}
+            className={`flex items-center gap-1 px-2.5 py-1 border transition-colors ${selectedChannel === 'online_direct'
+              ? 'bg-cyan-950/40 text-cyan-300 border-cyan-800 font-bold'
+              : 'bg-chrome-950 text-zinc-400 border-chrome-800 hover:text-zinc-200'
+              }`}
           >
             <Globe className="w-3 h-3" />
             <span>Online Direct ({channelCounts.online_direct})</span>
@@ -359,11 +358,10 @@ export default function LuxuryAdminOrdersPage() {
 
           <button
             onClick={() => setSelectedChannel('bolt_tryon')}
-            className={`flex items-center gap-1 px-2.5 py-1 border transition-colors ${
-              selectedChannel === 'bolt_tryon'
-                ? 'bg-amber-950/40 text-amber-300 border-amber-800 font-bold'
-                : 'bg-chrome-950 text-zinc-400 border-chrome-800 hover:text-zinc-200'
-            }`}
+            className={`flex items-center gap-1 px-2.5 py-1 border transition-colors ${selectedChannel === 'bolt_tryon'
+              ? 'bg-amber-950/40 text-amber-300 border-amber-800 font-bold'
+              : 'bg-chrome-950 text-zinc-400 border-chrome-800 hover:text-zinc-200'
+              }`}
           >
             <Clock className="w-3 h-3" />
             <span>Bolt 45m Try-On ({channelCounts.bolt_tryon})</span>
@@ -371,11 +369,10 @@ export default function LuxuryAdminOrdersPage() {
 
           <button
             onClick={() => setSelectedChannel('pos')}
-            className={`flex items-center gap-1 px-2.5 py-1 border transition-colors ${
-              selectedChannel === 'pos'
-                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800 font-bold'
-                : 'bg-chrome-950 text-zinc-400 border-chrome-800 hover:text-zinc-200'
-            }`}
+            className={`flex items-center gap-1 px-2.5 py-1 border transition-colors ${selectedChannel === 'pos'
+              ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800 font-bold'
+              : 'bg-chrome-950 text-zinc-400 border-chrome-800 hover:text-zinc-200'
+              }`}
           >
             <Store className="w-3 h-3" />
             <span>Offline POS ({channelCounts.pos})</span>
@@ -383,11 +380,10 @@ export default function LuxuryAdminOrdersPage() {
 
           <button
             onClick={() => setSelectedChannel('endless_aisle')}
-            className={`flex items-center gap-1 px-2.5 py-1 border transition-colors ${
-              selectedChannel === 'endless_aisle'
-                ? 'bg-purple-950/40 text-purple-300 border-purple-800 font-bold'
-                : 'bg-chrome-950 text-zinc-400 border-chrome-800 hover:text-zinc-200'
-            }`}
+            className={`flex items-center gap-1 px-2.5 py-1 border transition-colors ${selectedChannel === 'endless_aisle'
+              ? 'bg-purple-950/40 text-purple-300 border-purple-800 font-bold'
+              : 'bg-chrome-950 text-zinc-400 border-chrome-800 hover:text-zinc-200'
+              }`}
           >
             <ShoppingBag className="w-3 h-3" />
             <span>Endless Aisle ({channelCounts.endless_aisle})</span>
@@ -437,9 +433,8 @@ export default function LuxuryAdminOrdersPage() {
               return (
                 <React.Fragment key={ord.id}>
                   <TableRow
-                    className={`border-b border-chrome-800 hover:bg-chrome-850 transition-colors cursor-pointer ${
-                      isExpanded ? 'bg-chrome-850/50' : ''
-                    }`}
+                    className={`border-b border-chrome-800 hover:bg-chrome-850 transition-colors cursor-pointer ${isExpanded ? 'bg-chrome-850/50' : ''
+                      }`}
                     onClick={() => toggleExpand(ord.id)}
                   >
                     <TableCell className="p-2 text-center text-zinc-500">
@@ -470,23 +465,22 @@ export default function LuxuryAdminOrdersPage() {
                       <div className="flex items-center gap-1.5">
                         {/* Channel Badge */}
                         <span
-                          className={`text-3xs px-1.5 py-0.5 border uppercase font-semibold ${
-                            channel === 'bolt_tryon'
-                              ? 'bg-amber-950/40 border-amber-800 text-amber-300'
-                              : channel === 'pos'
+                          className={`text-3xs px-1.5 py-0.5 border uppercase font-semibold ${channel === 'bolt_tryon'
+                            ? 'bg-amber-950/40 border-amber-800 text-amber-300'
+                            : channel === 'pos'
                               ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300'
                               : channel === 'endless_aisle'
-                              ? 'bg-purple-950/40 border-purple-800 text-purple-300'
-                              : 'bg-chrome-950 border-chrome-750 text-zinc-300'
-                          }`}
+                                ? 'bg-purple-950/40 border-purple-800 text-purple-300'
+                                : 'bg-chrome-950 border-chrome-750 text-zinc-300'
+                            }`}
                         >
                           {channel === 'bolt_tryon'
                             ? '45m Try-On'
                             : channel === 'pos'
-                            ? 'Boutique POS'
-                            : channel === 'endless_aisle'
-                            ? 'Endless Aisle'
-                            : 'Online Direct'}
+                              ? 'Boutique POS'
+                              : channel === 'endless_aisle'
+                                ? 'Endless Aisle'
+                                : 'Online Direct'}
                         </span>
 
                         {/* Location Hub Badge */}
@@ -526,10 +520,10 @@ export default function LuxuryAdminOrdersPage() {
                     </TableCell>
 
                     <TableCell className="py-2.5 px-3 text-right font-mono text-xs font-bold text-zinc-100 tabular-nums">
-                      <div>${Number(ord.total).toFixed(2)}</div>
+                      <div>{formatINR(ord.total)}</div>
                       {ord.original_total && ord.original_total !== ord.total && (
                         <div className="text-3xs text-zinc-500 line-through">
-                          Orig: ${Number(ord.original_total).toFixed(2)}
+                          Orig: {formatINR(ord.original_total)}
                         </div>
                       )}
                     </TableCell>
@@ -715,7 +709,7 @@ export default function LuxuryAdminOrdersPage() {
                                         </td>
 
                                         <td className="p-2 font-mono text-zinc-300 text-2xs tabular-nums">
-                                          ${Number(item.unit_price).toFixed(2)}
+                                          {formatINR(item.unit_price)}
                                         </td>
 
                                         <td className="p-2 text-2xs">
@@ -766,25 +760,25 @@ export default function LuxuryAdminOrdersPage() {
                               <div className="p-2 bg-chrome-950 border border-chrome-800">
                                 <span className="text-3xs text-zinc-500 block uppercase">Gross Order</span>
                                 <span className="font-mono text-zinc-200 font-bold tabular-nums">
-                                  ${Number(ord.original_total || ord.total).toFixed(2)}
+                                  {formatINR(ord.original_total || ord.total)}
                                 </span>
                               </div>
                               <div className="p-2 bg-chrome-950 border border-chrome-800">
-                                <span className="text-3xs text-zinc-500 block uppercase">Tax (8.5%)</span>
+                                <span className="text-3xs text-zinc-500 block uppercase">GST (12%)</span>
                                 <span className="font-mono text-zinc-200 font-bold tabular-nums">
-                                  ${Number(ord.tax_amount || 0).toFixed(2)}
+                                  {formatINR(ord.tax_amount || 0)}
                                 </span>
                               </div>
                               <div className="p-2 bg-chrome-950 border border-chrome-800">
                                 <span className="text-3xs text-zinc-500 block uppercase">Logistics Fee</span>
                                 <span className="font-mono text-emerald-400 font-bold">
-                                  {Number(ord.shipping_fee) > 0 ? `₹${Number(ord.shipping_fee).toLocaleString("en-IN")}` : 'Complimentary'}
+                                  {Number(ord.shipping_fee) > 0 ? formatINR(ord.shipping_fee) : 'Complimentary'}
                                 </span>
                               </div>
                               <div className="p-2 bg-cyan-950/20 border border-cyan-900/40">
                                 <span className="text-3xs text-cyan-300 block uppercase font-bold">Net Total</span>
                                 <span className="font-mono text-cyan-200 font-bold text-xs tabular-nums">
-                                  ${Number(ord.total).toFixed(2)}
+                                  {formatINR(ord.total)}
                                 </span>
                               </div>
                             </div>

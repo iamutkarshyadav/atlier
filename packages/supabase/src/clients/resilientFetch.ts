@@ -13,6 +13,7 @@ import {
   DEFAULT_PRODUCT_VARIANTS,
   DEFAULT_BOLT_TIMESLOTS,
   DEFAULT_ORDERS,
+  normalizeCategoryRow,
   type UserRole,
 } from '../utils/index'
 
@@ -241,6 +242,21 @@ function saveLocalDbOrderItem(item: any) {
 function loadLocalDbCategories(): any[] {
   const db = readLocalDb()
   if (db && Array.isArray(db.categories) && db.categories.length > 0) {
+    // Ensure all default parent and subcategories are merged if not already present
+    const existingIds = new Set(db.categories.map((c: any) => c.id))
+    const existingSlugs = new Set(db.categories.map((c: any) => c.slug))
+    let modified = false
+    for (const def of DEFAULT_CATEGORIES) {
+      if (!existingIds.has(def.id) && !existingSlugs.has(def.slug)) {
+        db.categories.push(def)
+        modified = true
+      }
+    }
+    if (modified) {
+      updateLocalDb((d) => {
+        d.categories = db.categories
+      })
+    }
     return db.categories
   }
   const mem = (globalThis as any).__LIVE_CATEGORIES__
@@ -1157,11 +1173,14 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
         const catId = item?.id || `c1000000-${Date.now().toString(16).padStart(12, '0')}`
         const catName = item?.name || 'New Category'
         const catSlug = item?.slug || catName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+        const normalizedItem = normalizeCategoryRow(item)
+        const catParentId = normalizedItem?.parent_id ? String(normalizedItem.parent_id).trim() : null
         const newCat = {
           id: catId,
+          parent_id: catParentId,
           name: catName,
           slug: catSlug,
-          description: item?.description || null,
+          description: normalizedItem?.description || null,
           image_url: item?.image_url || 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
           display_order: Number(item?.display_order) || diskCategories.length + 1,
           created_at: new Date().toISOString(),
@@ -1182,7 +1201,17 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
       if (targetId) {
         const existing = diskCategories.find((c: any) => c.id === targetId)
         if (existing) {
-          const updated = { ...existing, ...bodyJson, updated_at: new Date().toISOString() }
+          const updated = {
+            ...existing,
+            ...bodyJson,
+            parent_id:
+              bodyJson.parent_id !== undefined
+                ? bodyJson.parent_id
+                  ? String(bodyJson.parent_id).trim()
+                  : null
+                : existing.parent_id || null,
+            updated_at: new Date().toISOString(),
+          }
           saveLocalDbCategory(updated)
           const accept = getHeader(init?.headers, 'Accept')
           const isSingle = accept.includes('vnd.pgrst.object+json')
@@ -1204,7 +1233,7 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
       }
     }
 
-    let result = [...loadLocalDbCategories()]
+    let result = loadLocalDbCategories().map(normalizeCategoryRow)
     if (targetId) {
       result = result.filter((c: any) => c.id === targetId)
     } else if (targetSlug) {
@@ -2472,6 +2501,124 @@ export async function handleOfflineSupabaseRequest(url: string, init?: RequestIn
         condition: bodyJson?.p_condition || 'pass',
         refund_mode: bodyJson?.p_refund_mode || 'store_credit',
         success: true,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  if (url.includes('/rest/v1/rpc/atomic_create_order_and_reserve')) {
+    const orderData = bodyJson?.p_order_data || {}
+    const items = bodyJson?.p_items || []
+    const randSeq = Math.floor(1000 + Math.random() * 9000)
+    const orderId = `ord-${Date.now()}`
+    const orderNumber = orderData.order_number || `ORD-20261123-${randSeq}`
+    const fulfillmentLoc = bodyJson?.p_source_location_id || 'd1000000-0000-0000-0000-000000000001'
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        order_id: orderId,
+        order_number: orderNumber,
+        fulfillment_location_id: fulfillmentLoc,
+        total_amount: orderData.total_amount || 2490,
+        delivery_mode: orderData.delivery_mode || 'direct',
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  if (url.includes('/rest/v1/rpc/generate_bin_directed_pick_wave')) {
+    const orderIds = bodyJson?.p_order_ids || []
+    // Return sample pick tasks for the requested orders
+    const tasks = orderIds.map((oId: string, idx: number) => ({
+      order_id: oId,
+      order_number: `ORD-20261123-${1000 + idx}`,
+      order_item_id: `oi-${idx + 1}`,
+      product_id: 'e1000000-0000-0000-0000-000000000001',
+      product_name: 'Overdyed Heavyweight Boxy Tee',
+      variant_id: 'v1000000-0000-0000-0000-000000000001',
+      variant_title: 'S / Vintage Washed Black',
+      variant_barcode: '8901234560011',
+      sku: 'TEE-WBLK-S',
+      size: 'S',
+      quantity: 1,
+      shelf_id: 'f1000000-0000-0000-0000-000000000001',
+      shelf_coordinate: 'BLK-A-01-A1',
+      shelf_barcode: 'LOC-BLR01-BLK-A-01-A1',
+      zone_name: 'Bulk Storage',
+      available_on_shelf: 25,
+    }))
+
+    return new Response(JSON.stringify(tasks), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (url.includes('/rest/v1/rpc/confirm_shelf_pick')) {
+    return new Response(
+      JSON.stringify({
+        success: true,
+        order_item_id: bodyJson?.p_order_item_id || 'oi-1',
+        shelf_barcode: bodyJson?.p_scanned_shelf_barcode || 'LOC-BLR01-BLK-A-01-A1',
+        shelf_coordinate: 'BLK-A-01-A1',
+        order_all_picked: true,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  if (url.includes('/rest/v1/rpc/complete_bolt_try_on_reconciliation')) {
+    const decisions = bodyJson?.p_decisions || []
+    const kept = decisions.filter((d: any) => d.decision === 'kept').length
+    const rejected = decisions.filter((d: any) => d.decision === 'rejected').length
+    const paymentMode = bodyJson?.p_payment_mode || 'upi'
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        order_id: bodyJson?.p_order_id,
+        order_number: `ORD-BOLT-${Date.now().toString().slice(-4)}`,
+        kept_count: kept,
+        rejected_count: rejected,
+        settlement: {
+          currency: 'INR',
+          currency_symbol: '₹',
+          subtotal: kept * 1200,
+          cgst: kept * 72,
+          sgst: kept * 72,
+          total_collected: kept * 1200,
+          payment_mode: paymentMode,
+          payment_ref: bodyJson?.p_payment_ref || null,
+        },
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  if (url.includes('/rest/v1/rpc/inward_bolt_returns_at_dock')) {
+    const returnItems = bodyJson?.p_return_items || []
+    const passCount = returnItems.filter((it: any) => it.qc_condition === 'pass').length
+    const damagedCount = returnItems.filter((it: any) => it.qc_condition === 'damaged').length
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        order_id: bodyJson?.p_order_id,
+        total_inwarded: returnItems.length,
+        restocked_sellable: passCount,
+        quarantined_damaged: damagedCount,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  if (url.includes('/rest/v1/rpc/execute_stock_transfer_lifecycle')) {
+    return new Response(
+      JSON.stringify({
+        success: true,
+        transfer_id: bodyJson?.p_transfer_id,
+        status: bodyJson?.p_action === 'dispatch' ? 'in_transit' : 'received',
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     )

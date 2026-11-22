@@ -143,10 +143,6 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
   const { parentCategories, subcategoriesMap } = useMemo(() => {
     const parents = categories
       .filter((c) => !c.parent_id)
-      .filter((c) => {
-        const lower = c.name.toLowerCase().trim()
-        return !lower.startsWith('test') && lower !== 'new category'
-      })
       .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
     const subMap: Record<string, Category[]> = {}
     categories.forEach((c) => {
@@ -713,66 +709,90 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
           </ul>
         </div>
 
-        {/* Dynamic Mega-Menu Flyouts */}
-        <AnimatePresence>
-          {/* Parent Category Contextual Dropdown */}
-          {activeMegaMenu && activeMegaMenu !== 'new-arrivals' && (
-            (() => {
-              const activeParent = parentCategories.find((c) => c.id === activeMegaMenu)
-              const children = activeParent ? subcategoriesMap[activeParent.id] || [] : []
-              if (!activeParent || children.length === 0) return null
+        {/* Fast CSS Hover Mega-Menu Flyouts (Zero AnimatePresence overhead) */}
+        {(() => {
+          const activeParent = parentCategories.find((c) => c.id === activeMegaMenu)
+          const children = activeParent ? subcategoriesMap[activeParent.id] || [] : []
+          const isVisible = Boolean(activeParent && children.length > 0)
 
-              return (
-                <motion.div
-                  initial={{ opacity: 0, y: 3 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 3 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute left-0 right-0 top-full bg-white border-t border-b border-[#d3d6db] shadow-xl z-40"
-                  onMouseEnter={() => {
-                    if (megaMenuTimeoutRef.current) clearTimeout(megaMenuTimeoutRef.current)
-                  }}
-                  onMouseLeave={handleMouseLeaveMenu}
-                >
-                  <div className="max-w-[1100px] mx-auto px-6 py-5">
-                    <div className="flex items-center justify-between pb-2.5 mb-4 border-b border-[#e5e7eb]">
-                      <span className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
+          return (
+            <div
+              className={`absolute left-0 right-0 top-full bg-white border-t border-b border-[#d3d6db] shadow-2xl z-40 transition-all duration-150 ease-out ${
+                isVisible
+                  ? 'opacity-100 translate-y-0 pointer-events-auto visible'
+                  : 'opacity-0 translate-y-1 pointer-events-none invisible'
+              }`}
+              onMouseEnter={() => {
+                if (megaMenuTimeoutRef.current) clearTimeout(megaMenuTimeoutRef.current)
+              }}
+              onMouseLeave={handleMouseLeaveMenu}
+            >
+              {activeParent && children.length > 0 && (
+                <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                  {/* Category Header Strip */}
+                  <div className="flex items-center justify-between pb-3 mb-5 border-b border-[#e5e7eb]">
+                    <div>
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-[#14293a]">
                         {activeParent.name}
-                      </span>
-                      <Link
-                        href={`/shop?category=${encodeURIComponent(activeParent.slug || activeParent.name)}`}
-                        onClick={() => setActiveMegaMenu(null)}
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-[#b91c1c] hover:underline"
-                      >
-                        <span>View All {activeParent.name}</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
+                      </h3>
+                      {activeParent.description && (
+                        <p className="text-xs text-[#6c7079] mt-0.5 line-clamp-1">
+                          {activeParent.description}
+                        </p>
+                      )}
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                      {children.map((child) => (
+                    <Link
+                      href={`/shop?category=${encodeURIComponent(activeParent.slug || activeParent.name)}`}
+                      onClick={() => setActiveMegaMenu(null)}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-[#b91c1c] hover:underline"
+                    >
+                      <span>View All {activeParent.name}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+
+                  {/* Subcategories Grid with Images */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {children.map((child) => {
+                      const cardImg =
+                        child.image_url ||
+                        activeParent.image_url ||
+                        'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800&q=85'
+
+                      return (
                         <Link
                           key={child.id}
                           href={`/shop?category=${encodeURIComponent(child.slug || child.name)}`}
                           onClick={() => setActiveMegaMenu(null)}
-                          className="p-3 bg-[#f8f8f8] hover:bg-[#f1f1f1] border border-[#e5e7eb] rounded-xs transition-colors group block"
+                          className="group block bg-white border border-[#e5e7eb] hover:border-[#14293a] rounded-xs overflow-hidden transition-all shadow-2xs hover:shadow-md"
                         >
-                          <span className="text-xs font-bold text-[#14293a] group-hover:text-[#b91c1c] block">
-                            {child.name}
-                          </span>
-                          {child.description && (
-                            <span className="text-[11px] text-[#6c7079] line-clamp-1 block mt-0.5">
-                              {child.description}
+                          <div className="relative aspect-[4/5] bg-[#f8f8f8] overflow-hidden">
+                            <img
+                              src={cardImg}
+                              alt={child.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                            />
+                          </div>
+                          <div className="p-3">
+                            <span className="text-xs font-bold text-[#14293a] group-hover:text-[#b91c1c] transition-colors block line-clamp-1">
+                              {child.name}
                             </span>
-                          )}
+                            {child.description && (
+                              <span className="text-[10px] text-[#6c7079] line-clamp-1 block mt-0.5 font-normal">
+                                {child.description}
+                              </span>
+                            )}
+                          </div>
                         </Link>
-                      ))}
-                    </div>
+                      )
+                    })}
                   </div>
-                </motion.div>
-              )
-            })()
-          )}
-        </AnimatePresence>
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </nav>
 
       {/* ========================================================= */}
@@ -896,24 +916,46 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
                         </div>
 
                         {hasChildren && isExpanded && (
-                          <div className="pl-4 pr-3 pb-2 space-y-1 bg-[#fcfcfc]">
+                          <div className="pl-3 pr-3 pb-3 space-y-1.5 bg-[#fcfcfc] border-t border-[#f1f1f1]">
                             <Link
                               href={`/shop?category=${encodeURIComponent(cat.slug || cat.name)}`}
                               onClick={() => setMobileMenuOpen(false)}
-                              className="block py-1.5 px-3 text-xs font-semibold text-[#b91c1c] hover:underline"
+                              className="block py-2 px-3 text-xs font-bold text-[#b91c1c] hover:underline"
                             >
-                              All {cat.name} →
+                              View All {cat.name} →
                             </Link>
-                            {children.map((child) => (
-                              <Link
-                                key={child.id}
-                                href={`/shop?category=${encodeURIComponent(child.slug || child.name)}`}
-                                onClick={() => setMobileMenuOpen(false)}
-                                className="block py-1.5 px-3 text-xs text-[#6c7079] hover:text-[#14293a]"
-                              >
-                                {child.name}
-                              </Link>
-                            ))}
+                            {children.map((child) => {
+                              const thumbImg =
+                                child.image_url ||
+                                cat.image_url ||
+                                'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=300&q=80'
+
+                              return (
+                                <Link
+                                  key={child.id}
+                                  href={`/shop?category=${encodeURIComponent(child.slug || child.name)}`}
+                                  onClick={() => setMobileMenuOpen(false)}
+                                  className="flex items-center gap-2.5 p-1.5 rounded bg-white border border-[#e5e7eb] hover:border-[#14293a] text-xs text-[#14293a] transition-colors"
+                                >
+                                  <div className="w-9 h-9 relative bg-[#f1f1f1] rounded-xs overflow-hidden shrink-0">
+                                    <img
+                                      src={thumbImg}
+                                      alt={child.name}
+                                      className="w-full h-full object-cover"
+                                      loading="lazy"
+                                    />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="font-semibold block truncate">{child.name}</span>
+                                    {child.description && (
+                                      <span className="text-[10px] text-[#6c7079] block truncate font-normal">
+                                        {child.description}
+                                      </span>
+                                    )}
+                                  </div>
+                                </Link>
+                              )
+                            })}
                           </div>
                         )}
                       </div>

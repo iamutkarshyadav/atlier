@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Lock,
 } from 'lucide-react'
+import { formatINR } from '@repo/supabase/utils'
 
 interface PosShiftModalProps {
   isOpen: boolean
@@ -107,26 +108,26 @@ export function PosShiftModal({
                 <span className="flex items-center gap-1.5">
                   <Banknote className="w-3.5 h-3.5 text-amber-400" /> Cash Tender
                 </span>
-                <span className="tabular-nums font-bold">${cashSales.toFixed(2)}</span>
+                <span className="tabular-nums font-bold">{formatINR(cashSales)}</span>
               </div>
 
               <div className="flex justify-between items-center text-zinc-300">
                 <span className="flex items-center gap-1.5">
                   <CreditCard className="w-3.5 h-3.5 text-cyan-400" /> Card EDC
                 </span>
-                <span className="tabular-nums font-bold">${cardSales.toFixed(2)}</span>
+                <span className="tabular-nums font-bold">{formatINR(cardSales)}</span>
               </div>
 
               <div className="flex justify-between items-center text-zinc-300">
                 <span className="flex items-center gap-1.5">
                   <QrCode className="w-3.5 h-3.5 text-emerald-400" /> UPI QR
                 </span>
-                <span className="tabular-nums font-bold">${upiSales.toFixed(2)}</span>
+                <span className="tabular-nums font-bold">{formatINR(upiSales)}</span>
               </div>
 
               <div className="pt-2 border-t border-chrome-800 flex justify-between items-center font-bold text-zinc-100">
                 <span className="font-sans text-xs">Total Net Shift Sales:</span>
-                <span className="text-emerald-400 text-sm tabular-nums">${totalSales.toFixed(2)}</span>
+                <span className="text-emerald-400 text-sm tabular-nums">{formatINR(totalSales)}</span>
               </div>
             </div>
 
@@ -134,12 +135,12 @@ export function PosShiftModal({
             <div className="p-3 bg-chrome-950 border border-chrome-800 rounded space-y-2 font-mono text-xs">
               <div className="flex justify-between text-zinc-400">
                 <span>Opening Cash Float:</span>
-                <span className="tabular-nums">${openingFloat.toFixed(2)}</span>
+                <span className="tabular-nums">{formatINR(openingFloat)}</span>
               </div>
 
               <div className="flex justify-between text-zinc-400">
                 <span>Plus Cash Sales:</span>
-                <span className="tabular-nums text-emerald-400">+${cashSales.toFixed(2)}</span>
+                <span className="tabular-nums text-emerald-400">+{formatINR(cashSales)}</span>
               </div>
 
               <div className="space-y-1 pt-1 border-t border-chrome-800/80">
@@ -159,7 +160,7 @@ export function PosShiftModal({
               <div className="pt-2 border-t border-chrome-800 flex justify-between items-center font-bold text-zinc-100">
                 <span className="font-sans text-xs">Expected Cash In Drawer:</span>
                 <span className="text-amber-400 text-sm tabular-nums">
-                  ${expectedCashInDrawer.toFixed(2)}
+                  {formatINR(expectedCashInDrawer)}
                 </span>
               </div>
             </div>

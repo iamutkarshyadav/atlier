@@ -256,6 +256,13 @@ export default function LuxuryCheckoutPage() {
       })
       const data = await res.json()
 
+      if (res.status === 409 || data?.code === 'INSUFFICIENT_STOCK') {
+        const oosMsg = data?.error || 'One or more items in your cart are currently out of stock. Please adjust quantities before proceeding.'
+        setCheckoutError(oosMsg)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+        return
+      }
+
       if (data?.success && data?.order) {
         activeRef = data.orderNumber || data.order.order_number || generatedRef
         activeInvoice = data.invoiceNumber || data.order.invoice_number || generatedInvoice

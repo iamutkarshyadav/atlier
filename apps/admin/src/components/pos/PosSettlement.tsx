@@ -14,6 +14,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { type PaymentMethod } from './PosTypes'
+import { formatINR } from '@repo/supabase/utils'
 
 interface PosSettlementProps {
   subtotal: number
@@ -79,20 +80,20 @@ export function PosSettlement({
       <div className="space-y-1.5 text-xs">
         <div className="flex justify-between text-zinc-400">
           <span>Subtotal:</span>
-          <span className="font-mono tabular-nums text-zinc-200">${subtotal.toFixed(2)}</span>
+          <span className="font-mono tabular-nums text-zinc-200">{formatINR(subtotal)}</span>
         </div>
 
         {discountAmount > 0 && (
           <div className="flex justify-between text-emerald-400">
             <span>Discounts Applied:</span>
-            <span className="font-mono tabular-nums">-${discountAmount.toFixed(2)}</span>
+            <span className="font-mono tabular-nums">-{formatINR(discountAmount)}</span>
           </div>
         )}
 
         <div className="flex justify-between text-zinc-400">
           <span>CGST (6%) + SGST (6%):</span>
           <span className="font-mono tabular-nums text-zinc-200">
-            ${(cgst + sgst).toFixed(2)}
+            {formatINR(cgst + sgst)}
           </span>
         </div>
 
@@ -101,7 +102,7 @@ export function PosSettlement({
             Total Payable:
           </span>
           <span className="font-mono font-bold text-lg text-emerald-400 tabular-nums">
-            ${grandTotal.toFixed(2)}
+            {formatINR(grandTotal)}
           </span>
         </div>
       </div>
@@ -116,11 +117,10 @@ export function PosSettlement({
           <button
             type="button"
             onClick={() => onChangePaymentMode('upi')}
-            className={`py-2 px-1 rounded border font-medium text-2xs flex flex-col items-center gap-1 transition-all ${
-              paymentMode === 'upi'
-                ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300 shadow-sm'
-                : 'bg-chrome-950 hover:bg-zinc-800 border-chrome-800 text-zinc-400 hover:text-zinc-200'
-            }`}
+            className={`py-2 px-1 rounded border font-medium text-2xs flex flex-col items-center gap-1 transition-all ${paymentMode === 'upi'
+              ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300 shadow-sm'
+              : 'bg-chrome-950 hover:bg-zinc-800 border-chrome-800 text-zinc-400 hover:text-zinc-200'
+              }`}
           >
             <QrCode className="w-4 h-4" />
             <span>UPI QR</span>
@@ -129,11 +129,10 @@ export function PosSettlement({
           <button
             type="button"
             onClick={() => onChangePaymentMode('card')}
-            className={`py-2 px-1 rounded border font-medium text-2xs flex flex-col items-center gap-1 transition-all ${
-              paymentMode === 'card'
-                ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300 shadow-sm'
-                : 'bg-chrome-950 hover:bg-zinc-800 border-chrome-800 text-zinc-400 hover:text-zinc-200'
-            }`}
+            className={`py-2 px-1 rounded border font-medium text-2xs flex flex-col items-center gap-1 transition-all ${paymentMode === 'card'
+              ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300 shadow-sm'
+              : 'bg-chrome-950 hover:bg-zinc-800 border-chrome-800 text-zinc-400 hover:text-zinc-200'
+              }`}
           >
             <CreditCard className="w-4 h-4" />
             <span>Card EDC</span>
@@ -142,11 +141,10 @@ export function PosSettlement({
           <button
             type="button"
             onClick={() => onChangePaymentMode('cash')}
-            className={`py-2 px-1 rounded border font-medium text-2xs flex flex-col items-center gap-1 transition-all ${
-              paymentMode === 'cash'
-                ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300 shadow-sm'
-                : 'bg-chrome-950 hover:bg-zinc-800 border-chrome-800 text-zinc-400 hover:text-zinc-200'
-            }`}
+            className={`py-2 px-1 rounded border font-medium text-2xs flex flex-col items-center gap-1 transition-all ${paymentMode === 'cash'
+              ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300 shadow-sm'
+              : 'bg-chrome-950 hover:bg-zinc-800 border-chrome-800 text-zinc-400 hover:text-zinc-200'
+              }`}
           >
             <Banknote className="w-4 h-4" />
             <span>Cash</span>
@@ -155,11 +153,10 @@ export function PosSettlement({
           <button
             type="button"
             onClick={() => onChangePaymentMode('split')}
-            className={`py-2 px-1 rounded border font-medium text-2xs flex flex-col items-center gap-1 transition-all ${
-              paymentMode === 'split'
-                ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300 shadow-sm'
-                : 'bg-chrome-950 hover:bg-zinc-800 border-chrome-800 text-zinc-400 hover:text-zinc-200'
-            }`}
+            className={`py-2 px-1 rounded border font-medium text-2xs flex flex-col items-center gap-1 transition-all ${paymentMode === 'split'
+              ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300 shadow-sm'
+              : 'bg-chrome-950 hover:bg-zinc-800 border-chrome-800 text-zinc-400 hover:text-zinc-200'
+              }`}
           >
             <Layers className="w-4 h-4" />
             <span>Split</span>
@@ -266,7 +263,7 @@ export function PosSettlement({
                 onClick={() => handleQuickCashPreset(grandTotal)}
                 className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded text-3xs font-bold transition-colors"
               >
-                Exact (${grandTotal.toFixed(2)})
+                Exact ({formatINR(grandTotal)})
               </button>
               {[100, 200, 500, 1000, 2000].map((amt) => {
                 if (amt < grandTotal * 0.7 && amt < 500) return null
@@ -277,7 +274,7 @@ export function PosSettlement({
                     onClick={() => handleQuickCashPreset(amt)}
                     className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white rounded text-3xs font-bold transition-colors"
                   >
-                    ${amt}
+                    ₹{amt}
                   </button>
                 )
               })}
@@ -303,7 +300,7 @@ export function PosSettlement({
                   Change Due (₹)
                 </label>
                 <div className="w-full bg-chrome-900 border border-chrome-800 rounded px-2.5 py-1.5 text-sm font-mono font-bold text-emerald-400 tabular-nums">
-                  ${changeDue.toFixed(2)}
+                  {formatINR(changeDue)}
                 </div>
               </div>
             </div>
@@ -333,7 +330,7 @@ export function PosSettlement({
               <div className="space-y-1">
                 <label className="text-3xs text-zinc-400 block">Tender 2 ({splitMethod2.toUpperCase()})</label>
                 <div className="w-full bg-chrome-900 border border-chrome-800 rounded px-2 py-1 text-emerald-400 font-mono font-bold">
-                  ${splitBalance2.toFixed(2)}
+                  {formatINR(splitBalance2)}
                 </div>
               </div>
             </div>
@@ -354,11 +351,10 @@ export function PosSettlement({
         type="button"
         onClick={onCheckout}
         disabled={isCheckingOut || !hasItems}
-        className={`w-full h-12 rounded font-sans font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 transition-all shadow-md ${
-          hasItems && !isCheckingOut
-            ? 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950 active:scale-[0.99] cursor-pointer'
-            : 'bg-zinc-800 text-zinc-500 border border-zinc-700 cursor-not-allowed opacity-60'
-        }`}
+        className={`w-full h-12 rounded font-sans font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 transition-all shadow-md ${hasItems && !isCheckingOut
+          ? 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950 active:scale-[0.99] cursor-pointer'
+          : 'bg-zinc-800 text-zinc-500 border border-zinc-700 cursor-not-allowed opacity-60'
+          }`}
       >
         {isCheckingOut ? (
           <>
