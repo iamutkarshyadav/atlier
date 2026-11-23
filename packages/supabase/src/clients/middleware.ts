@@ -46,7 +46,7 @@ export function createMiddlewareClient(request: NextRequest) {
     },
     ...(cookieName ? { cookieOptions: { name: cookieName } } : {}),
     global: {
-      fetch: createResilientFetch({ timeoutMs: 2000 }),
+      fetch: createResilientFetch({ timeoutMs: 15000 }),
     },
   })
 

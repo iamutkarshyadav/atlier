@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@repo/supabase/server'
-import { SEEDED_ACCOUNTS } from '@repo/supabase'
+import { createServiceRoleClient } from '@repo/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,56 +48,66 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 1. Sync into SEEDED_ACCOUNTS for in-memory Auth provider
-    const existingSeeded = SEEDED_ACCOUNTS.find(
-      (a) => a.email.toLowerCase() === trimmedEmail
-    )
-    if (existingSeeded) {
-      existingSeeded.role = 'admin'
-      existingSeeded.name = trimmedName
-      existingSeeded.password = password
+    const supabase = createServiceRoleClient()
+
+    // 1. Check or create in Supabase Auth
+    let userId: string | null = null
+    let isNew = false
+
+    const { data: createData, error: createError } = await supabase.auth.admin.createUser({
+      email: trimmedEmail,
+      password,
+      email_confirm: true,
+      user_metadata: { name: trimmedName, role: 'admin' },
+      app_metadata: { role: 'admin' },
+    })
+
+    if (createData?.user) {
+      userId = createData.user.id
+      isNew = true
     } else {
-      SEEDED_ACCOUNTS.push({
-        id: `admin-${Date.now()}`,
-        email: trimmedEmail,
-        name: trimmedName,
-        role: 'admin',
-        password,
-      })
-    }
-
-    // 2. Persist to Supabase single source of truth
-    let dbUser: any = null
-    let isNew = !existingSeeded
-    try {
-      const supabase = await createServerSupabaseClient()
-      const { data: existing } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', trimmedEmail)
-        .maybeSingle()
-
-      isNew = !existing
-      const { data: upsertedUser } = await supabase
-        .from('users')
-        .upsert(
-          {
-            id: existing?.id || `user-${Date.now()}`,
-            email: trimmedEmail,
-            name: trimmedName,
-            role: 'admin',
-          },
-          { onConflict: 'email' }
+      // Find existing user in auth
+      const { data: listData } = await supabase.auth.admin.listUsers()
+      const existingUser = listData?.users?.find(
+        (u) => u.email?.toLowerCase() === trimmedEmail
+      )
+      if (existingUser) {
+        userId = existingUser.id
+        await supabase.auth.admin.updateUserById(userId, {
+          password,
+          user_metadata: { name: trimmedName, role: 'admin' },
+          app_metadata: { role: 'admin' },
+        })
+      } else {
+        return NextResponse.json(
+          { error: `Failed to provision admin in Supabase: ${createError?.message || 'Unknown'}` },
+          { status: 500 }
         )
-        .select()
-        .maybeSingle()
-
-      dbUser = upsertedUser
-    } catch (err) {
-      // Supabase handled via resilient layer
+      }
     }
 
-    const userId = dbUser?.id || existingSeeded?.id || `admin-${Date.now()}`
+    // 2. Persist to public.users table in Supabase
+    const { data: upsertedUser, error: dbErr } = await supabase
+      .from('users')
+      .upsert(
+        {
+          id: userId,
+          email: trimmedEmail,
+          name: trimmedName,
+          role: 'admin',
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      )
+      .select()
+      .maybeSingle()
+
+    if (dbErr) {
+      return NextResponse.json(
+        { error: `Database user record upsert failed: ${dbErr.message}` },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json(
       {
@@ -109,12 +118,12 @@ export async function POST(req: NextRequest) {
           email: trimmedEmail,
           name: trimmedName,
           role: 'ADMIN',
-          createdAt: dbUser?.created_at || new Date().toISOString(),
-          updatedAt: dbUser?.updated_at || new Date().toISOString(),
+          createdAt: upsertedUser?.created_at || new Date().toISOString(),
+          updatedAt: upsertedUser?.updated_at || new Date().toISOString(),
         },
         message: isNew
-          ? `Administrator "${trimmedName}" (${trimmedEmail}) successfully created.`
-          : `User "${trimmedName}" (${trimmedEmail}) updated and elevated to ADMIN role.`,
+          ? `Administrator "${trimmedName}" (${trimmedEmail}) successfully created in Supabase.`
+          : `User "${trimmedName}" (${trimmedEmail}) updated and elevated to ADMIN role in Supabase.`,
         credentials: {
           email: trimmedEmail,
           role: 'ADMIN',
@@ -135,6 +144,19 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  const admins = SEEDED_ACCOUNTS.filter((a) => a.role === 'admin')
-  return NextResponse.json({ admins }, { status: 200 })
+  try {
+    const supabase = createServiceRoleClient()
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('role', 'admin')
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ admins: data || [] }, { status: 200 })
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || 'Error fetching admins' }, { status: 500 })
+  }
 }

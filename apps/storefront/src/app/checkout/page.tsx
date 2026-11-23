@@ -222,6 +222,7 @@ export default function LuxuryCheckoutPage() {
       const orderPayload = {
         customer_email: formData.email,
         orderData: {
+          name: formData.name,
           user_id: currentUserId,
           order_number: generatedRef,
           invoice_number: generatedInvoice,
@@ -242,9 +243,11 @@ export default function LuxuryCheckoutPage() {
         },
         items: items.map((it) => ({
           productId: it.productId || it.id,
+          variantId: (it as any).variantId || undefined,
           quantity: it.quantity,
           unitPrice: it.price,
           size: it.size,
+          color: (it as any).color || undefined,
         })),
       }
 

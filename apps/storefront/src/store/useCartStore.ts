@@ -26,6 +26,8 @@ export interface CartItem {
   quantity: number
   image: string
   size?: string
+  color?: string
+  variantId?: string
 }
 
 

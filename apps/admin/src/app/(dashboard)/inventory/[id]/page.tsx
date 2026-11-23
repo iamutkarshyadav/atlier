@@ -107,7 +107,7 @@ export default function GarmentEditStudioPage() {
     }
   }, [productId])
 
-  // Multi-image upload handler
+  // Multi-image upload handler via unified server endpoint
   const handleMultiFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
@@ -115,14 +115,24 @@ export default function GarmentEditStudioPage() {
     setIsUploadingMedia(true)
     setFeedback(null)
     try {
-      const supabase = createBrowserClient()
       const newUploads: string[] = []
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i]!
-        const { url, error } = await uploadProductImage(supabase, file)
-        if (url) {
-          newUploads.push(url)
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('folder', 'products')
+
+        const res = await fetch('/api/admin/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        const data = await res.json()
+
+        if (res.ok && data.success && data.publicUrl) {
+          newUploads.push(data.publicUrl)
+        } else {
+          setFeedback({ type: 'error', message: `Upload error for ${file.name}: ${data.error || 'Server error'}` })
         }
       }
 
@@ -137,7 +147,7 @@ export default function GarmentEditStudioPage() {
         if (!primaryImageUrl && newUploads[0]) {
           setPrimaryImageUrl(newUploads[0])
         }
-        setFeedback({ type: 'success', message: `Uploaded ${newUploads.length} product image(s).` })
+        setFeedback({ type: 'success', message: `Uploaded ${newUploads.length} product image(s) to Supabase Storage.` })
       }
     } catch (err: any) {
       setFeedback({ type: 'error', message: err?.message || 'Error uploading media' })

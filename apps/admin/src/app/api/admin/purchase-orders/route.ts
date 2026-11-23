@@ -23,6 +23,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
+const isUuid = (val: any): boolean =>
+  typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -31,8 +34,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing purchase order data' }, { status: 400 })
     }
 
+    const sanitizedPoData = {
+      ...poData,
+      created_by: isUuid(poData.created_by) ? poData.created_by : null,
+    }
+
     const supabase = createServiceRoleClient()
-    const result = await createPurchaseOrderWithItems(supabase, poData, items || [])
+    const result = await createPurchaseOrderWithItems(supabase, sanitizedPoData, items || [])
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 })
     }

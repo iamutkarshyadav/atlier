@@ -46,7 +46,7 @@ export async function createServerSupabaseClient(): Promise<SupabaseClient<Datab
       },
       ...(cookieName ? { cookieOptions: { name: cookieName } } : {}),
       global: {
-        fetch: createResilientFetch({ timeoutMs: 2000 }),
+        fetch: createResilientFetch({ timeoutMs: 15000 }),
       },
     }
   ) as unknown as SupabaseClient<Database>
@@ -73,7 +73,7 @@ export function createServiceRoleClient(): SupabaseClient<Database> {
       persistSession: false,
     },
     global: {
-      fetch: createResilientFetch({ timeoutMs: 3000 }),
+      fetch: createResilientFetch({ timeoutMs: 15000 }),
     },
   })
 }

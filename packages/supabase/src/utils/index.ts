@@ -2002,8 +2002,9 @@ export const DEFAULT_HOMEPAGE_SECTIONS = [
   { id: 'trust_strip', name: 'Value & Trust Badges', is_active: true, order: 2 },
   { id: 'marquee', name: 'Fabric & Craft Marquee', is_active: true, order: 3 },
   { id: 'product_showcase', name: 'Category Strip & New Arrivals', is_active: true, order: 4 },
-  { id: 'spotlight_grid', name: 'Featured Collections', is_active: true, order: 5 },
-  { id: 'newsletter', name: 'Newsletter', is_active: true, order: 6 },
+  { id: 'shop_by_occasion', name: 'Shop By Occasion', is_active: true, order: 5 },
+  { id: 'spotlight_grid', name: 'Featured Collections', is_active: true, order: 6 },
+  { id: 'newsletter', name: 'Newsletter', is_active: true, order: 7 },
 ]
 
 /**
@@ -2303,33 +2304,34 @@ export async function updateVariantStock(
 }
 
 /**
- * Uploads a product image or provides fallbacks for storage.
+ * Uploads a product image directly to the Supabase Storage 'product-media' bucket.
+ * Strictly avoids ephemeral blob URL fallbacks to prevent data loss.
  */
 export async function uploadProductImage(
   supabase: SupabaseClient<Database>,
   file: File
 ): Promise<{ url: string | null; error?: string }> {
   try {
-    const fileExt = file.name.split('.').pop()
+    const fileExt = file.name.split('.').pop() || 'jpg'
     const fileName = `apparel-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`
     const filePath = `catalog/${fileName}`
 
-    const { error: uploadError } = await supabase.storage.from('products').upload(filePath, file)
+    const { error: uploadError } = await supabase.storage
+      .from('product-media')
+      .upload(filePath, file, {
+        contentType: file.type || 'image/jpeg',
+        cacheControl: '3600',
+        upsert: true,
+      })
 
     if (uploadError) {
-      const objectUrl = URL.createObjectURL(file)
-      return { url: objectUrl }
+      return { url: null, error: uploadError.message }
     }
 
-    const { data } = supabase.storage.from('products').getPublicUrl(filePath)
+    const { data } = supabase.storage.from('product-media').getPublicUrl(filePath)
     return { url: data.publicUrl }
   } catch (err: any) {
-    try {
-      const objectUrl = URL.createObjectURL(file)
-      return { url: objectUrl }
-    } catch {
-      return { url: null, error: err?.message || 'Upload error' }
-    }
+    return { url: null, error: err?.message || 'Upload error' }
   }
 }
 
@@ -2874,10 +2876,13 @@ export async function receiveSplitGrnAndPutaway(
   error?: string
 }> {
   try {
+    const isUuid = (val: any): boolean =>
+      typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
+
     const { data, error } = await (supabase.rpc as any)('receive_split_grn_and_putaway', {
       p_po_id: params.poId,
       p_challan_number: params.challanNumber || null,
-      p_operator_id: params.operatorId || null,
+      p_operator_id: isUuid(params.operatorId) ? params.operatorId : null,
       p_splits: params.splits,
     })
 
@@ -3455,9 +3460,17 @@ export async function createPurchaseOrderWithItems(
   }>
 ): Promise<{ success: boolean; po?: any; error?: string }> {
   try {
+    const isUuid = (val: any): boolean =>
+      typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
+
+    const cleanPoData = {
+      ...poData,
+      created_by: isUuid(poData.created_by) ? poData.created_by : null,
+    }
+
     const { data: newPo, error: poErr } = await supabase
       .from('purchase_orders')
-      .insert(poData as any)
+      .insert(cleanPoData as any)
       .select()
       .single()
 

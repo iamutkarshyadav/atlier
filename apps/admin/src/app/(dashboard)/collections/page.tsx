@@ -254,8 +254,9 @@ export default function AdminCollectionsPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('folder', 'collections')
 
-      const res = await fetch('/api/admin/collections/upload', {
+      const res = await fetch('/api/admin/upload', {
         method: 'POST',
         body: formData,
       })

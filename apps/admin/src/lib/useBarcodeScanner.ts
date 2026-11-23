@@ -22,6 +22,9 @@ export function useBarcodeScanner({
     if (!enabled) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Guard against undefined/null events or missing key property (e.g. IME, autofill, dead keys)
+      if (!e || typeof e.key !== 'string') return
+
       // Ignore functional hotkeys like Ctrl, Alt, Meta
       if (e.ctrlKey || e.metaKey || e.altKey) return
 
@@ -56,7 +59,7 @@ export function useBarcodeScanner({
         return
       }
 
-      if (e.key.length === 1) {
+      if (e.key && e.key.length === 1) {
         if (interval > maxIntervalMs) {
           // New burst start
           bufferRef.current = e.key

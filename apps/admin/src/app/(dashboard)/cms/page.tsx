@@ -131,34 +131,26 @@ export default function StorefrontCMSCommandCenter() {
     }
   }
 
-  // Hero Carousel Actions
+  // Hero Carousel Actions via unified server upload
   const handleUploadBannerImage = async (file: File) => {
     setUploadingImage(true)
     try {
-      const supabase = createBrowserClient()
-      const filename = `banners/banner-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '')}`
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('folder', 'banners')
 
-      // Attempt upload to product-media bucket under banners/ path
-      let { data, error } = await supabase.storage.from('product-media').upload(filename, file, {
-        cacheControl: '3600',
-        upsert: true,
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
       })
+      const data = await res.json()
 
-      if (error) {
-        // Fallback to promotional-banners bucket
-        const retry = await supabase.storage.from('promotional-banners').upload(filename, file, {
-          cacheControl: '3600',
-          upsert: true,
-        })
-        if (retry.error) throw retry.error
-        const { data: publicData } = supabase.storage.from('promotional-banners').getPublicUrl(filename)
-        setNewBanner((prev) => ({ ...prev, image_url: publicData.publicUrl }))
-      } else {
-        const { data: publicData } = supabase.storage.from('product-media').getPublicUrl(filename)
-        setNewBanner((prev) => ({ ...prev, image_url: publicData.publicUrl }))
+      if (!res.ok || !data.success || !data.publicUrl) {
+        throw new Error(data.error || 'Banner upload failed')
       }
 
-      setFeedback({ type: 'success', message: 'Banner asset uploaded successfully.' })
+      setNewBanner((prev) => ({ ...prev, image_url: data.publicUrl }))
+      setFeedback({ type: 'success', message: 'Banner asset uploaded successfully to Supabase Storage.' })
     } catch (err: any) {
       setFeedback({ type: 'error', message: err?.message || 'Failed to upload image asset' })
     } finally {

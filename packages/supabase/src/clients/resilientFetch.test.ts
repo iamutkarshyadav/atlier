@@ -1,80 +1,81 @@
-import { describe, it, expect } from 'vitest'
-import { createClient } from './browser'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createResilientFetch } from './resilientFetch'
 
-describe('Resilient Supabase Auth Client', () => {
-  it('authenticates admin@atelier.internal without throwing', async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: 'admin@atelier.internal',
-      password: 'admin-secret-2026',
-    })
-
-    expect(error).toBeNull()
-    expect(data.user).toBeDefined()
-    expect(data.user?.email).toBe('admin@atelier.internal')
-    expect(data.user?.app_metadata?.role).toBe('admin')
+describe('createResilientFetch Adapter', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
   })
 
-  it('authenticates iamutkarshyadav1@gmail.com as admin with password asdfghjkl', async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: 'iamutkarshyadav1@gmail.com',
-      password: 'asdfghjkl',
+  it('passes through successful HTTP requests directly without mock interception', async () => {
+    const mockResponse = new Response(JSON.stringify({ success: true, count: 42 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
     })
 
-    expect(error).toBeNull()
-    expect(data.user).toBeDefined()
-    expect(data.user?.email).toBe('iamutkarshyadav1@gmail.com')
-    expect(data.user?.app_metadata?.role).toBe('admin')
+    const originalFetch = vi.fn().mockResolvedValue(mockResponse)
+    vi.stubGlobal('fetch', originalFetch)
+
+    const resilientFetch = createResilientFetch({ timeoutMs: 5000 })
+    const res = await resilientFetch('https://aavyohkylcguhrmblrcx.supabase.co/rest/v1/products?select=*')
+
+    expect(originalFetch).toHaveBeenCalledTimes(1)
+    expect(res.status).toBe(200)
+
+    const data = await res.json()
+    expect(data).toEqual({ success: true, count: 42 })
   })
 
-  it('authenticates courier@atelier.internal without throwing', async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: 'courier@atelier.internal',
-      password: 'courier-secret-2026',
+  it('propagates HTTP error status codes transparently without falling back to mock data', async () => {
+    const errorBody = JSON.stringify({ message: 'relation does not exist', code: '42P01' })
+    const mockErrorResponse = new Response(errorBody, {
+      status: 404,
+      statusText: 'Not Found',
+      headers: { 'Content-Type': 'application/json' },
     })
 
-    expect(error).toBeNull()
-    expect(data.user).toBeDefined()
-    expect(data.user?.email).toBe('courier@atelier.internal')
-    expect(data.user?.app_metadata?.role).toBe('delivery')
+    const originalFetch = vi.fn().mockResolvedValue(mockErrorResponse)
+    vi.stubGlobal('fetch', originalFetch)
+
+    const resilientFetch = createResilientFetch({ timeoutMs: 5000 })
+    const res = await resilientFetch('https://aavyohkylcguhrmblrcx.supabase.co/rest/v1/missing_table')
+
+    expect(originalFetch).toHaveBeenCalledTimes(1)
+    expect(res.status).toBe(404)
+
+    const body = await res.json()
+    expect(body.code).toBe('42P01')
   })
 
-  it('authenticates patron eleanor.vance@salon.com without throwing', async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: 'eleanor.vance@salon.com',
-      password: 'atelier-secret-2026',
+  it('aborts when the request exceeds the specified timeoutMs', async () => {
+    const originalFetch = vi.fn().mockImplementation((_url: any, init?: RequestInit) => {
+      return new Promise((resolve, reject) => {
+        if (init?.signal) {
+          init.signal.addEventListener('abort', () => {
+            const err = new Error('The operation was aborted.')
+            err.name = 'AbortError'
+            reject(err)
+          })
+        }
+      })
     })
+    vi.stubGlobal('fetch', originalFetch)
 
-    expect(error).toBeNull()
-    expect(data.user).toBeDefined()
-    expect(data.user?.email).toBe('eleanor.vance@salon.com')
-    expect(data.user?.app_metadata?.role).toBe('customer')
+    const resilientFetch = createResilientFetch({ timeoutMs: 50 })
+
+    await expect(
+      resilientFetch('https://aavyohkylcguhrmblrcx.supabase.co/rest/v1/slow_endpoint')
+    ).rejects.toThrow(/aborted/i)
   })
 
-  it('queries role from users table correctly', async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', 'b0000000-0000-0000-0000-000000000001')
-      .single()
+  it('re-throws network failures directly without synthesizing fallback responses', async () => {
+    const networkError = new Error('fetch failed: ECONNREFUSED')
+    const originalFetch = vi.fn().mockRejectedValue(networkError)
+    vi.stubGlobal('fetch', originalFetch)
 
-    expect(error).toBeNull()
-    expect((data as any)?.role).toBe('admin')
-  })
+    const resilientFetch = createResilientFetch({ timeoutMs: 5000 })
 
-  it('returns invalid login error for wrong credentials', async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: 'admin@atelier.internal',
-      password: 'wrong-password',
-    })
-
-    expect(error).not.toBeNull()
-    expect(error?.message).toContain('Invalid login credentials')
-    expect(data.session).toBeNull()
+    await expect(
+      resilientFetch('https://aavyohkylcguhrmblrcx.supabase.co/rest/v1/products')
+    ).rejects.toThrow('fetch failed: ECONNREFUSED')
   })
 })

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@repo/supabase'
-import { createServerSupabaseClient } from '@repo/supabase/server'
-import type { Database, UserRole } from '@repo/supabase/types'
-import { SEEDED_ACCOUNTS } from '@repo/supabase'
+import { createServerSupabaseClient, createServiceRoleClient } from '@repo/supabase/server'
+import type { UserRole } from '@repo/supabase/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,78 +50,74 @@ export async function POST(req: NextRequest) {
       ? (role === 'delivery' ? 'delivery_partner' : role)
       : 'customer'
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/"/g, '')
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.replace(/"/g, '')
+    const adminClient = createServiceRoleClient()
 
-    // If Supabase credentials are live, attempt live creation
-    if (supabaseUrl && serviceRoleKey && !supabaseUrl.includes('placeholder')) {
-      try {
-        const adminClient = createClient<Database>(supabaseUrl, serviceRoleKey, {
-          auth: { autoRefreshToken: false, persistSession: false },
+    // 3. Create or update user in Supabase Auth via Service Role Client
+    const trimmedEmail = email.trim().toLowerCase()
+    const trimmedName = name.trim()
+
+    const { data: createdAuth, error: createAuthErr } =
+      await adminClient.auth.admin.createUser({
+        email: trimmedEmail,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          name: trimmedName,
+          role: assignedRole,
+        },
+        app_metadata: {
+          role: assignedRole,
+        },
+      })
+
+    let userId = createdAuth?.user?.id
+
+    if (createAuthErr) {
+      // If user already exists in auth, find user ID
+      const { data: listData } = await adminClient.auth.admin.listUsers()
+      const existingAuth = listData?.users?.find(
+        (u) => u.email?.toLowerCase() === trimmedEmail
+      )
+      if (existingAuth) {
+        userId = existingAuth.id
+        await adminClient.auth.admin.updateUserById(userId, {
+          password,
+          user_metadata: { name: trimmedName, role: assignedRole },
+          app_metadata: { role: assignedRole },
         })
-
-        const { data: createdAuth, error: createAuthErr } =
-          await adminClient.auth.admin.createUser({
-            email: email.trim(),
-            password,
-            email_confirm: true,
-            user_metadata: {
-              name: name.trim(),
-              role: assignedRole,
-            },
-            app_metadata: {
-              role: assignedRole,
-            },
-          })
-
-        if (!createAuthErr && createdAuth?.user) {
-          const newUserId = createdAuth.user.id
-
-          await adminClient.from('users').upsert(
-            {
-              id: newUserId,
-              email: email.trim(),
-              name: name.trim(),
-              role: assignedRole,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'id' }
-          )
-
-          return NextResponse.json({
-            success: true,
-            message: `User "${name.trim()}" (${email.trim()}) successfully provisioned as ${assignedRole.toUpperCase()}.`,
-            userId: newUserId,
-            role: assignedRole,
-          })
-        }
-      } catch {
-        // Fallback to local in-memory registry
+      } else {
+        return NextResponse.json(
+          { error: `Auth creation failed: ${createAuthErr.message}` },
+          { status: 400 }
+        )
       }
     }
 
-    // 3. Fallback / Local Offline Registration
-    const existing = SEEDED_ACCOUNTS.find((a) => a.email.toLowerCase() === email.trim().toLowerCase())
-    if (existing) {
-      existing.role = assignedRole
-      existing.name = name.trim()
-      existing.password = password
-    } else {
-      SEEDED_ACCOUNTS.push({
-        id: `user-${Date.now()}`,
-        email: email.trim().toLowerCase(),
-        name: name.trim(),
-        role: assignedRole,
-        password,
-      })
+    if (userId) {
+      const { error: dbErr } = await adminClient.from('users').upsert(
+        {
+          id: userId,
+          email: trimmedEmail,
+          name: trimmedName,
+          role: assignedRole,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      )
+
+      if (dbErr) {
+        return NextResponse.json(
+          { error: `Database user record upsert failed: ${dbErr.message}` },
+          { status: 500 }
+        )
+      }
     }
 
     return NextResponse.json({
       success: true,
-      message: `User "${name.trim()}" (${email.trim()}) successfully provisioned as ${assignedRole.toUpperCase()}.`,
-      userId: `user-${Date.now()}`,
+      message: `User "${trimmedName}" (${trimmedEmail}) successfully provisioned as ${assignedRole.toUpperCase()} in Supabase.`,
+      userId,
       role: assignedRole,
-      offline: true,
     })
   } catch (err: any) {
     return NextResponse.json(
@@ -132,4 +126,3 @@ export async function POST(req: NextRequest) {
     )
   }
 }
-

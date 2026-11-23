@@ -32,12 +32,25 @@ export async function GET() {
       pendingTransfersCount = 0
     }
 
+    // 4. Open purchase orders awaiting GRN receipt
+    let openPoCount = 0
+    try {
+      const { count } = await supabase
+        .from('purchase_orders')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['issued', 'partially_received'])
+      openPoCount = count ?? 0
+    } catch {
+      openPoCount = 0
+    }
+
     return NextResponse.json({
       success: true,
       metrics: {
         openOrdersCount: openOrdersCount ?? 0,
         lowStockCount: lowStockCount ?? 0,
         pendingTransfersCount,
+        openPoCount,
       },
     })
   } catch (err: any) {

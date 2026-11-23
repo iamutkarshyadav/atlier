@@ -22,6 +22,9 @@ import {
   Layers,
   Sparkles,
   Split,
+  Filter,
+  X,
+  Package,
 } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { createBrowserClient } from '@repo/supabase/browser'
@@ -33,6 +36,7 @@ import {
   getLocations,
   getLocationShelves,
   getAllProductsAdmin,
+  getCategories,
   receiveSplitGrnAndPutaway,
   type PurchaseOrder,
   type PurchaseOrderItem,
@@ -40,12 +44,37 @@ import {
   type StoreLocation,
   type Shelf,
   type Product,
+  type Category,
   type SplitItemReceivePayload,
 } from '@repo/supabase/utils'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { SlideOverDrawer } from '@/components/ui/SlideOverDrawer'
 import { useBarcodeScanner } from '@/lib/useBarcodeScanner'
 import { PurchaseOrderPrintModal, type PurchaseOrderPrintData } from '@/components/ui/PrintTemplates'
+
+const isUuid = (val: any): boolean =>
+  typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
+
+export interface VariantCatalogOption {
+  id: string
+  sku: string
+  size: string
+  cost_price: number | null
+  stock: number
+  hsn_code: string | null
+  product_id: string
+  product?: {
+    id: string
+    title: string
+    price: number
+    image_url: string | null
+    category_id?: string | null
+    category?: string | null
+    material?: string | null
+    edition?: string | null
+    description?: string | null
+  }
+}
 
 interface LineItemDraft {
   variantId: string
@@ -57,6 +86,8 @@ interface LineItemDraft {
   unitCost: number
   gstPercent: number
   destinationLocationId?: string
+  category?: string
+  material?: string
 }
 
 interface LocationAllocationDraft {
@@ -88,16 +119,21 @@ export default function ProcurementPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [locations, setLocations] = useState<StoreLocation[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [availableVariants, setAvailableVariants] = useState<VariantCatalogOption[]>([])
   const [shelvesByLocation, setShelvesByLocation] = useState<Record<string, Shelf[]>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Drawer 1: Create Purchase Order
+  // Drawer 1: Create Purchase Order & Omnisearch Filter States
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false)
   const [selectedSupplierId, setSelectedSupplierId] = useState('')
   const [destLocationId, setDestLocationId] = useState('')
   const [expectedDate, setExpectedDate] = useState('')
   const [lineItems, setLineItems] = useState<LineItemDraft[]>([])
+  const [variantSearchQuery, setVariantSearchQuery] = useState('')
+  const [variantCategoryFilter, setVariantCategoryFilter] = useState('all')
+  const [showCatalogPicker, setShowCatalogPicker] = useState(false)
   const [isSubmittingPO, setIsSubmittingPO] = useState(false)
   const [createPoError, setCreatePoError] = useState<string | null>(null)
 
@@ -117,21 +153,30 @@ export default function ProcurementPage() {
     setIsLoading(true)
     try {
       const supabase = createBrowserClient()
-      const [poRes, supRes, locRes, prods] = await Promise.all([
+      const [poRes, supRes, locRes, prods, varRes, catRes] = await Promise.all([
         fetch('/api/admin/purchase-orders').then((r) => r.json()).catch(() => ({ purchaseOrders: [] })),
         fetch('/api/admin/suppliers').then((r) => r.json()).catch(() => ({ suppliers: [] })),
         fetch('/api/admin/locations').then((r) => r.json()).catch(() => ({ locations: [] })),
         getAllProductsAdmin(supabase),
+        supabase
+          .from('product_variants')
+          .select('id, sku, size, cost_price, stock, hsn_code, product_id, product:products(id, title, price, image_url, category_id, category, material, edition, description)')
+          .order('sku', { ascending: true }),
+        getCategories(supabase),
       ])
 
       const pos: PurchaseOrder[] = Array.isArray(poRes?.purchaseOrders) ? poRes.purchaseOrders : []
       const sups: Supplier[] = Array.isArray(supRes?.suppliers) ? supRes.suppliers : []
       const locs: StoreLocation[] = Array.isArray(locRes?.locations) ? locRes.locations : []
+      const vars: VariantCatalogOption[] = Array.isArray(varRes?.data) ? (varRes.data as any) : []
+      const cats: Category[] = Array.isArray(catRes) ? catRes : []
 
       setPurchaseOrders(pos)
       setSuppliers(sups)
       setLocations(locs)
       setProducts(prods)
+      setAvailableVariants(vars)
+      setCategories(cats)
 
       if (sups.length > 0 && !selectedSupplierId) setSelectedSupplierId(sups[0]?.id || '')
       if (locs.length > 0 && !destLocationId) setDestLocationId(locs[0]?.id || '')
@@ -186,48 +231,152 @@ export default function ProcurementPage() {
     },
   })
 
+  // Group available variants by parent product title for clean optgroup dropdowns
+  const groupedVariants = useMemo(() => {
+    const groups: Record<string, VariantCatalogOption[]> = {}
+    for (const v of availableVariants) {
+      const title = v.product?.title || 'Catalog Garments'
+      if (!groups[title]) groups[title] = []
+      groups[title].push(v)
+    }
+    return Object.entries(groups)
+  }, [availableVariants])
+
+  // Omnisearch filter matching title, SKU, size, category, material, edition, HSN, and description
+  const filteredCatalogVariants = useMemo(() => {
+    const q = variantSearchQuery.toLowerCase().trim()
+    const catFilter = variantCategoryFilter.toLowerCase().trim()
+
+    return availableVariants.filter((v) => {
+      const p = v.product
+
+      // Category filter check
+      if (catFilter !== 'all') {
+        const catDirect = (p?.category || '').toLowerCase()
+        const catObj = categories.find((c) => c.id === p?.category_id)
+        const catObjName = (catObj?.name || '').toLowerCase()
+        if (!catDirect.includes(catFilter) && !catObjName.includes(catFilter)) {
+          return false
+        }
+      }
+
+      if (!q) return true
+
+      // Omnisearch matching EVERYTHING
+      const titleMatch = (p?.title || '').toLowerCase().includes(q)
+      const skuMatch = (v.sku || '').toLowerCase().includes(q)
+      const sizeMatch = (v.size || '').toLowerCase().includes(q)
+      const categoryMatch = (p?.category || '').toLowerCase().includes(q)
+      const materialMatch = (p?.material || '').toLowerCase().includes(q)
+      const editionMatch = (p?.edition || '').toLowerCase().includes(q)
+      const hsnMatch = (v.hsn_code || '').toLowerCase().includes(q)
+      const descMatch = (p?.description || '').toLowerCase().includes(q)
+
+      return (
+        titleMatch ||
+        skuMatch ||
+        sizeMatch ||
+        categoryMatch ||
+        materialMatch ||
+        editionMatch ||
+        hsnMatch ||
+        descMatch
+      )
+    })
+  }, [availableVariants, variantSearchQuery, variantCategoryFilter, categories])
+
+  // Add specific variant directly to PO line items
+  const addVariantToPO = (v: VariantCatalogOption, qty: number = 10) => {
+    const existingIndex = lineItems.findIndex((li) => li.variantId === v.id)
+    if (existingIndex >= 0) {
+      setLineItems((prev) =>
+        prev.map((it, idx) =>
+          idx === existingIndex ? { ...it, quantity: it.quantity + qty } : it
+        )
+      )
+      return
+    }
+
+    const defaultCost =
+      Number(v.cost_price) > 0
+        ? Number(v.cost_price)
+        : Math.round(Number(v.product?.price || 1000) * 0.4)
+
+    setLineItems((prev) => [
+      ...prev,
+      {
+        variantId: v.id,
+        sku: v.sku,
+        title: v.product?.title || 'Garment Item',
+        size: v.size || 'OS',
+        hsn: v.hsn_code || '6201.11',
+        quantity: qty,
+        unitCost: defaultCost,
+        gstPercent: 12,
+        destinationLocationId: destLocationId || locations[0]?.id,
+        category: v.product?.category || '',
+        material: v.product?.material || '',
+      },
+    ])
+  }
+
+  // Quick add all sizes belonging to a specific product
+  const addAllSizesForProduct = (productId: string) => {
+    const prodsVars = availableVariants.filter((v) => v.product_id === productId)
+    for (const v of prodsVars) {
+      addVariantToPO(v, 10)
+    }
+  }
+
   // Open Create PO Drawer
   const openCreatePo = () => {
     setCreatePoError(null)
+    setVariantSearchQuery('')
+    setVariantCategoryFilter('all')
+    setShowCatalogPicker(false)
+
     const today = new Date()
     today.setDate(today.getDate() + 14)
     setExpectedDate(today.toISOString().slice(0, 10))
 
-    if (products.length > 0) {
-      const p = products[0]
+    if (availableVariants.length > 0) {
+      const first = availableVariants[0]!
+      const defaultCost =
+        Number(first.cost_price) > 0
+          ? Number(first.cost_price)
+          : Math.round(Number(first.product?.price || 1000) * 0.4)
+
       setLineItems([
         {
-          variantId: `v-${p?.id || 'prod'}-48`,
-          sku: `SKU-${(p?.title || 'GARMENT').slice(0, 4).toUpperCase()}-48`,
-          title: p?.title || 'Cashmere Topcoat',
-          size: '48',
-          hsn: '6201.11',
+          variantId: first.id,
+          sku: first.sku,
+          title: first.product?.title || 'Garment Item',
+          size: first.size || 'OS',
+          hsn: first.hsn_code || '6201.11',
           quantity: 20,
-          unitCost: Math.round(Number(p?.price || 1000) * 0.4),
+          unitCost: defaultCost,
           gstPercent: 12,
           destinationLocationId: destLocationId || locations[0]?.id,
+          category: first.product?.category || '',
+          material: first.product?.material || '',
         },
       ])
+    } else {
+      setLineItems([])
     }
     setCreateDrawerOpen(true)
   }
 
   const addLineItem = () => {
-    const p = products[Math.floor(Math.random() * products.length)]
-    setLineItems((prev) => [
-      ...prev,
-      {
-        variantId: `v-${Date.now()}`,
-        sku: `SKU-${(p?.title || 'ITEM').slice(0, 4).toUpperCase()}-${Math.floor(10 + Math.random() * 90)}`,
-        title: p?.title || 'Tailored Garment',
-        size: '50',
-        hsn: '6203.31',
-        quantity: 10,
-        unitCost: 150,
-        gstPercent: 12,
-        destinationLocationId: destLocationId || locations[0]?.id,
-      },
-    ])
+    if (availableVariants.length === 0) {
+      setCreatePoError('No catalog product variants found in database. Please create products under Catalog first.')
+      return
+    }
+
+    // Pick first variant not already in the line items, or fallback to first
+    const selectedVariantIds = new Set(lineItems.map((li) => li.variantId))
+    const candidate = availableVariants.find((v) => !selectedVariantIds.has(v.id)) || availableVariants[0]!
+    addVariantToPO(candidate, 10)
   }
 
   const removeLineItem = (index: number) => {
@@ -253,6 +402,16 @@ export default function ProcurementPage() {
       return
     }
 
+    // Validate that every line item has a real UUID
+    for (const it of lineItems) {
+      if (!isUuid(it.variantId)) {
+        setCreatePoError(
+          `Line item "${it.title}" does not have a valid variant selected. Please select a valid garment and size.`
+        )
+        return
+      }
+    }
+
     setIsSubmittingPO(true)
     setCreatePoError(null)
 
@@ -260,6 +419,12 @@ export default function ProcurementPage() {
       const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
       const randSeq = Math.floor(1000 + Math.random() * 9000)
       const poNumber = `PO-${today}-${randSeq}`
+
+      const supabase = createBrowserClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const currentUserId = session?.user?.id && isUuid(session.user.id) ? session.user.id : null
 
       const res = await fetch('/api/admin/purchase-orders', {
         method: 'POST',
@@ -274,7 +439,7 @@ export default function ProcurementPage() {
             subtotal: poSubtotal,
             tax_amount: poTaxAmount,
             total_amount: poGrandTotal,
-            created_by: 'admin',
+            created_by: currentUserId,
           },
           items: lineItems.map((it) => ({
             variant_id: it.variantId,
@@ -483,10 +648,15 @@ export default function ProcurementPage() {
           })),
       }))
 
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const currentUserId = session?.user?.id && isUuid(session.user.id) ? session.user.id : null
+
       const res = await receiveSplitGrnAndPutaway(supabase, {
         poId: activePOForGrn.id,
         challanNumber: grnChallanNumber,
-        operatorId: 'admin',
+        operatorId: currentUserId || undefined,
         splits: splitsPayload,
       })
 
@@ -750,7 +920,7 @@ export default function ProcurementPage() {
         onClose={() => setCreateDrawerOpen(false)}
         title="Issue Commercial Purchase Order"
         description="Specify manufacturing partner, destination receiving warehouse, line items, and wholesale terms."
-        width="max-w-2xl"
+        width="max-w-3xl"
       >
         <form onSubmit={handleCreatePO} className="space-y-4">
           {createPoError && (
@@ -811,93 +981,357 @@ export default function ProcurementPage() {
             />
           </div>
 
+          {/* Catalog Omnisearch & Category Filter Bar */}
+          <div className="pt-2 border-t border-chrome-800 space-y-2">
+            <div className="flex justify-between items-center">
+              <div>
+                <span className="text-2xs uppercase tracking-wider text-zinc-200 font-semibold block flex items-center gap-1.5">
+                  <Search className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Search Catalog Garments</span>
+                </span>
+                <span className="text-3xs text-zinc-500">
+                  Filter by category, garment name, SKU, size, material, or fabric
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCatalogPicker((prev) => !prev)}
+                className={`px-2.5 py-1 text-2xs border flex items-center gap-1.5 font-semibold transition-colors shrink-0 ${
+                  showCatalogPicker || variantSearchQuery || variantCategoryFilter !== 'all'
+                    ? 'bg-cyan-950/60 border-cyan-700/60 text-cyan-300'
+                    : 'bg-chrome-800 border-chrome-700 text-zinc-300 hover:bg-chrome-750'
+                }`}
+              >
+                <Filter className="w-3 h-3" />
+                <span>
+                  {showCatalogPicker ? 'Collapse Catalog' : 'Browse Catalog'} (
+                  {filteredCatalogVariants.length})
+                </span>
+              </button>
+            </div>
+
+            {/* Filter Controls Row */}
+            <div className="bg-chrome-900 border border-chrome-800 p-2 space-y-2">
+              <div className="flex flex-col sm:flex-row gap-2">
+                {/* Category Selector Filter */}
+                <div className="sm:w-52 shrink-0">
+                  <select
+                    value={variantCategoryFilter}
+                    onChange={(e) => {
+                      setVariantCategoryFilter(e.target.value)
+                      setShowCatalogPicker(true)
+                    }}
+                    className="w-full bg-chrome-950 border border-chrome-800 px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-cyan-400 font-mono"
+                  >
+                    <option value="all">All Categories ({categories.length})</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Omnisearch Input */}
+                <div className="relative flex-1">
+                  <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2.5" />
+                  <input
+                    type="text"
+                    value={variantSearchQuery}
+                    onChange={(e) => {
+                      setVariantSearchQuery(e.target.value)
+                      setShowCatalogPicker(true)
+                    }}
+                    placeholder="Search garment title, SKU, size, category, fabric, material..."
+                    className="w-full pl-8 pr-7 py-1.5 bg-chrome-950 border border-chrome-800 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-cyan-400 font-mono"
+                  />
+                  {variantSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setVariantSearchQuery('')}
+                      className="absolute right-2 top-2 text-zinc-500 hover:text-zinc-200"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Active Filter Pill Strip */}
+              {(variantSearchQuery || variantCategoryFilter !== 'all') && (
+                <div className="flex items-center justify-between text-3xs text-zinc-400 pt-1 border-t border-chrome-800/60 font-mono">
+                  <span>
+                    Found <strong className="text-cyan-300">{filteredCatalogVariants.length}</strong> matching item variants
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVariantSearchQuery('')
+                      setVariantCategoryFilter('all')
+                    }}
+                    className="text-cyan-400 hover:underline"
+                  >
+                    Clear Search & Filters
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Quick-Add Results Cards Panel */}
+            {(showCatalogPicker || variantSearchQuery || variantCategoryFilter !== 'all') && (
+              <div className="border border-cyan-900/60 bg-chrome-950 p-2.5 space-y-2 max-h-64 overflow-y-auto">
+                <div className="flex justify-between items-center text-3xs uppercase tracking-wider text-cyan-400 font-semibold">
+                  <span>Catalog Garments & Variants</span>
+                  <span>Click to add directly to PO</span>
+                </div>
+
+                {filteredCatalogVariants.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-zinc-500 font-mono">
+                    No garments match your search criteria. Try a different keyword or category.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {filteredCatalogVariants.slice(0, 24).map((v) => {
+                      const isAlreadyInPo = lineItems.some((li) => li.variantId === v.id)
+                      const defaultCost =
+                        Number(v.cost_price) > 0
+                          ? Number(v.cost_price)
+                          : Math.round(Number(v.product?.price || 1000) * 0.4)
+
+                      return (
+                        <div
+                          key={v.id}
+                          className={`p-2 border transition-colors flex items-center justify-between gap-2 text-xs ${
+                            isAlreadyInPo
+                              ? 'bg-emerald-950/20 border-emerald-800/40'
+                              : 'bg-chrome-900 border-chrome-800 hover:border-chrome-700'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-semibold text-zinc-200 truncate">
+                                {v.product?.title || 'Garment Item'}
+                              </span>
+                              {v.product?.category && (
+                                <span className="px-1 py-0.2 text-3xs bg-chrome-800 text-zinc-400 uppercase font-mono">
+                                  {v.product.category}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-3xs text-zinc-400 font-mono flex-wrap">
+                              <span className="text-cyan-300 font-bold">Size {v.size}</span>
+                              <span>&bull;</span>
+                              <span>{v.sku}</span>
+                              <span>&bull;</span>
+                              <span>Cost: ₹{defaultCost}</span>
+                            </div>
+                            {v.product?.material && (
+                              <div className="text-3xs text-zinc-500 truncate font-mono">
+                                {v.product.material}
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => addVariantToPO(v, 10)}
+                            className={`px-2 py-1 text-2xs font-semibold shrink-0 flex items-center gap-1 transition-colors ${
+                              isAlreadyInPo
+                                ? 'bg-emerald-900/50 hover:bg-emerald-800/60 text-emerald-300 border border-emerald-700/60'
+                                : 'bg-chrome-800 hover:bg-chrome-750 text-zinc-100 border border-chrome-700'
+                            }`}
+                          >
+                            {isAlreadyInPo ? (
+                              <>
+                                <Check className="w-3 h-3 text-emerald-400" />
+                                <span>+10</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3 h-3" />
+                                <span>Add</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                {filteredCatalogVariants.length > 24 && (
+                  <div className="text-center text-3xs text-zinc-500 pt-1 font-mono">
+                    Showing 24 of {filteredCatalogVariants.length} matching variants. Refine search to narrow down.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Line Items Table */}
           <div className="space-y-2 pt-2 border-t border-chrome-800">
             <div className="flex justify-between items-center">
-              <span className="text-2xs uppercase tracking-wider text-zinc-300 font-semibold">
-                Ordered Garments & Fabrics ({lineItems.length})
-              </span>
+              <div>
+                <span className="text-2xs uppercase tracking-wider text-zinc-300 font-semibold block">
+                  Ordered Garments & Fabrics ({lineItems.length})
+                </span>
+                <span className="text-3xs text-zinc-500">
+                  Review quantities and negotiated wholesale costs
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={addLineItem}
-                className="px-2 py-0.5 text-2xs bg-chrome-800 hover:bg-chrome-750 text-zinc-200 border border-chrome-700 flex items-center gap-1"
+                className="px-2.5 py-1 text-2xs bg-chrome-800 hover:bg-chrome-750 text-zinc-200 border border-chrome-700 flex items-center gap-1 font-semibold"
               >
                 <Plus className="w-3 h-3" /> Add Variant Line
               </button>
             </div>
 
-            <div className="border border-chrome-800 divide-y divide-chrome-800 bg-chrome-950 max-h-60 overflow-y-auto">
-              {lineItems.map((item, idx) => (
-                <div key={idx} className="p-2.5 grid grid-cols-12 gap-2 items-center text-xs">
-                  <div className="col-span-5 space-y-0.5">
-                    <span className="font-semibold text-zinc-200 block truncate">{item.title}</span>
-                    <span className="text-3xs text-zinc-500 font-mono">
-                      {item.sku} &bull; Size {item.size}
-                    </span>
+            {lineItems.length === 0 ? (
+              <div className="p-6 text-center text-xs text-zinc-500 border border-dashed border-chrome-800 bg-chrome-950">
+                <p>No garments added to this purchase order yet.</p>
+                <button
+                  type="button"
+                  onClick={addLineItem}
+                  className="mt-2.5 px-3 py-1 text-2xs bg-chrome-800 hover:bg-chrome-700 text-zinc-200 border border-chrome-700 font-semibold inline-flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Garment from Catalog
+                </button>
+              </div>
+            ) : (
+              <div className="border border-chrome-800 divide-y divide-chrome-800 bg-chrome-950 max-h-72 overflow-y-auto">
+                {lineItems.map((item, idx) => (
+                  <div key={idx} className="p-2.5 grid grid-cols-12 gap-2 items-center text-xs">
+                    <div className="col-span-5 space-y-1">
+                      <select
+                        value={item.variantId}
+                        onChange={(e) => {
+                          const selected = availableVariants.find((v) => v.id === e.target.value)
+                          if (selected) {
+                            const defCost =
+                              Number(selected.cost_price) > 0
+                                ? Number(selected.cost_price)
+                                : Math.round(Number(selected.product?.price || 1000) * 0.4)
+                            setLineItems((prev) =>
+                              prev.map((it, i) =>
+                                i === idx
+                                  ? {
+                                      ...it,
+                                      variantId: selected.id,
+                                      sku: selected.sku,
+                                      title: selected.product?.title || 'Garment Item',
+                                      size: selected.size || 'OS',
+                                      hsn: selected.hsn_code || '6201.11',
+                                      unitCost: defCost,
+                                      category: selected.product?.category || '',
+                                      material: selected.product?.material || '',
+                                    }
+                                  : it
+                              )
+                            )
+                          }
+                        }}
+                        className="w-full bg-chrome-900 border border-chrome-800 px-2 py-1 text-2xs text-zinc-100 focus:outline-none focus:border-zinc-400 font-mono truncate"
+                      >
+                        <option value="" disabled>
+                          -- Choose Garment & Size --
+                        </option>
+                        {groupedVariants.map(([prodTitle, vList]) => {
+                          const catLabel = vList[0]?.product?.category ? `[${vList[0].product.category}] ` : ''
+                          return (
+                            <optgroup key={prodTitle} label={`${catLabel}${prodTitle}`}>
+                              {vList.map((v) => (
+                                <option key={v.id} value={v.id}>
+                                  {catLabel}{prodTitle} &bull; Size {v.size} ({v.sku})
+                                </option>
+                              ))}
+                            </optgroup>
+                          )
+                        })}
+                      </select>
+                      <div className="flex items-center gap-1.5 text-3xs text-zinc-500 font-mono truncate">
+                        {item.category && (
+                          <>
+                            <span className="text-zinc-400 uppercase">{item.category}</span>
+                            <span>&bull;</span>
+                          </>
+                        )}
+                        <span>SKU: {item.sku || 'N/A'}</span>
+                        <span>&bull;</span>
+                        <span>Size: {item.size || 'OS'}</span>
+                        <span>&bull;</span>
+                        <span>HSN: {item.hsn || '6201.11'}</span>
+                      </div>
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="text-3xs text-zinc-500 block">Qty</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10) || 1
+                          setLineItems((prev) =>
+                            prev.map((it, i) => (i === idx ? { ...it, quantity: val } : it))
+                          )
+                        }}
+                        className="w-full bg-chrome-900 border border-chrome-800 px-1.5 py-1 text-2xs text-zinc-100 text-center font-mono"
+                      />
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="text-3xs text-zinc-500 block">Cost (₹)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.unitCost}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0
+                          setLineItems((prev) =>
+                            prev.map((it, i) => (i === idx ? { ...it, unitCost: val } : it))
+                          )
+                        }}
+                        className="w-full bg-chrome-900 border border-chrome-800 px-1.5 py-1 text-2xs text-zinc-100 text-center font-mono"
+                      />
+                    </div>
+
+                    <div className="col-span-2 text-right">
+                      <label className="text-3xs text-zinc-500 block">Total</label>
+                      <span className="font-bold text-zinc-200 tabular-nums text-2xs">
+                        ₹{(item.quantity * item.unitCost).toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="col-span-1 text-right">
+                      <button
+                        type="button"
+                        onClick={() => removeLineItem(idx)}
+                        className="text-zinc-500 hover:text-rose-400 p-1 text-sm leading-none"
+                        title="Remove Line"
+                      >
+                        &times;
+                      </button>
+                    </div>
                   </div>
-                  <div className="col-span-2">
-                    <label className="text-3xs text-zinc-500 block">Qty</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value, 10) || 1
-                        setLineItems((prev) =>
-                          prev.map((it, i) => (i === idx ? { ...it, quantity: val } : it))
-                        )
-                      }}
-                      className="w-full bg-chrome-900 border border-chrome-800 px-1.5 py-1 text-2xs text-zinc-100 text-center font-mono"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-3xs text-zinc-500 block">Cost (₹)</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={item.unitCost}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0
-                        setLineItems((prev) =>
-                          prev.map((it, i) => (i === idx ? { ...it, unitCost: val } : it))
-                        )
-                      }}
-                      className="w-full bg-chrome-900 border border-chrome-800 px-1.5 py-1 text-2xs text-zinc-100 text-center font-mono"
-                    />
-                  </div>
-                  <div className="col-span-2 text-right">
-                    <label className="text-3xs text-zinc-500 block">Total</label>
-                    <span className="font-bold text-zinc-200 tabular-nums text-2xs">
-                      ${(item.quantity * item.unitCost).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="col-span-1 text-right">
-                    <button
-                      type="button"
-                      onClick={() => removeLineItem(idx)}
-                      className="text-zinc-600 hover:text-rose-400 p-1"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Subtotal & Taxes */}
           <div className="p-3 bg-chrome-950 border border-chrome-800 space-y-1 text-xs">
             <div className="flex justify-between text-zinc-400 text-2xs">
               <span>Subtotal:</span>
-              <span className="tabular-nums font-mono">${poSubtotal.toFixed(2)}</span>
+              <span className="tabular-nums font-mono">₹{poSubtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-zinc-400 text-2xs">
               <span>Estimated GST Tax (12%):</span>
-              <span className="tabular-nums font-mono">${poTaxAmount.toFixed(2)}</span>
+              <span className="tabular-nums font-mono">₹{poTaxAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-sm font-bold text-zinc-100 pt-1 border-t border-chrome-800">
               <span>Grand Total:</span>
-              <span className="tabular-nums text-emerald-400 font-mono">${poGrandTotal.toFixed(2)}</span>
+              <span className="tabular-nums text-emerald-400 font-mono">₹{poGrandTotal.toFixed(2)}</span>
             </div>
           </div>
 

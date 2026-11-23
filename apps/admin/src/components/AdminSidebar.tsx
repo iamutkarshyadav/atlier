@@ -23,22 +23,26 @@ import {
   Zap,
   ChevronLeft,
   ChevronRight,
-  Scan,
   Sun,
   Moon,
 } from 'lucide-react'
 import { createBrowserClient } from '@repo/supabase/browser'
-import { useLocation } from '@/context/LocationContext'
-import { useBarcodeScanner } from '@/lib/useBarcodeScanner'
 import { useTheme } from '@/context/ThemeContext'
+import { SidebarBadge, type SidebarBadgeVariant } from '@/components/ui/SidebarBadge'
+
+export interface NavItemBadgeConfig {
+  key?: 'openOrdersCount' | 'lowStockCount' | 'pendingTransfersCount' | 'openPoCount'
+  variant?: SidebarBadgeVariant
+  isLive?: boolean
+  title?: string
+}
 
 interface NavItem {
   href: string
   label: string
   icon: React.ComponentType<{ className?: string }>
   exact?: boolean
-  badgeKey?: 'openOrdersCount' | 'lowStockCount' | 'pendingTransfersCount'
-  isPos?: boolean
+  badge?: NavItemBadgeConfig
 }
 
 interface NavGroup {
@@ -51,8 +55,18 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Operations',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-      { href: '/pos', label: 'POS Terminal', icon: Store, isPos: true },
-      { href: '/orders', label: 'Orders', icon: ShoppingBag, badgeKey: 'openOrdersCount' },
+      {
+        href: '/pos',
+        label: 'POS Terminal',
+        icon: Store,
+        badge: { isLive: true, variant: 'emerald', title: 'POS Terminal Live & Online' },
+      },
+      {
+        href: '/orders',
+        label: 'Orders',
+        icon: ShoppingBag,
+        badge: { key: 'openOrdersCount', variant: 'rose', title: 'Open orders requiring fulfillment' },
+      },
       { href: '/dispatch', label: 'Outbound Dispatch', icon: Truck },
       { href: '/bolt', label: 'Bolt Try-On', icon: Zap },
     ],
@@ -60,16 +74,32 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Inventory & WMS',
     items: [
-      { href: '/inventory', label: 'Inventory Matrix', icon: Boxes, exact: true, badgeKey: 'lowStockCount' },
+      {
+        href: '/inventory',
+        label: 'Inventory Matrix',
+        icon: Boxes,
+        exact: true,
+        badge: { key: 'lowStockCount', variant: 'amber', title: 'SKUs with low on-hand stock' },
+      },
       { href: '/locations', label: 'Locations & Shelves', icon: Warehouse },
-      { href: '/inventory/transfers', label: 'Stock Transfers', icon: ArrowLeftRight, badgeKey: 'pendingTransfersCount' },
+      {
+        href: '/inventory/transfers',
+        label: 'Stock Transfers',
+        icon: ArrowLeftRight,
+        badge: { key: 'pendingTransfersCount', variant: 'neutral', title: 'Pending transfers in-transit' },
+      },
       { href: '/inventory/ledger', label: 'Audit Ledger', icon: FileText },
     ],
   },
   {
     label: 'Supply Chain',
     items: [
-      { href: '/procurement', label: 'Purchase Orders & GRN', icon: ClipboardList },
+      {
+        href: '/procurement',
+        label: 'Purchase Orders & GRN',
+        icon: ClipboardList,
+        badge: { key: 'openPoCount', variant: 'neutral', title: 'Open POs awaiting receipt' },
+      },
       { href: '/suppliers', label: 'Suppliers', icon: Building2 },
     ],
   },
@@ -90,18 +120,15 @@ export function AdminSidebar() {
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
 
-  const { activeLocationCode } = useLocation()
   const { toggleTheme, isLight } = useTheme()
-  const { isListening } = useBarcodeScanner({
-    onScan: () => {},
-  })
 
   // Server-backed live sidebar metrics
   const [metrics, setMetrics] = useState<{
     openOrdersCount: number
     lowStockCount: number
     pendingTransfersCount: number
-  }>({ openOrdersCount: 0, lowStockCount: 0, pendingTransfersCount: 0 })
+    openPoCount: number
+  }>({ openOrdersCount: 0, lowStockCount: 0, pendingTransfersCount: 0, openPoCount: 0 })
 
   useEffect(() => {
     let isMounted = true
@@ -184,7 +211,9 @@ export function AdminSidebar() {
                   ? pathname === item.href
                   : pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
 
-                const badgeValue = item.badgeKey ? metrics[item.badgeKey] : 0
+                const badgeValue = item.badge?.key ? metrics[item.badge.key] : 0
+                const isLive = item.badge?.isLive || false
+                const hasActiveBadge = isLive || (typeof badgeValue === 'number' && badgeValue > 0)
 
                 return (
                   <Link
@@ -198,31 +227,37 @@ export function AdminSidebar() {
                     title={collapsed ? item.label : undefined}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <Icon
-                        className={`w-3.5 h-3.5 shrink-0 ${
-                          isActive
-                            ? 'text-emerald-400'
-                            : 'text-zinc-400 group-hover:text-zinc-100'
-                        }`}
-                      />
+                      <div className="relative shrink-0 flex items-center justify-center">
+                        <Icon
+                          className={`w-3.5 h-3.5 ${
+                            isActive
+                              ? 'text-emerald-400'
+                              : 'text-zinc-400 group-hover:text-zinc-100'
+                          }`}
+                        />
+                        {collapsed && hasActiveBadge && (
+                          <SidebarBadge
+                            value={badgeValue}
+                            variant={item.badge?.variant}
+                            isLive={isLive}
+                            collapsed={true}
+                            title={item.badge?.title || item.label}
+                          />
+                        )}
+                      </div>
                       {!collapsed && (
                         <span className="truncate">{item.label}</span>
                       )}
                     </div>
 
-                    {!collapsed && (
-                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                        {item.isPos && (
-                          <span
-                            className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"
-                            title="Live POS Stream active"
-                          />
-                        )}
-                        {badgeValue > 0 && (
-                          <span className="px-1.5 py-0.5 text-3xs font-mono rounded bg-chrome-900 border border-chrome-750 text-zinc-300 tabular-nums">
-                            {badgeValue}
-                          </span>
-                        )}
+                    {!collapsed && hasActiveBadge && (
+                      <div className="flex items-center shrink-0 ml-2">
+                        <SidebarBadge
+                          value={badgeValue}
+                          variant={item.badge?.variant}
+                          isLive={isLive}
+                          title={item.badge?.title}
+                        />
                       </div>
                     )}
                   </Link>
@@ -233,34 +268,13 @@ export function AdminSidebar() {
         </nav>
       </div>
 
-      {/* Operational Footer Status Bar */}
-      <div className="p-2 border-t border-chrome-800 space-y-2 shrink-0 bg-chrome-950">
-        {!collapsed ? (
-          <div className="p-2 bg-chrome-900 border border-chrome-800 text-2xs font-mono space-y-1 text-zinc-400">
-            <div className="flex items-center justify-between">
-              <span className="text-zinc-500">Location</span>
-              <span className="text-zinc-200 font-semibold">{activeLocationCode}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-zinc-500">
-                <Scan className="w-3 h-3 text-emerald-400" /> Scanner
-              </span>
-              <span className={isListening ? 'text-emerald-400 font-medium' : 'text-zinc-500'}>
-                {isListening ? 'Ready' : 'Offline'}
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="flex justify-center py-1" title={`Location: ${activeLocationCode} | Scanner Ready`}>
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-          </div>
-        )}
-
-        <div className="flex items-center gap-1 pt-1 border-t border-chrome-800">
+      {/* Footer Navigation: Theme Selector & Sign Out */}
+      <div className="p-2 border-t border-chrome-800 shrink-0 bg-chrome-950">
+        <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={toggleTheme}
-            className="flex items-center gap-2 flex-1 px-2 py-1 text-2xs font-mono text-zinc-400 hover:text-zinc-100 hover:bg-chrome-900 transition-colors rounded"
+            className="flex items-center gap-2 flex-1 px-2 py-1.5 text-2xs font-mono text-zinc-400 hover:text-zinc-100 hover:bg-chrome-900 transition-colors rounded"
             title={isLight ? 'Switch to Dark Theme' : 'Switch to Light Theme'}
           >
             {isLight ? <Moon className="w-3.5 h-3.5 text-zinc-400" /> : <Sun className="w-3.5 h-3.5 text-zinc-400" />}
@@ -270,7 +284,7 @@ export function AdminSidebar() {
           <button
             type="button"
             onClick={handleLogout}
-            className="flex items-center gap-2 px-2 py-1 text-2xs font-mono text-zinc-400 hover:text-rose-400 hover:bg-rose-950/20 transition-colors rounded"
+            className="flex items-center gap-2 px-2 py-1.5 text-2xs font-mono text-zinc-400 hover:text-rose-400 hover:bg-rose-950/20 transition-colors rounded"
             title={collapsed ? 'Sign Out' : undefined}
           >
             <LogOut className="w-3.5 h-3.5 shrink-0 text-zinc-400 hover:text-rose-400" />

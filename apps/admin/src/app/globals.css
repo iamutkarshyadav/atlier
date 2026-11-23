@@ -151,6 +151,7 @@ html.light ::selection {
 }
 
 /* Status Badge High-Contrast Enhancements in Light Mode */
+html.light .bg-emerald-950\/60,
 html.light .bg-emerald-950\/40,
 html.light .bg-emerald-950\/20 {
   background-color: #ecfdf5 !important;
@@ -158,6 +159,7 @@ html.light .bg-emerald-950\/20 {
   border-color: #a7f3d0 !important;
 }
 
+html.light .bg-amber-950\/60,
 html.light .bg-amber-950\/40,
 html.light .bg-amber-950\/20 {
   background-color: #fffbeb !important;
@@ -165,6 +167,7 @@ html.light .bg-amber-950\/20 {
   border-color: #fde68a !important;
 }
 
+html.light .bg-rose-950\/60,
 html.light .bg-rose-950\/40,
 html.light .bg-rose-950\/20 {
   background-color: #fff1f2 !important;

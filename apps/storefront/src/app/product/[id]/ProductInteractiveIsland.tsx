@@ -106,6 +106,7 @@ export function ProductInteractiveIsland({
     const success = addItem({
       id: selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id,
       productId: product.id,
+      variantId: selectedVariant?.id,
       title: product.title,
       category: product.category || 'Apparel',
       edition: product.edition || 'Collection',
@@ -115,6 +116,7 @@ export function ProductInteractiveIsland({
       size: selectedVariant
         ? `${selectedVariant.size}${selectedVariant.color ? ` (${selectedVariant.color})` : ''}`
         : undefined,
+      color: selectedVariant?.color || undefined,
     })
 
     if (!success) {

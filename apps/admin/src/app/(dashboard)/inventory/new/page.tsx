@@ -114,21 +114,33 @@ export default function CreatorApparelProductStudio() {
     loadTaxonomy()
   }, [setValue])
 
-  // File Upload Handler
+  // File Upload Handler via unified server endpoint
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
     try {
       setIsUploadingImage(true)
-      const supabase = createBrowserClient()
-      const { url, error } = await uploadProductImage(supabase, file)
+      setFeedback(null)
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('folder', 'products')
 
-      if (error || !url) {
-        setFeedback({ type: 'error', message: `Image upload failed: ${error || 'Unknown'}` })
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await res.json()
+
+      if (!res.ok || !data.success || !data.publicUrl) {
+        setFeedback({ type: 'error', message: `Image upload failed: ${data.error || 'Unknown error'}` })
         return
       }
-      setPrimaryImageUrl(url)
+
+      setPrimaryImageUrl(data.publicUrl)
+      setFeedback({ type: 'success', message: 'Product image successfully uploaded to Supabase Storage.' })
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: `Image upload failed: ${err?.message || 'Network error'}` })
     } finally {
       setIsUploadingImage(false)
     }

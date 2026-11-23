@@ -85,7 +85,21 @@ export default async function HomePage() {
         }))
       : []
 
-  const sortedSections = [...homepageSections].sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+  // Ensure Shop by Occasion is part of the flow even if missing from legacy DB
+  let effectiveSections = [...homepageSections]
+  if (!effectiveSections.some((s: any) => s.id === 'shop_by_occasion')) {
+    effectiveSections.push({
+      id: 'shop_by_occasion',
+      name: 'Shop By Occasion',
+      order: 4.5,
+      is_active: true,
+    })
+  }
+
+  const sortedSections = effectiveSections.sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+  const nonNewsletterSections = sortedSections.filter((s: any) => s.id !== 'newsletter')
+  const newsletterSection = sortedSections.find((s: any) => s.id === 'newsletter')
+  const showNewsletter = newsletterSection ? newsletterSection.is_active !== false : true
 
   const sectionRenderer: Record<string, React.ReactNode> = {
     hero_carousel: <HeroSplitScreen key="hero_carousel" slides={heroSlides} />,
@@ -105,19 +119,16 @@ export default async function HomePage() {
     product_showcase: <HomepageProductShowcase key="product_showcase" products={products} categories={categories} />,
     shop_by_occasion: <ShopByOccasion key="shop_by_occasion" collections={collections} />,
     spotlight_grid: <CuratedSpotlightGrid key="spotlight_grid" />,
-    newsletter: <NewsletterStrip key="newsletter" />,
   }
-
-  // Ensure Shop by Occasion displays even if not in legacy homepage_sections config
-  const hasOccasionSection = sortedSections.some((s: any) => s.id === 'shop_by_occasion')
 
   return (
     <div className="bg-white text-[#14293a] overflow-hidden selection:bg-[#b91c1c] selection:text-white font-sans">
-      {sortedSections.map((sec: any) => {
+      {nonNewsletterSections.map((sec: any) => {
         if (sec.is_active === false) return null
         return sectionRenderer[sec.id] || null
       })}
-      {!hasOccasionSection && <ShopByOccasion collections={collections} />}
+      {/* Newsletter Section always anchored at the very bottom of the page */}
+      {showNewsletter && <NewsletterStrip key="newsletter" />}
     </div>
   )
 }

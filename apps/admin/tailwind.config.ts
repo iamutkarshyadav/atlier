@@ -52,6 +52,7 @@ const config: Config = {
         },
       },
       fontSize: {
+        '3xs': ['9px', '11px'],
         '2xs': ['10px', '12px'],
         'xs': ['11px', '14px'],
         'sm': ['12px', '16px'],
