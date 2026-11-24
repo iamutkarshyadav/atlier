@@ -1130,6 +1130,12 @@ export interface Database {
           category: string | null
           material: string | null
           edition: string | null
+          cost_price?: number
+          average_rating?: number
+          review_count?: number
+          fit_runs_small_count?: number
+          fit_true_to_size_count?: number
+          fit_runs_large_count?: number
           is_archived: boolean
           created_at: string
           updated_at: string
@@ -1139,6 +1145,12 @@ export interface Database {
           title: string
           description?: string | null
           price: number
+          cost_price?: number
+          average_rating?: number
+          review_count?: number
+          fit_runs_small_count?: number
+          fit_true_to_size_count?: number
+          fit_runs_large_count?: number
           stock?: number
           image_url?: string | null
           category_id?: string | null
@@ -1154,6 +1166,12 @@ export interface Database {
           title?: string
           description?: string | null
           price?: number
+          cost_price?: number
+          average_rating?: number
+          review_count?: number
+          fit_runs_small_count?: number
+          fit_true_to_size_count?: number
+          fit_runs_large_count?: number
           stock?: number
           image_url?: string | null
           category_id?: string | null
@@ -1316,6 +1334,10 @@ export interface Database {
           shipping_address_json?: Json | null
           pos_payment_method?: PosPaymentMethod | null
           pos_payment_details?: Json | null
+          promotion_id?: string | null
+          coupon_code?: string | null
+          discount_breakdown?: Json | null
+          margin_protected?: boolean | null
           created_at: string
           updated_at: string
         }
@@ -1354,6 +1376,10 @@ export interface Database {
           shipping_address_json?: Json | null
           pos_payment_method?: PosPaymentMethod | null
           pos_payment_details?: Json | null
+          promotion_id?: string | null
+          coupon_code?: string | null
+          discount_breakdown?: Json | null
+          margin_protected?: boolean | null
           created_at?: string
           updated_at?: string
         }
@@ -1392,6 +1418,10 @@ export interface Database {
           shipping_address_json?: Json | null
           pos_payment_method?: PosPaymentMethod | null
           pos_payment_details?: Json | null
+          promotion_id?: string | null
+          coupon_code?: string | null
+          discount_breakdown?: Json | null
+          margin_protected?: boolean | null
           created_at?: string
           updated_at?: string
         }
@@ -1436,6 +1466,10 @@ export interface Database {
           variant_id?: string | null
           quantity: number
           unit_price: number
+          original_unit_price?: number | null
+          discount_amount?: number | null
+          final_unit_price?: number | null
+          promotion_id?: string | null
           size: string | null
           is_kept: boolean | null
           try_on_decision: TryOnDecision
@@ -1457,6 +1491,10 @@ export interface Database {
           variant_id?: string | null
           quantity?: number
           unit_price: number
+          original_unit_price?: number | null
+          discount_amount?: number | null
+          final_unit_price?: number | null
+          promotion_id?: string | null
           size?: string | null
           is_kept?: boolean | null
           try_on_decision?: TryOnDecision
@@ -1478,6 +1516,10 @@ export interface Database {
           variant_id?: string | null
           quantity?: number
           unit_price?: number
+          original_unit_price?: number | null
+          discount_amount?: number | null
+          final_unit_price?: number | null
+          promotion_id?: string | null
           size?: string | null
           is_kept?: boolean | null
           try_on_decision?: TryOnDecision
@@ -1720,6 +1762,387 @@ export interface Database {
         }
         Relationships: []
       }
+      product_reviews: {
+        Row: {
+          id: string
+          product_id: string
+          order_id: string
+          order_item_id: string
+          user_id: string
+          rating: number
+          title: string
+          comment: string
+          fit_indicator: FashionFitIndicator
+          verified_purchase: boolean
+          size_purchased: string | null
+          is_bolt_try_on: boolean
+          status: ReviewStatus
+          moderated_by: string | null
+          moderated_at: string | null
+          rejection_reason: string | null
+          admin_reply: string | null
+          admin_replied_at: string | null
+          admin_replied_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          order_id: string
+          order_item_id: string
+          user_id: string
+          rating: number
+          title: string
+          comment: string
+          fit_indicator?: FashionFitIndicator
+          verified_purchase?: boolean
+          size_purchased?: string | null
+          is_bolt_try_on?: boolean
+          status?: ReviewStatus
+          moderated_by?: string | null
+          moderated_at?: string | null
+          rejection_reason?: string | null
+          admin_reply?: string | null
+          admin_replied_at?: string | null
+          admin_replied_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          order_id?: string
+          order_item_id?: string
+          user_id?: string
+          rating?: number
+          title?: string
+          comment?: string
+          fit_indicator?: FashionFitIndicator
+          verified_purchase?: boolean
+          size_purchased?: string | null
+          is_bolt_try_on?: boolean
+          status?: ReviewStatus
+          moderated_by?: string | null
+          moderated_at?: string | null
+          rejection_reason?: string | null
+          admin_reply?: string | null
+          admin_replied_at?: string | null
+          admin_replied_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_reviews_product_id_fkey"
+            columns: ["product_id"]
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_reviews_order_id_fkey"
+            columns: ["order_id"]
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_reviews_order_item_id_fkey"
+            columns: ["order_item_id"]
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_reviews_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      review_media: {
+        Row: {
+          id: string
+          review_id: string
+          image_url: string
+          display_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          review_id: string
+          image_url: string
+          display_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          review_id?: string
+          image_url?: string
+          display_order?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_media_review_id_fkey"
+            columns: ["review_id"]
+            referencedRelation: "product_reviews"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      promotions: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          description: string | null
+          promotion_type: PromotionType
+          discount_type: DiscountType
+          discount_value: number
+          min_order_subtotal: number | null
+          max_discount_amount: number | null
+          is_stackable: boolean
+          priority: number
+          enforce_margin_floor: boolean
+          starts_at: string
+          ends_at: string | null
+          is_active: boolean
+          usage_limit_total: number | null
+          usage_limit_per_customer: number | null
+          total_redemptions_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          description?: string | null
+          promotion_type?: PromotionType
+          discount_type?: DiscountType
+          discount_value: number
+          min_order_subtotal?: number | null
+          max_discount_amount?: number | null
+          is_stackable?: boolean
+          priority?: number
+          enforce_margin_floor?: boolean
+          starts_at?: string
+          ends_at?: string | null
+          is_active?: boolean
+          usage_limit_total?: number | null
+          usage_limit_per_customer?: number | null
+          total_redemptions_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          description?: string | null
+          promotion_type?: PromotionType
+          discount_type?: DiscountType
+          discount_value?: number
+          min_order_subtotal?: number | null
+          max_discount_amount?: number | null
+          is_stackable?: boolean
+          priority?: number
+          enforce_margin_floor?: boolean
+          starts_at?: string
+          ends_at?: string | null
+          is_active?: boolean
+          usage_limit_total?: number | null
+          usage_limit_per_customer?: number | null
+          total_redemptions_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      promotion_rules: {
+        Row: {
+          id: string
+          promotion_id: string
+          target_type: RuleTargetType
+          match_operator: string
+          target_id: string | null
+          min_quantity: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          promotion_id: string
+          target_type?: RuleTargetType
+          match_operator?: string
+          target_id?: string | null
+          min_quantity?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          promotion_id?: string
+          target_type?: RuleTargetType
+          match_operator?: string
+          target_id?: string | null
+          min_quantity?: number | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_rules_promotion_id_fkey"
+            columns: ["promotion_id"]
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      promotion_coupons: {
+        Row: {
+          id: string
+          promotion_id: string
+          code: string
+          is_single_use: boolean
+          max_uses: number | null
+          times_used: number
+          assigned_customer_email: string | null
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          promotion_id: string
+          code: string
+          is_single_use?: boolean
+          max_uses?: number | null
+          times_used?: number
+          assigned_customer_email?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          promotion_id?: string
+          code?: string
+          is_single_use?: boolean
+          max_uses?: number | null
+          times_used?: number
+          assigned_customer_email?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_coupons_promotion_id_fkey"
+            columns: ["promotion_id"]
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      promotion_redemptions: {
+        Row: {
+          id: string
+          promotion_id: string
+          coupon_id: string | null
+          order_id: string
+          user_id: string | null
+          customer_email: string
+          original_subtotal: number
+          discount_applied: number
+          margin_clamped: boolean
+          status: 'applied' | 'voided'
+          voided_at: string | null
+          redeemed_at: string
+        }
+        Insert: {
+          id?: string
+          promotion_id: string
+          coupon_id?: string | null
+          order_id: string
+          user_id?: string | null
+          customer_email: string
+          original_subtotal: number
+          discount_applied: number
+          margin_clamped?: boolean
+          status?: 'applied' | 'voided'
+          voided_at?: string | null
+          redeemed_at?: string
+        }
+        Update: {
+          id?: string
+          promotion_id?: string
+          coupon_id?: string | null
+          order_id?: string
+          user_id?: string | null
+          customer_email?: string
+          original_subtotal?: number
+          discount_applied?: number
+          margin_clamped?: boolean
+          status?: 'applied' | 'voided'
+          voided_at?: string | null
+          redeemed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_redemptions_promotion_id_fkey"
+            columns: ["promotion_id"]
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_redemptions_order_id_fkey"
+            columns: ["order_id"]
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      price_schedules: {
+        Row: {
+          id: string
+          product_id: string
+          variant_id: string | null
+          original_price: number
+          scheduled_price: number
+          starts_at: string
+          ends_at: string
+          is_active: boolean
+          reason: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          variant_id?: string | null
+          original_price: number
+          scheduled_price: number
+          starts_at: string
+          ends_at: string
+          is_active?: boolean
+          reason?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          variant_id?: string | null
+          original_price?: number
+          scheduled_price?: number
+          starts_at?: string
+          ends_at?: string
+          is_active?: boolean
+          reason?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_schedules_product_id_fkey"
+            columns: ["product_id"]
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1863,6 +2286,12 @@ export interface Database {
         }
         Returns: Json
       }
+      void_order_promotion_redemption: {
+        Args: {
+          p_order_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       user_role: UserRole
@@ -1879,6 +2308,11 @@ export interface Database {
       qc_status: QcStatus
       transfer_status: TransferStatus
       pos_payment_method: PosPaymentMethod
+      promotion_type: PromotionType
+      discount_type: DiscountType
+      rule_target_type: RuleTargetType
+      review_status: ReviewStatus
+      fashion_fit_indicator: FashionFitIndicator
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2065,3 +2499,82 @@ export interface CollectionWithRelations extends Collection {
   product_ids?: string[]
   product_count?: number
 }
+
+// Promotions & Pricing Engine Types
+export type PromotionType = 'coupon' | 'automatic_cart' | 'tiered_threshold' | 'buy_x_get_y' | 'shipping_waiver'
+export type DiscountType = 'percentage' | 'fixed_amount' | 'fixed_price' | 'free_shipping'
+export type RuleTargetType = 'entire_order' | 'category' | 'collection' | 'product' | 'variant' | 'delivery_mode' | 'customer_tier'
+
+export type Promotion = Database['public']['Tables']['promotions']['Row']
+export type PromotionInsert = Database['public']['Tables']['promotions']['Insert']
+export type PromotionUpdate = Database['public']['Tables']['promotions']['Update']
+
+export type PromotionRule = Database['public']['Tables']['promotion_rules']['Row']
+export type PromotionRuleInsert = Database['public']['Tables']['promotion_rules']['Insert']
+export type PromotionRuleUpdate = Database['public']['Tables']['promotion_rules']['Update']
+
+export type PromotionCoupon = Database['public']['Tables']['promotion_coupons']['Row']
+export type PromotionCouponInsert = Database['public']['Tables']['promotion_coupons']['Insert']
+export type PromotionCouponUpdate = Database['public']['Tables']['promotion_coupons']['Update']
+
+export type PromotionRedemption = Database['public']['Tables']['promotion_redemptions']['Row']
+export type PromotionRedemptionInsert = Database['public']['Tables']['promotion_redemptions']['Insert']
+export type PromotionRedemptionUpdate = Database['public']['Tables']['promotion_redemptions']['Update']
+
+export type PriceSchedule = Database['public']['Tables']['price_schedules']['Row']
+export type PriceScheduleInsert = Database['public']['Tables']['price_schedules']['Insert']
+export type PriceScheduleUpdate = Database['public']['Tables']['price_schedules']['Update']
+
+export interface PromotionWithRules extends Promotion {
+  rules?: PromotionRule[]
+  coupons?: PromotionCoupon[]
+}
+
+// =============================================================================
+// Verified Purchase Reviews & Ratings Types
+// =============================================================================
+export type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'hidden'
+export type FashionFitIndicator = 'runs_small' | 'true_to_size' | 'runs_large'
+
+export type ProductReview = Database['public']['Tables']['product_reviews']['Row']
+export type ProductReviewInsert = Database['public']['Tables']['product_reviews']['Insert']
+export type ProductReviewUpdate = Database['public']['Tables']['product_reviews']['Update']
+
+export type ReviewMedia = Database['public']['Tables']['review_media']['Row']
+export type ReviewMediaInsert = Database['public']['Tables']['review_media']['Insert']
+export type ReviewMediaUpdate = Database['public']['Tables']['review_media']['Update']
+
+export interface ProductReviewWithMedia extends ProductReview {
+  media?: ReviewMedia[]
+  user?: {
+    id: string
+    full_name: string | null
+    email?: string | null
+  } | null
+  order?: {
+    id?: string
+    order_number?: string
+    created_at?: string
+  } | null
+  product?: {
+    id: string
+    title: string
+    image_url: string | null
+  } | null
+}
+
+export interface ProductRatingAggregate {
+  average_rating: number
+  review_count: number
+  fit_runs_small_count: number
+  fit_true_to_size_count: number
+  fit_runs_large_count: number
+  distribution: {
+    1: number
+    2: number
+    3: number
+    4: number
+    5: number
+  }
+}
+

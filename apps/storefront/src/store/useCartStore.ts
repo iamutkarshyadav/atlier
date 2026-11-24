@@ -41,6 +41,10 @@ interface CartStoreState {
   deliveryMode: DeliveryMode
   tryOnWindow: TryOnWindow | null
   boltLimitWarning: string | null
+  appliedCouponCode: string | null
+  pricingEvaluation: any | null
+  isValidatingPromotion: boolean
+  promotionError: string | null
 
   // Actions
   addItem: (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => boolean
@@ -51,6 +55,9 @@ interface CartStoreState {
   setDeliveryMode: (mode: DeliveryMode) => void
   setTryOnWindow: (window: TryOnWindow | null) => void
   setBoltLimitWarning: (warning: string | null) => void
+  applyCouponCode: (code: string) => Promise<{ success: boolean; error?: string }>
+  removeCouponCode: () => void
+  recalculatePromotions: () => Promise<void>
 
   // Computations
   getSubtotal: () => number
@@ -90,6 +97,10 @@ export const useCartStore = create<CartStoreState>()(
       items: [],
       deliveryMode: 'direct',
       boltLimitWarning: null,
+      appliedCouponCode: null,
+      pricingEvaluation: null,
+      isValidatingPromotion: false,
+      promotionError: null,
       tryOnWindow: {
         date: new Date(Date.now() + 86400000).toLocaleDateString('en-US', {
           weekday: 'long',
@@ -219,6 +230,92 @@ export const useCartStore = create<CartStoreState>()(
         set({ tryOnWindow: window })
       },
 
+      applyCouponCode: async (code: string) => {
+        const clean = code.trim().toUpperCase()
+        if (!clean) return { success: false, error: 'Please enter a code' }
+
+        set({ isValidatingPromotion: true, promotionError: null })
+        try {
+          const items = get().items
+          const res = await fetch('/api/promotions/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              items,
+              couponCode: clean,
+              deliveryMode: get().deliveryMode,
+              shippingFee: get().getShippingFee(),
+            }),
+          })
+          const data = await res.json()
+
+          if (!res.ok || !data.isValid) {
+            const err = data.error || 'Privilege code is invalid'
+            set({
+              isValidatingPromotion: false,
+              promotionError: err,
+            })
+            return { success: false, error: err }
+          }
+
+          set({
+            appliedCouponCode: clean,
+            pricingEvaluation: data,
+            isValidatingPromotion: false,
+            promotionError: null,
+          })
+          return { success: true }
+        } catch (err: any) {
+          const msg = err?.message || 'Error validating code'
+          set({ isValidatingPromotion: false, promotionError: msg })
+          return { success: false, error: msg }
+        }
+      },
+
+      removeCouponCode: () => {
+        set({
+          appliedCouponCode: null,
+          pricingEvaluation: null,
+          promotionError: null,
+        })
+        get().recalculatePromotions()
+      },
+
+      recalculatePromotions: async () => {
+        const items = get().items
+        if (items.length === 0) {
+          set({ pricingEvaluation: null, promotionError: null })
+          return
+        }
+
+        try {
+          const res = await fetch('/api/promotions/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              items,
+              couponCode: get().appliedCouponCode || undefined,
+              deliveryMode: get().deliveryMode,
+              shippingFee: get().getShippingFee(),
+            }),
+          })
+          if (res.ok) {
+            const data = await res.json()
+            if (data.isValid) {
+              set({ pricingEvaluation: data, promotionError: null })
+            } else if (get().appliedCouponCode) {
+              set({
+                appliedCouponCode: null,
+                pricingEvaluation: null,
+                promotionError: data.error || 'Code no longer eligible',
+              })
+            }
+          }
+        } catch {
+          // Graceful fallback to client calculations
+        }
+      },
+
       // Computed Helpers
       getSubtotal: () => {
         return calculateSubtotal(get().items)
@@ -262,15 +359,28 @@ export function useHydratedCart() {
     setIsHydrated(true)
   }, [])
 
+  const evaluated = isHydrated ? cart.pricingEvaluation : null
+  const subtotal = isHydrated ? (evaluated?.subtotal ?? cart.getSubtotal()) : 0
+  const discount = evaluated?.totalDiscount || 0
+  const discountedSubtotal = evaluated?.discountedSubtotal ?? Math.max(0, subtotal - discount)
+  const tax = isHydrated ? (evaluated?.taxAmount ?? cart.getTax()) : 0
+  const shippingFee = isHydrated ? (evaluated?.finalShippingFee ?? cart.getShippingFee()) : 0
+  const estimatedTotal = isHydrated ? (evaluated?.totalAmount ?? cart.getEstimatedTotal()) : 0
+
   return {
     ...cart,
     isHydrated,
     items: isHydrated ? cart.items : [],
     itemCount: isHydrated ? cart.getItemCount() : 0,
-    subtotal: isHydrated ? cart.getSubtotal() : 0,
-    tax: isHydrated ? cart.getTax() : 0,
-    shippingFee: isHydrated ? cart.getShippingFee() : 0,
-    estimatedTotal: isHydrated ? cart.getEstimatedTotal() : 0,
+    subtotal,
+    discount,
+    discountedSubtotal,
+    tax,
+    shippingFee,
+    estimatedTotal,
+    pricingEvaluation: evaluated,
+    tierProgress: evaluated?.tierProgress,
+    appliedPromotions: evaluated?.appliedPromotions || [],
     isOverBoltLimit: isHydrated ? cart.isOverBoltLimit() : false,
     boltLimitWarning: isHydrated ? cart.boltLimitWarning : null,
   }

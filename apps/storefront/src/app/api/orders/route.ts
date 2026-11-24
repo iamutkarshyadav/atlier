@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceRoleClient } from '@repo/supabase/server'
 import { atomicCreateOrderAndReserve, createOrderWithItems } from '@repo/supabase/utils'
+import { evaluateCartPromotions, type CartItemPricingInput } from '@repo/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -350,20 +351,112 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // 3. Compute shipping fee, tax, and order totals server-side
-    const isBolt = orderData.order_type === 'bolt_try_on' || orderData.delivery_mode === 'try_on'
+    // 3. Authoritative Promotions & Margin Floor Evaluation
+    const couponCodeParam = body.coupon_code || orderData.coupon_code || body.couponCode || null
+    const cleanCouponCode = typeof couponCodeParam === 'string' && couponCodeParam.trim() ? couponCodeParam.trim().toUpperCase() : undefined
 
-    let shippingFee = 150.0 // Standard Indian White-Glove delivery (₹150)
-    let taxAmount = Number((calculatedSubtotal * 0.12).toFixed(2)) // 12% Indian GST
-    let calculatedTotal = Number((calculatedSubtotal + shippingFee + taxAmount).toFixed(2))
+    // Fetch active promotions
+    const nowIso = new Date().toISOString()
+    const { data: activePromos } = await adminClient
+      .from('promotions')
+      .select('*, rules:promotion_rules(*)')
+      .eq('is_active', true)
+      .lte('starts_at', nowIso)
 
-    if (isBolt) {
-      // Bolt Doorstep Try-On:
-      // Collect ₹99 booking fee upfront; apparel balance settles post fitting.
-      shippingFee = 99.0
-      taxAmount = 0.0
-      calculatedTotal = 99.0
+    const validPromotions = (activePromos || []).filter((p) => !p.ends_at || p.ends_at >= nowIso)
+
+    let activeCoupon: any = null
+    let customerRedemptionsCount = 0
+
+    if (cleanCouponCode) {
+      const { data: cRecord } = await adminClient
+        .from('promotion_coupons')
+        .select('*')
+        .eq('code', cleanCouponCode)
+        .eq('is_active', true)
+        .maybeSingle()
+
+      activeCoupon = cRecord
+
+      if (customerEmail && activeCoupon) {
+        const { count } = await adminClient
+          .from('promotion_redemptions')
+          .select('id', { count: 'exact', head: true })
+          .eq('promotion_id', activeCoupon.promotion_id)
+          .eq('customer_email', customerEmail.toLowerCase().trim())
+          .eq('status', 'applied')
+
+        customerRedemptionsCount = count || 0
+      }
     }
+
+    // Query products & variants cost_price using elevated adminClient for margin floor checks
+    const { data: prodCosts } = await adminClient
+      .from('products')
+      .select('id, cost_price, category_id')
+      .in('id', productIds)
+
+    const { data: varCosts } = await adminClient
+      .from('product_variants')
+      .select('id, cost_price')
+      .in('id', verifiedItems.map((vi) => vi.variant_id))
+
+    const prodCostMap = new Map((prodCosts || []).map((pc) => [pc.id, pc]))
+    const varCostMap = new Map((varCosts || []).map((vc) => [vc.id, vc.cost_price]))
+
+    const pricingInputs: CartItemPricingInput[] = verifiedItems.map((vi) => {
+      const pc = prodCostMap.get(vi.product_id)
+      const vcCost = varCostMap.get(vi.variant_id)
+      const effectiveCost = vcCost ?? pc?.cost_price ?? 0
+
+      return {
+        productId: vi.product_id,
+        variantId: vi.variant_id,
+        quantity: vi.quantity,
+        unitPrice: vi.unit_price,
+        costPrice: Number(effectiveCost),
+        categoryId: pc?.category_id || undefined,
+      }
+    })
+
+    const isBolt = orderData.order_type === 'bolt_try_on' || orderData.delivery_mode === 'try_on'
+    const baseShippingFee = isBolt ? 99.0 : 150.0
+
+    const evalResult = evaluateCartPromotions({
+      items: pricingInputs,
+      deliveryMode: isBolt ? 'try_on' : 'direct',
+      shippingFee: baseShippingFee,
+      customerEmail,
+      couponCode: cleanCouponCode,
+      activePromotions: validPromotions,
+      activeCoupon,
+      customerRedemptionsCount,
+    })
+
+    if (cleanCouponCode && !evalResult.isValid) {
+      return NextResponse.json(
+        {
+          error: evalResult.error || `Invitation code "${cleanCouponCode}" is not eligible for this order.`,
+          code: evalResult.errorCode || 'INVALID_PROMOTION',
+        },
+        { status: 400 }
+      )
+    }
+
+    // Merge pro-rata line item discounts into verifiedItems
+    const lineItemDiscountMap = new Map(evalResult.lineItems.map((li) => [li.variantId, li.totalDiscountAmount]))
+    const verifiedItemsWithDiscounts = verifiedItems.map((vi) => ({
+      ...vi,
+      discount_amount: lineItemDiscountMap.get(vi.variant_id) || 0,
+    }))
+
+    const finalSubtotal = evalResult.subtotal
+    const totalDiscountAmount = evalResult.totalDiscount
+    const finalShippingFee = isBolt ? (evalResult.shippingDiscount > 0 ? 0.0 : 99.0) : evalResult.finalShippingFee
+    const finalTaxAmount = isBolt ? 0.0 : evalResult.taxAmount
+    const finalTotalAmount = isBolt ? finalShippingFee : evalResult.totalAmount
+    const appliedPromotionId = evalResult.promotionId || null
+    const appliedCouponCode = evalResult.couponCode || null
 
     // 4. Construct secure, validated order record
     let finalShippingAddress = orderData.shipping_address || 'Bengaluru, Karnataka, India'
@@ -380,11 +473,16 @@ export async function POST(req: NextRequest) {
         delivery_mode: isBolt ? 'try_on' : 'direct',
         try_on_status: isBolt ? 'pending' : undefined,
         order_type: isBolt ? 'bolt_try_on' : 'standard',
-        subtotal: calculatedSubtotal,
-        discount: 0,
-        delivery_fee: shippingFee,
-        tax_amount: taxAmount,
-        total_amount: calculatedTotal,
+        subtotal: finalSubtotal,
+        discount: totalDiscountAmount,
+        delivery_fee: finalShippingFee,
+        tax_amount: finalTaxAmount,
+        total_amount: finalTotalAmount,
+        promotion_id: appliedPromotionId,
+        coupon_code: appliedCouponCode,
+        applied_promotion_id: appliedPromotionId,
+        applied_coupon_code: appliedCouponCode,
+        applied_discount_amount: totalDiscountAmount,
         notes: orderData.delivery_notes || null,
         shipping_address_json: {
           address: finalShippingAddress,
@@ -398,7 +496,7 @@ export async function POST(req: NextRequest) {
           address: finalShippingAddress,
         },
       },
-      items: verifiedItems,
+      items: verifiedItemsWithDiscounts,
       sourceLocationId: null,
     })
 
@@ -438,19 +536,26 @@ export async function POST(req: NextRequest) {
             try_on_status: isBolt ? 'pending' : null,
             bolt_pincode: isBolt ? (orderData.bolt_pincode || null) : null,
             bolt_timeslot_id: isBolt ? (orderData.bolt_timeslot_id || null) : null,
-            tax_amount: taxAmount,
-            shipping_fee: shippingFee,
-            total: calculatedTotal,
-            original_total: calculatedTotal,
+            subtotal: finalSubtotal,
+            discount: totalDiscountAmount,
+            tax_amount: finalTaxAmount,
+            shipping_fee: finalShippingFee,
+            total: finalTotalAmount,
+            original_total: finalSubtotal,
+            applied_promotion_id: appliedPromotionId,
+            applied_coupon_code: appliedCouponCode,
+            applied_discount_amount: totalDiscountAmount,
             shipping_address: finalShippingAddress,
             delivery_notes: orderData.delivery_notes || null,
             invoice_number: `INV-2026-${randSeq}`,
             tracking_barcode: `ATL-TRK-${randSeq}`,
           } as any,
-          verifiedItems.map((it) => ({
+          verifiedItemsWithDiscounts.map((it) => ({
             productId: it.product_id,
+            variantId: it.variant_id,
             quantity: it.quantity,
             unitPrice: it.unit_price,
+            discountAmount: it.discount_amount,
             size: it.size || undefined,
           }))
         )
@@ -479,7 +584,7 @@ export async function POST(req: NextRequest) {
       orderNumber: orderDataResult.order_number,
       invoiceNumber: orderDataResult.invoice_number || `INV-${orderDataResult.order_number}`,
       trackingBarcode: orderDataResult.tracking_barcode || `ATL-TRK-${orderDataResult.order_number}`,
-      total: orderDataResult.total_amount || calculatedTotal,
+      total: orderDataResult.total_amount || finalTotalAmount,
     })
   } catch (err: any) {
     return NextResponse.json(

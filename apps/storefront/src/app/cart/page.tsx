@@ -9,6 +9,8 @@ import { Button } from '@repo/ui'
 import { createBrowserClient } from '@repo/supabase/browser'
 import { useHydratedCart } from '../../store/useCartStore'
 import { useHydratedBolt } from '../../store/useBoltStore'
+import { LuxuryTierProgressBar } from '@/components/cart/LuxuryTierProgressBar'
+import { ConciergeCouponInput } from '@/components/cart/ConciergeCouponInput'
 
 export default function LuxuryCartPage() {
   const router = useRouter()
@@ -19,7 +21,13 @@ export default function LuxuryCartPage() {
     removeItem,
     clearCart,
     subtotal,
+    discount,
+    discountedSubtotal,
     tax,
+    shippingFee,
+    estimatedTotal,
+    tierProgress,
+    pricingEvaluation,
     itemCount,
     deliveryMode,
     setDeliveryMode,
@@ -134,6 +142,9 @@ export default function LuxuryCartPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left Column: Bag Items & Delivery Selection */}
             <div className="lg:col-span-8 space-y-6">
+              {/* Luxury Tier Milestone Progress Bar */}
+              <LuxuryTierProgressBar tierProgress={tierProgress} />
+
               {/* Bolt Limit Alert */}
               {isOverBoltLimit && (
                 <div className="p-4 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] text-xs flex items-start gap-3 rounded-sm">
@@ -279,7 +290,10 @@ export default function LuxuryCartPage() {
             </div>
 
             {/* Right Column: Order Summary Card */}
-            <div className="lg:col-span-4">
+            <div className="lg:col-span-4 space-y-4">
+              {/* Concierge VIP Invitation Code Entry */}
+              <ConciergeCouponInput />
+
               <div className="p-6 border border-[#d3d6db] bg-[#f8f8f8] space-y-5 sticky top-28 shadow-sm rounded-sm">
                 <div className="flex items-center justify-between border-b border-[#d3d6db] pb-3">
                   <span className="text-xs uppercase tracking-wider font-bold text-[#14293a]">
@@ -297,6 +311,13 @@ export default function LuxuryCartPage() {
                     <span className="font-bold text-[#14293a]">₹{subtotal.toLocaleString('en-IN')}</span>
                   </div>
 
+                  {discount > 0 && (
+                    <div className="flex justify-between text-emerald-700 bg-emerald-50 px-2 py-1.5 border border-emerald-200 rounded text-xs">
+                      <span className="font-medium">Private Client Privilege</span>
+                      <span className="font-bold font-mono">-₹{discount.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+
                   {isBoltSelected ? (
                     <>
                       <div className="flex justify-between text-[#b91c1c] bg-[#fef2f2] p-2.5 border border-[#fecaca] rounded-sm">
@@ -304,31 +325,35 @@ export default function LuxuryCartPage() {
                           <Sparkles className="w-3.5 h-3.5" />
                           Payable after Try-On:
                         </span>
-                        <span className="font-bold">₹{subtotal.toLocaleString('en-IN')}</span>
+                        <span className="font-bold">₹{discountedSubtotal.toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between text-[#6c7079]">
                         <span>Bolt Convenience Hold</span>
-                        <span className="font-bold tabular-nums text-[#14293a]">₹99</span>
+                        <span className="font-bold tabular-nums text-[#14293a]">
+                          {shippingFee === 0 ? '₹0.00 (Waived)' : `₹${shippingFee}`}
+                        </span>
                       </div>
                       <div className="border-t border-[#d3d6db] pt-3 flex justify-between text-base font-bold text-[#14293a]">
                         <span>Immediate Hold Due</span>
-                        <span className="text-lg tabular-nums text-[#b91c1c]">₹99</span>
+                        <span className="text-lg tabular-nums text-[#b91c1c]">₹{shippingFee}</span>
                       </div>
                     </>
                   ) : (
                     <>
                       <div className="flex justify-between text-[#6c7079]">
                         <span>Estimated Shipping</span>
-                        <span className="font-bold tabular-nums text-[#14293a]">₹150</span>
+                        <span className="font-bold tabular-nums text-[#14293a]">
+                          {shippingFee === 0 ? 'COMPLIMENTARY' : `₹${shippingFee}`}
+                        </span>
                       </div>
                       <div className="flex justify-between text-[#6c7079]">
-                        <span>Estimated Tax (8%)</span>
+                        <span>GST Tax (12%)</span>
                         <span className="font-bold tabular-nums text-[#14293a]">₹{Math.round(tax).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="border-t border-[#d3d6db] pt-3 flex justify-between text-base font-bold text-[#14293a]">
                         <span>Total Due Now</span>
                         <span className="text-lg tabular-nums">
-                          ₹{Math.round(subtotal + 150 + tax).toLocaleString('en-IN')}
+                          ₹{Math.round(estimatedTotal).toLocaleString('en-IN')}
                         </span>
                       </div>
                     </>

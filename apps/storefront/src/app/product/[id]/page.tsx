@@ -7,6 +7,7 @@ import {
   type Product,
 } from '@repo/supabase/utils'
 import { ProductInteractiveIsland } from './ProductInteractiveIsland'
+import { ProductReviewsSection } from '@/components/reviews/ProductReviewsSection'
 
 export const revalidate = 60 // On-demand ISR revalidation
 
@@ -52,6 +53,11 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
           product={resolvedProduct}
           variants={variants}
           media={media}
+        />
+
+        <ProductReviewsSection
+          productId={resolvedProduct.id}
+          productTitle={resolvedProduct.title}
         />
       </div>
     </div>

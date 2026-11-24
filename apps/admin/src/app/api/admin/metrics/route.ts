@@ -44,6 +44,18 @@ export async function GET() {
       openPoCount = 0
     }
 
+    // 5. Pending reviews requiring moderation
+    let pendingReviewsCount = 0
+    try {
+      const { count } = await supabase
+        .from('product_reviews')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+      pendingReviewsCount = count ?? 0
+    } catch {
+      pendingReviewsCount = 0
+    }
+
     return NextResponse.json({
       success: true,
       metrics: {
@@ -51,6 +63,7 @@ export async function GET() {
         lowStockCount: lowStockCount ?? 0,
         pendingTransfersCount,
         openPoCount,
+        pendingReviewsCount,
       },
     })
   } catch (err: any) {

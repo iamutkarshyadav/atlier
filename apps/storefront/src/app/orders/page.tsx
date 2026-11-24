@@ -20,10 +20,13 @@ import {
   ShieldCheck,
   MapPin,
   ExternalLink,
+  Star,
+  Sparkles,
 } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { createBrowserClient } from '@repo/supabase/browser'
 import type { OrderWithItems, OrderStatus } from '@repo/supabase/types'
+import { ReviewGarmentModal } from '@/components/reviews/ReviewGarmentModal'
 
 export default function CustomerOrdersPage() {
   const router = useRouter()
@@ -42,6 +45,12 @@ export default function CustomerOrdersPage() {
   const [trackLoading, setTrackLoading] = useState(false)
   const [trackError, setTrackError] = useState<string | null>(null)
   const [recentGuestRefs, setRecentGuestRefs] = useState<string[]>([])
+
+  // Review Modal state
+  const [userReviewsMap, setUserReviewsMap] = useState<Record<string, any>>({})
+  const [selectedReviewItem, setSelectedReviewItem] = useState<any | null>(null)
+  const [selectedExistingReview, setSelectedExistingReview] = useState<any | null>(null)
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
 
   // 1. Resolve logged in user session
   useEffect(() => {
@@ -116,6 +125,15 @@ export default function CustomerOrdersPage() {
       }
 
       setOrders(fetchedOrders)
+
+      // Fetch user's existing reviews to sync button statuses
+      try {
+        const revRes = await fetch(`/api/reviews/user?t=${Date.now()}`, { headers })
+        const revData = await revRes.json()
+        if (revData.success && revData.reviewsByOrderItem) {
+          setUserReviewsMap(revData.reviewsByOrderItem)
+        }
+      } catch {}
     } catch (err) {
       console.warn('Orders fetch error:', err)
     } finally {
@@ -175,6 +193,36 @@ export default function CustomerOrdersPage() {
       supabase.removeChannel(channel)
     }
   }, [loadOrders])
+
+  // Automatically trigger review modal popup when an order status is settled with delivered
+  useEffect(() => {
+    if (isLoading || orders.length === 0) return
+    const deliveredOrder = orders.find((o) => o.status === 'delivered')
+    if (!deliveredOrder) return
+
+    for (const itm of deliveredOrder.order_items || []) {
+      const isBolt = deliveredOrder.order_type === 'bolt_try_on' || deliveredOrder.delivery_mode === 'try_on'
+      const isRejected = isBolt && ((itm as any).is_kept === false || (itm as any).try_on_decision === 'rejected')
+
+      if (!isRejected && !userReviewsMap[itm.id]) {
+        const promptKey = `auto_prompted_order_review_${deliveredOrder.id}`
+        if (typeof window !== 'undefined' && !sessionStorage.getItem(promptKey)) {
+          sessionStorage.setItem(promptKey, 'true')
+          setSelectedReviewItem({
+            id: itm.id,
+            order_id: deliveredOrder.id,
+            product_id: itm.product_id,
+            product: itm.product,
+            size: itm.size,
+            is_bolt: isBolt,
+          })
+          setSelectedExistingReview(null)
+          setIsReviewModalOpen(true)
+        }
+        break
+      }
+    }
+  }, [orders, isLoading, userReviewsMap])
 
   // 3. Handle Guest Lookup
   const handleTrackLookup = async (e?: React.FormEvent, directCode?: string) => {
@@ -390,6 +438,55 @@ export default function CustomerOrdersPage() {
         {/* Real-time Visual Progress Stepper */}
         {renderProgressSteps(ord.status)}
 
+        {/* Settled & Delivered Review Banner */}
+        {ord.status === 'delivered' && (
+          <div className="bg-amber-50/80 border border-amber-300/80 rounded-sm p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shrink-0">
+                <Sparkles className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <h5 className="font-serif font-bold text-xs text-[#14293a]">
+                  Garment Delivered & Settled — Share Your Impressions
+                </h5>
+                <p className="text-[11px] text-[#6c7079]">
+                  Rate tailoring craftsmanship, silhouette drape, and fit for the Atelier.
+                </p>
+              </div>
+            </div>
+            {(() => {
+              const firstUnreviewed = items.find((itm) => {
+                const isB = ord.order_type === 'bolt_try_on' || ord.delivery_mode === 'try_on'
+                const isRej = isB && ((itm as any).is_kept === false || (itm as any).try_on_decision === 'rejected')
+                return !isRej && !userReviewsMap[itm.id]
+              })
+              if (!firstUnreviewed) return null
+              return (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const isB = ord.order_type === 'bolt_try_on' || ord.delivery_mode === 'try_on'
+                    setSelectedReviewItem({
+                      id: firstUnreviewed.id,
+                      order_id: ord.id,
+                      product_id: firstUnreviewed.product_id,
+                      product: firstUnreviewed.product,
+                      size: firstUnreviewed.size,
+                      is_bolt: isB,
+                    })
+                    setSelectedExistingReview(null)
+                    setIsReviewModalOpen(true)
+                  }}
+                  className="px-3.5 py-1.5 bg-[#14293a] hover:bg-neutral-800 text-white text-xs font-mono font-medium rounded-xs transition-colors flex items-center gap-1.5 shrink-0 shadow-xs"
+                >
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  <span>Rate Garment</span>
+                </button>
+              )
+            })()}
+          </div>
+        )}
+
         {/* Garment Items List */}
         <div className="space-y-2">
           <h4 className="text-[11px] uppercase tracking-wider text-[#6c7079] font-bold">
@@ -428,6 +525,70 @@ export default function CustomerOrdersPage() {
                         )}
                         <span>Qty: {item.quantity}</span>
                       </div>
+
+                      {ord.status === 'delivered' && (
+                        <div className="mt-2">
+                          {(() => {
+                            const isBolt = ord.order_type === 'bolt_try_on' || ord.delivery_mode === 'try_on'
+                            const isRejected = isBolt && ((item as any).is_kept === false || (item as any).try_on_decision === 'rejected')
+
+                            if (isRejected) {
+                              return (
+                                <span className="text-[10px] text-neutral-400 italic font-mono">
+                                  Try-on returned
+                                </span>
+                              )
+                            }
+
+                            const existingReview = userReviewsMap[item.id]
+                            if (existingReview) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedReviewItem({
+                                      id: item.id,
+                                      order_id: ord.id,
+                                      product_id: item.product_id,
+                                      product: item.product,
+                                      size: item.size,
+                                      is_bolt: isBolt,
+                                    })
+                                    setSelectedExistingReview(existingReview)
+                                    setIsReviewModalOpen(true)
+                                  }}
+                                  className="text-xs font-mono font-medium text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-xs flex items-center gap-1.5 transition-colors shadow-2xs"
+                                >
+                                  <Star className="w-3 h-3 fill-emerald-600 text-emerald-600" />
+                                  <span>Impressions Shared ({existingReview.rating}★ - {existingReview.status})</span>
+                                </button>
+                              )
+                            }
+
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedReviewItem({
+                                    id: item.id,
+                                    order_id: ord.id,
+                                    product_id: item.product_id,
+                                    product: item.product,
+                                    size: item.size,
+                                    is_bolt: isBolt,
+                                  })
+                                  setSelectedExistingReview(null)
+                                  setIsReviewModalOpen(true)
+                                }}
+                                className="text-xs font-mono font-bold text-[#14293a] bg-amber-400 hover:bg-amber-300 border border-amber-500/40 px-3 py-1 rounded-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                              >
+                                <Star className="w-3 h-3 fill-[#14293a] text-[#14293a]" />
+                                <span>Rate & Share Impressions</span>
+                              </button>
+                            )
+                          })()}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -736,6 +897,21 @@ export default function CustomerOrdersPage() {
           </Link>
         </div>
       </div>
+
+      {/* Review Garment Modal */}
+      <ReviewGarmentModal
+        isOpen={isReviewModalOpen}
+        onClose={() => {
+          setIsReviewModalOpen(false)
+          setSelectedReviewItem(null)
+          setSelectedExistingReview(null)
+        }}
+        orderItem={selectedReviewItem}
+        existingReview={selectedExistingReview}
+        onSuccess={() => {
+          loadOrders(true)
+        }}
+      />
     </div>
   )
 }

@@ -3749,6 +3749,529 @@ CREATE INDEX IF NOT EXISTS idx_coll_cats_category ON public.collection_categorie
 CREATE INDEX IF NOT EXISTS idx_coll_prods_collection ON public.collection_products(collection_id);
 CREATE INDEX IF NOT EXISTS idx_coll_prods_product ON public.collection_products(product_id);
 
+-- ==============================================================================
+-- ATELIER ENTERPRISE: PROMOTIONS, PRICING & DISCOUNT ENGINE SCHEMA
+-- Added: 20261127_promotions_and_pricing_engine.sql
+-- ==============================================================================
+
+-- 1. Cost Price Columns & Security Baseline
+ALTER TABLE public.products
+  ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10, 2) DEFAULT 0.00;
+
+ALTER TABLE public.product_variants
+  ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10, 2);
+
+-- Column-level privilege restrictions: Hide cost_price from unauthenticated patrons and authenticated shoppers (service_role only)
+REVOKE SELECT (cost_price) ON public.products FROM anon, authenticated;
+REVOKE SELECT (cost_price) ON public.product_variants FROM anon, authenticated;
+
+-- 2. Enumerated Types for Promotion Engine
+DO $$ BEGIN
+  CREATE TYPE public.promotion_type AS ENUM (
+    'coupon',
+    'automatic_cart',
+    'tiered_threshold',
+    'buy_x_get_y',
+    'shipping_waiver'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE public.discount_type AS ENUM (
+    'percentage',
+    'fixed_amount',
+    'fixed_price',
+    'free_shipping'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE public.rule_target_type AS ENUM (
+    'entire_order',
+    'category',
+    'collection',
+    'product',
+    'variant',
+    'delivery_mode',
+    'customer_tier'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- 3. Master Promotions Table
+CREATE TABLE IF NOT EXISTS public.promotions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) NOT NULL UNIQUE,
+  description TEXT,
+  promotion_type public.promotion_type NOT NULL DEFAULT 'coupon',
+  discount_type public.discount_type NOT NULL DEFAULT 'percentage',
+  discount_value NUMERIC(10, 2) NOT NULL CHECK (discount_value >= 0),
+  min_order_subtotal NUMERIC(10, 2) DEFAULT 0.00,
+  max_discount_amount NUMERIC(10, 2) DEFAULT NULL,
+  is_stackable BOOLEAN NOT NULL DEFAULT false,
+  priority INT NOT NULL DEFAULT 0,
+  enforce_margin_floor BOOLEAN NOT NULL DEFAULT true,
+  starts_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  ends_at TIMESTAMPTZ DEFAULT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  usage_limit_total INT DEFAULT NULL,
+  usage_limit_per_customer INT DEFAULT 1,
+  total_redemptions_count INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 4. Promotion Rules Table
+CREATE TABLE IF NOT EXISTS public.promotion_rules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  promotion_id UUID NOT NULL REFERENCES public.promotions(id) ON DELETE CASCADE,
+  target_type public.rule_target_type NOT NULL DEFAULT 'entire_order',
+  match_operator VARCHAR(20) NOT NULL DEFAULT 'include',
+  target_id VARCHAR(100) DEFAULT NULL,
+  min_quantity INT DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 5. Promotion Coupons Table
+CREATE TABLE IF NOT EXISTS public.promotion_coupons (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  promotion_id UUID NOT NULL REFERENCES public.promotions(id) ON DELETE CASCADE,
+  code VARCHAR(50) NOT NULL UNIQUE,
+  is_single_use BOOLEAN NOT NULL DEFAULT false,
+  max_uses INT DEFAULT NULL,
+  times_used INT NOT NULL DEFAULT 0,
+  assigned_customer_email VARCHAR(255) DEFAULT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 6. Promotion Redemptions Table
+CREATE TABLE IF NOT EXISTS public.promotion_redemptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  promotion_id UUID NOT NULL REFERENCES public.promotions(id),
+  coupon_id UUID REFERENCES public.promotion_coupons(id),
+  order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.users(id),
+  customer_email VARCHAR(255) NOT NULL,
+  original_subtotal NUMERIC(10, 2) NOT NULL,
+  discount_applied NUMERIC(10, 2) NOT NULL,
+  margin_clamped BOOLEAN NOT NULL DEFAULT false,
+  status VARCHAR(20) NOT NULL DEFAULT 'applied' CHECK (status IN ('applied', 'voided')),
+  voided_at TIMESTAMPTZ DEFAULT NULL,
+  redeemed_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 7. Scheduled Price Adjustments Table
+CREATE TABLE IF NOT EXISTS public.price_schedules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  variant_id UUID REFERENCES public.product_variants(id) ON DELETE CASCADE,
+  original_price NUMERIC(10, 2) NOT NULL,
+  scheduled_price NUMERIC(10, 2) NOT NULL,
+  starts_at TIMESTAMPTZ NOT NULL,
+  ends_at TIMESTAMPTZ NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  reason VARCHAR(100) DEFAULT 'archival_markdown',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 8. Orders & Order Items Extensions
+ALTER TABLE public.orders 
+  ADD COLUMN IF NOT EXISTS promotion_id UUID REFERENCES public.promotions(id),
+  ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS discount_breakdown JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS margin_protected BOOLEAN DEFAULT false;
+
+ALTER TABLE public.order_items
+  ADD COLUMN IF NOT EXISTS original_unit_price NUMERIC(10, 2),
+  ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(10, 2) DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS final_unit_price NUMERIC(10, 2),
+  ADD COLUMN IF NOT EXISTS promotion_id UUID REFERENCES public.promotions(id);
+
+-- 9. Performance Indexes
+CREATE INDEX IF NOT EXISTS idx_promotions_active_dates ON public.promotions(is_active, starts_at, ends_at);
+CREATE INDEX IF NOT EXISTS idx_promotions_type ON public.promotions(promotion_type, is_active);
+CREATE INDEX IF NOT EXISTS idx_coupons_lookup ON public.promotion_coupons(upper(code)) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_promotion_rules_target ON public.promotion_rules(promotion_id, target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_promotion_redemptions_user ON public.promotion_redemptions(promotion_id, lower(customer_email));
+CREATE INDEX IF NOT EXISTS idx_promotion_redemptions_order ON public.promotion_redemptions(order_id);
+CREATE INDEX IF NOT EXISTS idx_price_schedules_active ON public.price_schedules(product_id, variant_id, starts_at, ends_at) WHERE is_active = true;
+
+-- 10. Enable Row Level Security (RLS)
+ALTER TABLE public.promotions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.promotion_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.promotion_coupons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.promotion_redemptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.price_schedules ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public select active promotions"
+  ON public.promotions FOR SELECT
+  TO public
+  USING (
+    is_active = true 
+    AND starts_at <= timezone('utc'::text, now()) 
+    AND (ends_at IS NULL OR ends_at >= timezone('utc'::text, now()))
+  );
+
+CREATE POLICY "Allow staff all on promotions"
+  ON public.promotions FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE users.id = auth.uid() 
+      AND users.role IN ('admin', 'store_manager', 'warehouse_manager')
+    )
+  );
+
+CREATE POLICY "Allow public select promotion rules"
+  ON public.promotion_rules FOR SELECT
+  TO public
+  USING (true);
+
+CREATE POLICY "Allow staff all on promotion rules"
+  ON public.promotion_rules FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE users.id = auth.uid() 
+      AND users.role IN ('admin', 'store_manager')
+    )
+  );
+
+-- Strict ADMIN & SERVICE-ROLE ONLY - prevents scraping of VIP/single-use codes
+CREATE POLICY "Allow staff all on promotion coupons"
+  ON public.promotion_coupons FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE users.id = auth.uid() 
+      AND users.role IN ('admin', 'store_manager')
+    )
+  );
+
+CREATE POLICY "Allow staff and service role only on redemptions"
+  ON public.promotion_redemptions FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE users.id = auth.uid() 
+      AND users.role IN ('admin', 'store_manager')
+    )
+  );
+
+CREATE POLICY "Allow public select active price schedules"
+  ON public.price_schedules FOR SELECT
+  TO public
+  USING (
+    is_active = true 
+    AND starts_at <= timezone('utc'::text, now()) 
+    AND ends_at >= timezone('utc'::text, now())
+  );
+
+CREATE POLICY "Allow staff all on price schedules"
+  ON public.price_schedules FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE users.id = auth.uid() 
+      AND users.role IN ('admin', 'store_manager')
+    )
+  );
+
+-- 11. Stored Procedure: Void/Rollback Redemption
+CREATE OR REPLACE FUNCTION public.void_order_promotion_redemption(p_order_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_redemption RECORD;
+BEGIN
+  SELECT * INTO v_redemption
+  FROM public.promotion_redemptions
+  WHERE order_id = p_order_id AND status = 'applied'
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'message', 'No active redemption found for order');
+  END IF;
+
+  UPDATE public.promotion_redemptions
+  SET status = 'voided',
+      voided_at = timezone('utc'::text, now())
+  WHERE id = v_redemption.id;
+
+  IF v_redemption.coupon_id IS NOT NULL THEN
+    UPDATE public.promotion_coupons
+    SET times_used = GREATEST(0, times_used - 1)
+    WHERE id = v_redemption.coupon_id;
+  END IF;
+
+  IF v_redemption.promotion_id IS NOT NULL THEN
+    UPDATE public.promotions
+    SET total_redemptions_count = GREATEST(0, total_redemptions_count - 1),
+        updated_at = timezone('utc'::text, now())
+    WHERE id = v_redemption.promotion_id;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'order_id', p_order_id,
+    'voided_redemption_id', v_redemption.id,
+    'discount_reversed', v_redemption.discount_applied
+  );
+END;
+$$;
+
+
+-- =============================================================================
+-- SECTION 24: VERIFIED PURCHASE REVIEWS, RATINGS & PHOTO FEEDBACK
+-- =============================================================================
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'review_status') THEN
+        CREATE TYPE review_status AS ENUM ('pending', 'approved', 'rejected', 'hidden');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'fashion_fit_indicator') THEN
+        CREATE TYPE fashion_fit_indicator AS ENUM ('runs_small', 'true_to_size', 'runs_large');
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.product_reviews (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+    order_item_id UUID NOT NULL REFERENCES public.order_items(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    title VARCHAR(150) NOT NULL,
+    comment TEXT NOT NULL,
+    fit_indicator fashion_fit_indicator NOT NULL DEFAULT 'true_to_size',
+    
+    verified_purchase BOOLEAN NOT NULL DEFAULT true,
+    size_purchased VARCHAR(50),
+    is_bolt_try_on BOOLEAN NOT NULL DEFAULT false,
+    
+    status review_status NOT NULL DEFAULT 'pending',
+    moderated_by UUID REFERENCES public.users(id),
+    moderated_at TIMESTAMPTZ,
+    rejection_reason TEXT,
+    
+    admin_reply TEXT,
+    admin_replied_at TIMESTAMPTZ,
+    admin_replied_by UUID REFERENCES public.users(id),
+    
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT unique_review_per_order_item UNIQUE (order_item_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.review_media (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    review_id UUID NOT NULL REFERENCES public.product_reviews(id) ON DELETE CASCADE,
+    image_url TEXT NOT NULL,
+    display_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.products
+ADD COLUMN IF NOT EXISTS average_rating NUMERIC(3, 2) NOT NULL DEFAULT 0.00,
+ADD COLUMN IF NOT EXISTS review_count INT NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS fit_runs_small_count INT NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS fit_true_to_size_count INT NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS fit_runs_large_count INT NOT NULL DEFAULT 0;
+
+CREATE OR REPLACE FUNCTION update_product_review_aggregates()
+RETURNS TRIGGER AS $$
+DECLARE
+    target_product_id UUID;
+    old_product_id UUID;
+BEGIN
+    target_product_id := COALESCE(NEW.product_id, OLD.product_id);
+
+    IF TG_OP = 'UPDATE' AND OLD.product_id IS NOT NULL AND OLD.product_id <> NEW.product_id THEN
+        old_product_id := OLD.product_id;
+        UPDATE public.products
+        SET
+            average_rating = COALESCE((
+                SELECT ROUND(AVG(rating)::numeric, 2)
+                FROM public.product_reviews
+                WHERE product_id = old_product_id AND status = 'approved'
+            ), 0.00),
+            review_count = (
+                SELECT COUNT(*)
+                FROM public.product_reviews
+                WHERE product_id = old_product_id AND status = 'approved'
+            ),
+            fit_runs_small_count = (
+                SELECT COUNT(*)
+                FROM public.product_reviews
+                WHERE product_id = old_product_id AND status = 'approved' AND fit_indicator = 'runs_small'
+            ),
+            fit_true_to_size_count = (
+                SELECT COUNT(*)
+                FROM public.product_reviews
+                WHERE product_id = old_product_id AND status = 'approved' AND fit_indicator = 'true_to_size'
+            ),
+            fit_runs_large_count = (
+                SELECT COUNT(*)
+                FROM public.product_reviews
+                WHERE product_id = old_product_id AND status = 'approved' AND fit_indicator = 'runs_large'
+            ),
+            updated_at = NOW()
+        WHERE id = old_product_id;
+    END IF;
+
+    UPDATE public.products
+    SET
+        average_rating = COALESCE((
+            SELECT ROUND(AVG(rating)::numeric, 2)
+            FROM public.product_reviews
+            WHERE product_id = target_product_id AND status = 'approved'
+        ), 0.00),
+        review_count = (
+            SELECT COUNT(*)
+            FROM public.product_reviews
+            WHERE product_id = target_product_id AND status = 'approved'
+        ),
+        fit_runs_small_count = (
+            SELECT COUNT(*)
+            FROM public.product_reviews
+            WHERE product_id = target_product_id AND status = 'approved' AND fit_indicator = 'runs_small'
+        ),
+        fit_true_to_size_count = (
+            SELECT COUNT(*)
+            FROM public.product_reviews
+            WHERE product_id = target_product_id AND status = 'approved' AND fit_indicator = 'true_to_size'
+        ),
+        fit_runs_large_count = (
+            SELECT COUNT(*)
+            FROM public.product_reviews
+            WHERE product_id = target_product_id AND status = 'approved' AND fit_indicator = 'runs_large'
+        ),
+        updated_at = NOW()
+    WHERE id = target_product_id;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_update_product_review_aggregates ON public.product_reviews;
+CREATE TRIGGER trg_update_product_review_aggregates
+AFTER INSERT OR UPDATE OR DELETE ON public.product_reviews
+FOR EACH ROW EXECUTE FUNCTION update_product_review_aggregates();
+
+CREATE INDEX IF NOT EXISTS idx_product_reviews_product_id_status ON public.product_reviews(product_id, status);
+CREATE INDEX IF NOT EXISTS idx_product_reviews_user_id ON public.product_reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_product_reviews_order_item_id ON public.product_reviews(order_item_id);
+CREATE INDEX IF NOT EXISTS idx_product_reviews_status ON public.product_reviews(status);
+CREATE INDEX IF NOT EXISTS idx_review_media_review_id ON public.review_media(review_id);
+
+ALTER TABLE public.product_reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.review_media ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can view approved reviews or own reviews" ON public.product_reviews;
+CREATE POLICY "Public can view approved reviews or own reviews"
+ON public.product_reviews
+FOR SELECT
+USING (
+    status = 'approved'
+    OR auth.uid() = user_id
+    OR EXISTS (
+        SELECT 1 FROM public.users
+        WHERE id = auth.uid() AND role IN ('admin', 'store_manager')
+    )
+);
+
+DROP POLICY IF EXISTS "Authenticated users can submit reviews" ON public.product_reviews;
+CREATE POLICY "Authenticated users can submit reviews"
+ON public.product_reviews
+FOR INSERT
+WITH CHECK (
+    auth.uid() = user_id
+);
+
+DROP POLICY IF EXISTS "Staff can moderate reviews" ON public.product_reviews;
+CREATE POLICY "Staff can moderate reviews"
+ON public.product_reviews
+FOR UPDATE
+USING (
+    EXISTS (
+        SELECT 1 FROM public.users
+        WHERE id = auth.uid() AND role IN ('admin', 'store_manager')
+    )
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.users
+        WHERE id = auth.uid() AND role IN ('admin', 'store_manager')
+    )
+);
+
+DROP POLICY IF EXISTS "Staff can delete reviews" ON public.product_reviews;
+CREATE POLICY "Staff can delete reviews"
+ON public.product_reviews
+FOR DELETE
+USING (
+    EXISTS (
+        SELECT 1 FROM public.users
+        WHERE id = auth.uid() AND role IN ('admin', 'store_manager')
+    )
+);
+
+DROP POLICY IF EXISTS "Public can view approved review media" ON public.review_media;
+CREATE POLICY "Public can view approved review media"
+ON public.review_media
+FOR SELECT
+USING (
+    EXISTS (
+        SELECT 1 FROM public.product_reviews pr
+        WHERE pr.id = review_id
+        AND (
+            pr.status = 'approved'
+            OR pr.user_id = auth.uid()
+            OR EXISTS (
+                SELECT 1 FROM public.users
+                WHERE id = auth.uid() AND role IN ('admin', 'store_manager')
+            )
+        )
+    )
+);
+
+DROP POLICY IF EXISTS "Users can insert media for their own reviews" ON public.review_media;
+CREATE POLICY "Users can insert media for their own reviews"
+ON public.review_media
+FOR INSERT
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.product_reviews pr
+        WHERE pr.id = review_id AND pr.user_id = auth.uid()
+    )
+);
+
+DROP POLICY IF EXISTS "Staff can manage review media" ON public.review_media;
+CREATE POLICY "Staff can manage review media"
+ON public.review_media
+FOR ALL
+USING (
+    EXISTS (
+        SELECT 1 FROM public.users
+        WHERE id = auth.uid() AND role IN ('admin', 'store_manager')
+    )
+);
+
+
 
 -- ==============================================================================
 -- 20261123_production_wms_oms_remediation.sql
@@ -4956,6 +5479,529 @@ CREATE INDEX IF NOT EXISTS idx_coll_cats_collection ON public.collection_categor
 CREATE INDEX IF NOT EXISTS idx_coll_cats_category ON public.collection_categories(category_id);
 CREATE INDEX IF NOT EXISTS idx_coll_prods_collection ON public.collection_products(collection_id);
 CREATE INDEX IF NOT EXISTS idx_coll_prods_product ON public.collection_products(product_id);
+
+-- ==============================================================================
+-- ATELIER ENTERPRISE: PROMOTIONS, PRICING & DISCOUNT ENGINE SCHEMA
+-- Added: 20261127_promotions_and_pricing_engine.sql
+-- ==============================================================================
+
+-- 1. Cost Price Columns & Security Baseline
+ALTER TABLE public.products
+  ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10, 2) DEFAULT 0.00;
+
+ALTER TABLE public.product_variants
+  ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10, 2);
+
+-- Column-level privilege restrictions: Hide cost_price from unauthenticated patrons and authenticated shoppers (service_role only)
+REVOKE SELECT (cost_price) ON public.products FROM anon, authenticated;
+REVOKE SELECT (cost_price) ON public.product_variants FROM anon, authenticated;
+
+-- 2. Enumerated Types for Promotion Engine
+DO $$ BEGIN
+  CREATE TYPE public.promotion_type AS ENUM (
+    'coupon',
+    'automatic_cart',
+    'tiered_threshold',
+    'buy_x_get_y',
+    'shipping_waiver'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE public.discount_type AS ENUM (
+    'percentage',
+    'fixed_amount',
+    'fixed_price',
+    'free_shipping'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE public.rule_target_type AS ENUM (
+    'entire_order',
+    'category',
+    'collection',
+    'product',
+    'variant',
+    'delivery_mode',
+    'customer_tier'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- 3. Master Promotions Table
+CREATE TABLE IF NOT EXISTS public.promotions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) NOT NULL UNIQUE,
+  description TEXT,
+  promotion_type public.promotion_type NOT NULL DEFAULT 'coupon',
+  discount_type public.discount_type NOT NULL DEFAULT 'percentage',
+  discount_value NUMERIC(10, 2) NOT NULL CHECK (discount_value >= 0),
+  min_order_subtotal NUMERIC(10, 2) DEFAULT 0.00,
+  max_discount_amount NUMERIC(10, 2) DEFAULT NULL,
+  is_stackable BOOLEAN NOT NULL DEFAULT false,
+  priority INT NOT NULL DEFAULT 0,
+  enforce_margin_floor BOOLEAN NOT NULL DEFAULT true,
+  starts_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  ends_at TIMESTAMPTZ DEFAULT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  usage_limit_total INT DEFAULT NULL,
+  usage_limit_per_customer INT DEFAULT 1,
+  total_redemptions_count INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 4. Promotion Rules Table
+CREATE TABLE IF NOT EXISTS public.promotion_rules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  promotion_id UUID NOT NULL REFERENCES public.promotions(id) ON DELETE CASCADE,
+  target_type public.rule_target_type NOT NULL DEFAULT 'entire_order',
+  match_operator VARCHAR(20) NOT NULL DEFAULT 'include',
+  target_id VARCHAR(100) DEFAULT NULL,
+  min_quantity INT DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 5. Promotion Coupons Table
+CREATE TABLE IF NOT EXISTS public.promotion_coupons (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  promotion_id UUID NOT NULL REFERENCES public.promotions(id) ON DELETE CASCADE,
+  code VARCHAR(50) NOT NULL UNIQUE,
+  is_single_use BOOLEAN NOT NULL DEFAULT false,
+  max_uses INT DEFAULT NULL,
+  times_used INT NOT NULL DEFAULT 0,
+  assigned_customer_email VARCHAR(255) DEFAULT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 6. Promotion Redemptions Table
+CREATE TABLE IF NOT EXISTS public.promotion_redemptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  promotion_id UUID NOT NULL REFERENCES public.promotions(id),
+  coupon_id UUID REFERENCES public.promotion_coupons(id),
+  order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.users(id),
+  customer_email VARCHAR(255) NOT NULL,
+  original_subtotal NUMERIC(10, 2) NOT NULL,
+  discount_applied NUMERIC(10, 2) NOT NULL,
+  margin_clamped BOOLEAN NOT NULL DEFAULT false,
+  status VARCHAR(20) NOT NULL DEFAULT 'applied' CHECK (status IN ('applied', 'voided')),
+  voided_at TIMESTAMPTZ DEFAULT NULL,
+  redeemed_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 7. Scheduled Price Adjustments Table
+CREATE TABLE IF NOT EXISTS public.price_schedules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  variant_id UUID REFERENCES public.product_variants(id) ON DELETE CASCADE,
+  original_price NUMERIC(10, 2) NOT NULL,
+  scheduled_price NUMERIC(10, 2) NOT NULL,
+  starts_at TIMESTAMPTZ NOT NULL,
+  ends_at TIMESTAMPTZ NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  reason VARCHAR(100) DEFAULT 'archival_markdown',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 8. Orders & Order Items Extensions
+ALTER TABLE public.orders 
+  ADD COLUMN IF NOT EXISTS promotion_id UUID REFERENCES public.promotions(id),
+  ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS discount_breakdown JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS margin_protected BOOLEAN DEFAULT false;
+
+ALTER TABLE public.order_items
+  ADD COLUMN IF NOT EXISTS original_unit_price NUMERIC(10, 2),
+  ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(10, 2) DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS final_unit_price NUMERIC(10, 2),
+  ADD COLUMN IF NOT EXISTS promotion_id UUID REFERENCES public.promotions(id);
+
+-- 9. Performance Indexes
+CREATE INDEX IF NOT EXISTS idx_promotions_active_dates ON public.promotions(is_active, starts_at, ends_at);
+CREATE INDEX IF NOT EXISTS idx_promotions_type ON public.promotions(promotion_type, is_active);
+CREATE INDEX IF NOT EXISTS idx_coupons_lookup ON public.promotion_coupons(upper(code)) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_promotion_rules_target ON public.promotion_rules(promotion_id, target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_promotion_redemptions_user ON public.promotion_redemptions(promotion_id, lower(customer_email));
+CREATE INDEX IF NOT EXISTS idx_promotion_redemptions_order ON public.promotion_redemptions(order_id);
+CREATE INDEX IF NOT EXISTS idx_price_schedules_active ON public.price_schedules(product_id, variant_id, starts_at, ends_at) WHERE is_active = true;
+
+-- 10. Enable Row Level Security (RLS)
+ALTER TABLE public.promotions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.promotion_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.promotion_coupons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.promotion_redemptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.price_schedules ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public select active promotions"
+  ON public.promotions FOR SELECT
+  TO public
+  USING (
+    is_active = true 
+    AND starts_at <= timezone('utc'::text, now()) 
+    AND (ends_at IS NULL OR ends_at >= timezone('utc'::text, now()))
+  );
+
+CREATE POLICY "Allow staff all on promotions"
+  ON public.promotions FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE users.id = auth.uid() 
+      AND users.role IN ('admin', 'store_manager', 'warehouse_manager')
+    )
+  );
+
+CREATE POLICY "Allow public select promotion rules"
+  ON public.promotion_rules FOR SELECT
+  TO public
+  USING (true);
+
+CREATE POLICY "Allow staff all on promotion rules"
+  ON public.promotion_rules FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE users.id = auth.uid() 
+      AND users.role IN ('admin', 'store_manager')
+    )
+  );
+
+-- Strict ADMIN & SERVICE-ROLE ONLY - prevents scraping of VIP/single-use codes
+CREATE POLICY "Allow staff all on promotion coupons"
+  ON public.promotion_coupons FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE users.id = auth.uid() 
+      AND users.role IN ('admin', 'store_manager')
+    )
+  );
+
+CREATE POLICY "Allow staff and service role only on redemptions"
+  ON public.promotion_redemptions FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE users.id = auth.uid() 
+      AND users.role IN ('admin', 'store_manager')
+    )
+  );
+
+CREATE POLICY "Allow public select active price schedules"
+  ON public.price_schedules FOR SELECT
+  TO public
+  USING (
+    is_active = true 
+    AND starts_at <= timezone('utc'::text, now()) 
+    AND ends_at >= timezone('utc'::text, now())
+  );
+
+CREATE POLICY "Allow staff all on price schedules"
+  ON public.price_schedules FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.users 
+      WHERE users.id = auth.uid() 
+      AND users.role IN ('admin', 'store_manager')
+    )
+  );
+
+-- 11. Stored Procedure: Void/Rollback Redemption
+CREATE OR REPLACE FUNCTION public.void_order_promotion_redemption(p_order_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_redemption RECORD;
+BEGIN
+  SELECT * INTO v_redemption
+  FROM public.promotion_redemptions
+  WHERE order_id = p_order_id AND status = 'applied'
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'message', 'No active redemption found for order');
+  END IF;
+
+  UPDATE public.promotion_redemptions
+  SET status = 'voided',
+      voided_at = timezone('utc'::text, now())
+  WHERE id = v_redemption.id;
+
+  IF v_redemption.coupon_id IS NOT NULL THEN
+    UPDATE public.promotion_coupons
+    SET times_used = GREATEST(0, times_used - 1)
+    WHERE id = v_redemption.coupon_id;
+  END IF;
+
+  IF v_redemption.promotion_id IS NOT NULL THEN
+    UPDATE public.promotions
+    SET total_redemptions_count = GREATEST(0, total_redemptions_count - 1),
+        updated_at = timezone('utc'::text, now())
+    WHERE id = v_redemption.promotion_id;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'order_id', p_order_id,
+    'voided_redemption_id', v_redemption.id,
+    'discount_reversed', v_redemption.discount_applied
+  );
+END;
+$$;
+
+
+-- =============================================================================
+-- SECTION 24: VERIFIED PURCHASE REVIEWS, RATINGS & PHOTO FEEDBACK
+-- =============================================================================
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'review_status') THEN
+        CREATE TYPE review_status AS ENUM ('pending', 'approved', 'rejected', 'hidden');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'fashion_fit_indicator') THEN
+        CREATE TYPE fashion_fit_indicator AS ENUM ('runs_small', 'true_to_size', 'runs_large');
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.product_reviews (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+    order_item_id UUID NOT NULL REFERENCES public.order_items(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    title VARCHAR(150) NOT NULL,
+    comment TEXT NOT NULL,
+    fit_indicator fashion_fit_indicator NOT NULL DEFAULT 'true_to_size',
+    
+    verified_purchase BOOLEAN NOT NULL DEFAULT true,
+    size_purchased VARCHAR(50),
+    is_bolt_try_on BOOLEAN NOT NULL DEFAULT false,
+    
+    status review_status NOT NULL DEFAULT 'pending',
+    moderated_by UUID REFERENCES public.users(id),
+    moderated_at TIMESTAMPTZ,
+    rejection_reason TEXT,
+    
+    admin_reply TEXT,
+    admin_replied_at TIMESTAMPTZ,
+    admin_replied_by UUID REFERENCES public.users(id),
+    
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT unique_review_per_order_item UNIQUE (order_item_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.review_media (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    review_id UUID NOT NULL REFERENCES public.product_reviews(id) ON DELETE CASCADE,
+    image_url TEXT NOT NULL,
+    display_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.products
+ADD COLUMN IF NOT EXISTS average_rating NUMERIC(3, 2) NOT NULL DEFAULT 0.00,
+ADD COLUMN IF NOT EXISTS review_count INT NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS fit_runs_small_count INT NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS fit_true_to_size_count INT NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS fit_runs_large_count INT NOT NULL DEFAULT 0;
+
+CREATE OR REPLACE FUNCTION update_product_review_aggregates()
+RETURNS TRIGGER AS $$
+DECLARE
+    target_product_id UUID;
+    old_product_id UUID;
+BEGIN
+    target_product_id := COALESCE(NEW.product_id, OLD.product_id);
+
+    IF TG_OP = 'UPDATE' AND OLD.product_id IS NOT NULL AND OLD.product_id <> NEW.product_id THEN
+        old_product_id := OLD.product_id;
+        UPDATE public.products
+        SET
+            average_rating = COALESCE((
+                SELECT ROUND(AVG(rating)::numeric, 2)
+                FROM public.product_reviews
+                WHERE product_id = old_product_id AND status = 'approved'
+            ), 0.00),
+            review_count = (
+                SELECT COUNT(*)
+                FROM public.product_reviews
+                WHERE product_id = old_product_id AND status = 'approved'
+            ),
+            fit_runs_small_count = (
+                SELECT COUNT(*)
+                FROM public.product_reviews
+                WHERE product_id = old_product_id AND status = 'approved' AND fit_indicator = 'runs_small'
+            ),
+            fit_true_to_size_count = (
+                SELECT COUNT(*)
+                FROM public.product_reviews
+                WHERE product_id = old_product_id AND status = 'approved' AND fit_indicator = 'true_to_size'
+            ),
+            fit_runs_large_count = (
+                SELECT COUNT(*)
+                FROM public.product_reviews
+                WHERE product_id = old_product_id AND status = 'approved' AND fit_indicator = 'runs_large'
+            ),
+            updated_at = NOW()
+        WHERE id = old_product_id;
+    END IF;
+
+    UPDATE public.products
+    SET
+        average_rating = COALESCE((
+            SELECT ROUND(AVG(rating)::numeric, 2)
+            FROM public.product_reviews
+            WHERE product_id = target_product_id AND status = 'approved'
+        ), 0.00),
+        review_count = (
+            SELECT COUNT(*)
+            FROM public.product_reviews
+            WHERE product_id = target_product_id AND status = 'approved'
+        ),
+        fit_runs_small_count = (
+            SELECT COUNT(*)
+            FROM public.product_reviews
+            WHERE product_id = target_product_id AND status = 'approved' AND fit_indicator = 'runs_small'
+        ),
+        fit_true_to_size_count = (
+            SELECT COUNT(*)
+            FROM public.product_reviews
+            WHERE product_id = target_product_id AND status = 'approved' AND fit_indicator = 'true_to_size'
+        ),
+        fit_runs_large_count = (
+            SELECT COUNT(*)
+            FROM public.product_reviews
+            WHERE product_id = target_product_id AND status = 'approved' AND fit_indicator = 'runs_large'
+        ),
+        updated_at = NOW()
+    WHERE id = target_product_id;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_update_product_review_aggregates ON public.product_reviews;
+CREATE TRIGGER trg_update_product_review_aggregates
+AFTER INSERT OR UPDATE OR DELETE ON public.product_reviews
+FOR EACH ROW EXECUTE FUNCTION update_product_review_aggregates();
+
+CREATE INDEX IF NOT EXISTS idx_product_reviews_product_id_status ON public.product_reviews(product_id, status);
+CREATE INDEX IF NOT EXISTS idx_product_reviews_user_id ON public.product_reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_product_reviews_order_item_id ON public.product_reviews(order_item_id);
+CREATE INDEX IF NOT EXISTS idx_product_reviews_status ON public.product_reviews(status);
+CREATE INDEX IF NOT EXISTS idx_review_media_review_id ON public.review_media(review_id);
+
+ALTER TABLE public.product_reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.review_media ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can view approved reviews or own reviews" ON public.product_reviews;
+CREATE POLICY "Public can view approved reviews or own reviews"
+ON public.product_reviews
+FOR SELECT
+USING (
+    status = 'approved'
+    OR auth.uid() = user_id
+    OR EXISTS (
+        SELECT 1 FROM public.users
+        WHERE id = auth.uid() AND role IN ('admin', 'store_manager')
+    )
+);
+
+DROP POLICY IF EXISTS "Authenticated users can submit reviews" ON public.product_reviews;
+CREATE POLICY "Authenticated users can submit reviews"
+ON public.product_reviews
+FOR INSERT
+WITH CHECK (
+    auth.uid() = user_id
+);
+
+DROP POLICY IF EXISTS "Staff can moderate reviews" ON public.product_reviews;
+CREATE POLICY "Staff can moderate reviews"
+ON public.product_reviews
+FOR UPDATE
+USING (
+    EXISTS (
+        SELECT 1 FROM public.users
+        WHERE id = auth.uid() AND role IN ('admin', 'store_manager')
+    )
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.users
+        WHERE id = auth.uid() AND role IN ('admin', 'store_manager')
+    )
+);
+
+DROP POLICY IF EXISTS "Staff can delete reviews" ON public.product_reviews;
+CREATE POLICY "Staff can delete reviews"
+ON public.product_reviews
+FOR DELETE
+USING (
+    EXISTS (
+        SELECT 1 FROM public.users
+        WHERE id = auth.uid() AND role IN ('admin', 'store_manager')
+    )
+);
+
+DROP POLICY IF EXISTS "Public can view approved review media" ON public.review_media;
+CREATE POLICY "Public can view approved review media"
+ON public.review_media
+FOR SELECT
+USING (
+    EXISTS (
+        SELECT 1 FROM public.product_reviews pr
+        WHERE pr.id = review_id
+        AND (
+            pr.status = 'approved'
+            OR pr.user_id = auth.uid()
+            OR EXISTS (
+                SELECT 1 FROM public.users
+                WHERE id = auth.uid() AND role IN ('admin', 'store_manager')
+            )
+        )
+    )
+);
+
+DROP POLICY IF EXISTS "Users can insert media for their own reviews" ON public.review_media;
+CREATE POLICY "Users can insert media for their own reviews"
+ON public.review_media
+FOR INSERT
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.product_reviews pr
+        WHERE pr.id = review_id AND pr.user_id = auth.uid()
+    )
+);
+
+DROP POLICY IF EXISTS "Staff can manage review media" ON public.review_media;
+CREATE POLICY "Staff can manage review media"
+ON public.review_media
+FOR ALL
+USING (
+    EXISTS (
+        SELECT 1 FROM public.users
+        WHERE id = auth.uid() AND role IN ('admin', 'store_manager')
+    )
+);
+
 
 
 

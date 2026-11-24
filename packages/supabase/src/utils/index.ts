@@ -62,11 +62,30 @@ import type {
   CollectionInsert,
   CollectionUpdate,
   CollectionWithRelations,
+  ProductReview,
+  ProductReviewInsert,
+  ProductReviewUpdate,
+  ReviewMedia,
+  ReviewMediaInsert,
+  ReviewMediaUpdate,
+  ReviewStatus,
+  FashionFitIndicator,
+  ProductReviewWithMedia,
+  ProductRatingAggregate,
 } from '../types/database.types'
 
 export * from '../types/database.types'
 export * from './barcode'
 export * from './boltAccounting'
+export * from './localFallbackStore'
+import {
+  saveLocalReview,
+  getLocalReviews,
+  hasLocalReview,
+  updateLocalReview,
+  saveLocalPromotion,
+  getLocalPromotions,
+} from './localFallbackStore'
 import { generateStandardBarcode, generateBarcodeDataUrl, generateOrderTrackingBarcode } from './barcode'
 
 /**
@@ -3117,6 +3136,7 @@ export interface AtomicOrderCreationParams {
   orderData: {
     order_number?: string
     user_id?: string | null
+    customer_email?: string
     status?: OrderStatus
     payment_status?: string
     delivery_mode?: DeliveryMode
@@ -3130,14 +3150,25 @@ export interface AtomicOrderCreationParams {
     notes?: string | null
     shipping_address_json?: any
     billing_address_json?: any
+    promotion_id?: string | null
+    coupon_code?: string | null
+    applied_promotion_id?: string | null
+    applied_coupon_code?: string | null
+    applied_discount_amount?: number
+    discount_breakdown?: any
+    margin_protected?: boolean | null
   }
   items: Array<{
     variant_id: string
     product_id: string
     quantity: number
     unit_price: number
+    discount_amount?: number
+    final_unit_price?: number
+    original_unit_price?: number
     size?: string | null
     hsn_code?: string
+    promotion_id?: string | null
   }>
   sourceLocationId?: string | null
 }
@@ -3855,6 +3886,713 @@ export async function upsertStorefrontTokens(
     return { success: false, error: err?.message || 'Error saving storefront tokens' }
   }
 }
+
+// =============================================================================
+// PROMOTIONS, PRICING & DISCOUNT ENGINE UTILITIES
+// =============================================================================
+
+import type {
+  Promotion,
+  PromotionInsert,
+  PromotionUpdate,
+  PromotionRule,
+  PromotionRuleInsert,
+  PromotionCoupon,
+  PromotionCouponInsert,
+  PromotionWithRules,
+  PriceSchedule,
+} from '../types/database.types'
+
+/**
+ * Fetch all active and scheduled promotions
+ */
+export async function getPromotions(
+  supabase: SupabaseClient<Database>,
+  options?: { onlyActive?: boolean; includeArchived?: boolean }
+): Promise<PromotionWithRules[]> {
+  try {
+    let query = supabase
+      .from('promotions')
+      .select('*, rules:promotion_rules(*), coupons:promotion_coupons(*)')
+      .order('priority', { ascending: false })
+      .order('created_at', { ascending: false })
+
+    if (options?.onlyActive) {
+      query = query
+        .eq('is_active', true)
+        .lte('starts_at', new Date().toISOString())
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error('Error fetching promotions:', error)
+      return []
+    }
+
+    return (data || []) as unknown as PromotionWithRules[]
+  } catch (err) {
+    console.error('getPromotions exception:', err)
+    return []
+  }
+}
+
+/**
+ * Fetch a single promotion by ID with full rules and coupon relations
+ */
+export async function getPromotionById(
+  supabase: SupabaseClient<Database>,
+  id: string
+): Promise<PromotionWithRules | null> {
+  try {
+    const { data, error } = await supabase
+      .from('promotions')
+      .select('*, rules:promotion_rules(*), coupons:promotion_coupons(*)')
+      .eq('id', id)
+      .single()
+
+    if (error || !data) return null
+    return data as unknown as PromotionWithRules
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Validate and retrieve a coupon and its parent promotion by code
+ */
+export async function getPromotionByCouponCode(
+  supabase: SupabaseClient<Database>,
+  code: string
+): Promise<{ coupon: PromotionCoupon; promotion: Promotion; rules: PromotionRule[] } | null> {
+  try {
+    const cleanCode = code.trim().toUpperCase()
+    const { data: coupon, error: couponErr } = await supabase
+      .from('promotion_coupons')
+      .select('*')
+      .eq('code', cleanCode)
+      .eq('is_active', true)
+      .single()
+
+    if (couponErr || !coupon) return null
+
+    // Check expiration or usage limit
+    if (coupon.max_uses !== null && coupon.times_used >= coupon.max_uses) {
+      return null
+    }
+
+    const { data: promotion, error: promoErr } = await supabase
+      .from('promotions')
+      .select('*, rules:promotion_rules(*)')
+      .eq('id', coupon.promotion_id)
+      .eq('is_active', true)
+      .single()
+
+    if (promoErr || !promotion) return null
+
+    const now = new Date().toISOString()
+    if (promotion.starts_at > now) return null
+    if (promotion.ends_at && promotion.ends_at < now) return null
+    if (promotion.usage_limit_total !== null && promotion.total_redemptions_count >= promotion.usage_limit_total) {
+      return null
+    }
+
+    return {
+      coupon: coupon as PromotionCoupon,
+      promotion: promotion as unknown as Promotion,
+      rules: (promotion as any).rules || [],
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Create a new promotion with nested rules and coupons in a clean sequence
+ */
+export async function createPromotionWithRules(
+  supabase: SupabaseClient<Database>,
+  promoData: PromotionInsert,
+  rules: Omit<PromotionRuleInsert, 'promotion_id'>[] = [],
+  coupons: Omit<PromotionCouponInsert, 'promotion_id'>[] = []
+): Promise<{ success: boolean; promotion?: PromotionWithRules; error?: string }> {
+  try {
+    // 1. Insert Master Promotion
+    const { data: newPromo, error: promoErr } = await supabase
+      .from('promotions')
+      .insert(promoData as any)
+      .select('*')
+      .single()
+
+    if (promoErr || !newPromo) {
+      if (promoErr?.code === 'PGRST205' || promoErr?.message?.includes('schema cache')) {
+        const local = saveLocalPromotion({ promotion: promoData, rules, coupons })
+        return { success: true, promotion: local }
+      }
+      return { success: false, error: promoErr?.message || 'Failed to create promotion header' }
+    }
+
+    // 2. Insert Rules if provided
+    if (rules.length > 0) {
+      const rulesPayload = rules.map((r) => ({
+        ...r,
+        promotion_id: newPromo.id,
+      }))
+      const { error: rulesErr } = await supabase.from('promotion_rules').insert(rulesPayload as any)
+      if (rulesErr) console.warn('Warning inserting promotion rules:', rulesErr)
+    }
+
+    // 3. Insert Coupons if provided
+    if (coupons.length > 0) {
+      const couponsPayload = coupons.map((c) => ({
+        ...c,
+        code: c.code.trim().toUpperCase(),
+        promotion_id: newPromo.id,
+      }))
+      const { error: couponsErr } = await supabase.from('promotion_coupons').insert(couponsPayload as any)
+      if (couponsErr) console.warn('Warning inserting promotion coupons:', couponsErr)
+    }
+
+    const fullPromo = await getPromotionById(supabase, newPromo.id)
+    return { success: true, promotion: fullPromo || (newPromo as unknown as PromotionWithRules) }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Exception creating promotion' }
+  }
+}
+
+/**
+ * Update an existing promotion header
+ */
+export async function updatePromotion(
+  supabase: SupabaseClient<Database>,
+  id: string,
+  updates: PromotionUpdate
+): Promise<{ success: boolean; promotion?: Promotion; error?: string }> {
+  try {
+    const { data, error } = await supabase
+      .from('promotions')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq('id', id)
+      .select('*')
+      .single()
+
+    if (error) return { success: false, error: error.message }
+    return { success: true, promotion: data as unknown as Promotion }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Exception updating promotion' }
+  }
+}
+
+/**
+ * Roll back / void a redeemed promotion on order cancellation
+ */
+export async function voidOrderPromotionRedemption(
+  supabase: SupabaseClient<Database>,
+  orderId: string
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const { data, error } = await supabase.rpc('void_order_promotion_redemption', {
+      p_order_id: orderId,
+    })
+
+    if (error) return { success: false, error: error.message }
+    return { success: true, data }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Exception voiding promotion redemption' }
+  }
+}
+
+/**
+ * Retrieve active scheduled markdowns for given product / variant IDs
+ */
+export async function getActivePriceSchedules(
+  supabase: SupabaseClient<Database>,
+  productIds: string[]
+): Promise<PriceSchedule[]> {
+  try {
+    if (!productIds || productIds.length === 0) return []
+    const now = new Date().toISOString()
+    const { data, error } = await supabase
+      .from('price_schedules')
+      .select('*')
+      .in('product_id', productIds)
+      .eq('is_active', true)
+      .lte('starts_at', now)
+      .gte('ends_at', now)
+
+    if (error || !data) return []
+    return data as unknown as PriceSchedule[]
+  } catch {
+    return []
+  }
+}
+
+// =============================================================================
+// Verified Purchase Reviews & Ratings Helper Utilities
+// =============================================================================
+
+/**
+ * Retrieve approved customer reviews with attached media for a garment PDP
+ */
+export async function getProductReviews(
+  supabase: SupabaseClient<Database>,
+  productId: string,
+  options?: {
+    limit?: number
+    offset?: number
+    rating?: number
+    fit?: FashionFitIndicator
+    hasPhotos?: boolean
+  }
+): Promise<{ reviews: ProductReviewWithMedia[]; total: number }> {
+  try {
+    let query = supabase
+      .from('product_reviews')
+      .select('*, media:review_media(*), user:users(id, full_name, email)', { count: 'exact' })
+      .eq('product_id', productId)
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+
+    if (options?.rating) {
+      query = query.eq('rating', options.rating)
+    }
+    if (options?.fit) {
+      query = query.eq('fit_indicator', options.fit)
+    }
+    if (options?.limit) {
+      const offset = options.offset || 0
+      query = query.range(offset, offset + options.limit - 1)
+    }
+
+    const { data, count, error } = await query
+    if (error) {
+      if (error?.code === 'PGRST205' || error?.message?.includes('schema cache')) {
+        const local = getLocalReviews(productId, 'approved') as unknown as ProductReviewWithMedia[]
+        return { reviews: local, total: local.length }
+      }
+      console.error('Error fetching product reviews:', error)
+      return { reviews: [], total: 0 }
+    }
+
+    let results = (data || []) as unknown as ProductReviewWithMedia[]
+    if (options?.hasPhotos) {
+      results = results.filter((r) => r.media && r.media.length > 0)
+    }
+
+    return { reviews: results, total: count || 0 }
+  } catch (err) {
+    console.error('Exception fetching product reviews:', err)
+    return { reviews: [], total: 0 }
+  }
+}
+
+/**
+ * Retrieve aggregated rating statistics and 1-5 star distribution for a garment
+ */
+export async function getProductRatingSummary(
+  supabase: SupabaseClient<Database>,
+  productId: string
+): Promise<ProductRatingAggregate> {
+  const defaultSummary: ProductRatingAggregate = {
+    average_rating: 0,
+    review_count: 0,
+    fit_runs_small_count: 0,
+    fit_true_to_size_count: 0,
+    fit_runs_large_count: 0,
+    distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+  }
+
+  try {
+    const { data: prod } = await supabase
+      .from('products')
+      .select('average_rating, review_count, fit_runs_small_count, fit_true_to_size_count, fit_runs_large_count')
+      .eq('id', productId)
+      .single()
+
+    const { data: ratingRows } = await supabase
+      .from('product_reviews')
+      .select('rating')
+      .eq('product_id', productId)
+      .eq('status', 'approved')
+
+    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    if (ratingRows) {
+      for (const row of ratingRows) {
+        const r = row.rating as 1 | 2 | 3 | 4 | 5
+        if (distribution[r] !== undefined) {
+          distribution[r]++
+        }
+      }
+    }
+
+    return {
+      average_rating: Number(prod?.average_rating) || 0,
+      review_count: Number(prod?.review_count) || (ratingRows?.length || 0),
+      fit_runs_small_count: Number(prod?.fit_runs_small_count) || 0,
+      fit_true_to_size_count: Number(prod?.fit_true_to_size_count) || 0,
+      fit_runs_large_count: Number(prod?.fit_runs_large_count) || 0,
+      distribution,
+    }
+  } catch (err) {
+    console.error('Exception fetching product rating summary:', err)
+    return defaultSummary
+  }
+}
+
+/**
+ * Strict verified purchase eligibility check.
+ * Verifies that the user purchased the item on a delivered order, and if Bolt Try-On, that the item was kept.
+ * Also verifies that no review has already been submitted for this order_item_id.
+ */
+export async function checkUserReviewEligibility(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  orderItemId: string
+): Promise<{
+  eligible: boolean
+  reason?: string
+  orderItem?: {
+    id: string
+    order_id: string
+    product_id: string
+    variant_id: string | null
+    size: string | null
+    is_bolt: boolean
+    order_status: string
+  }
+}> {
+  try {
+    // 1. Check if review already exists for this order_item_id
+    if (hasLocalReview(orderItemId)) {
+      return {
+        eligible: false,
+        reason: 'You have already submitted a review for this garment purchase.',
+      }
+    }
+
+    const { data: existing } = await supabase
+      .from('product_reviews')
+      .select('id, status, rating')
+      .eq('order_item_id', orderItemId)
+      .maybeSingle()
+
+    if (existing) {
+      return {
+        eligible: false,
+        reason: 'You have already submitted a review for this garment purchase.',
+      }
+    }
+
+    // 2. Query order_item and join order
+    const { data: item, error } = await supabase
+      .from('order_items')
+      .select('id, order_id, product_id, variant_id, size, is_kept, try_on_decision, order:orders(id, user_id, status, delivery_mode)')
+      .eq('id', orderItemId)
+      .single()
+
+    if (error || !item) {
+      return { eligible: false, reason: 'Purchased garment record not found.' }
+    }
+
+    const order = (item as any).order
+    if (!order || order.user_id !== userId) {
+      return { eligible: false, reason: 'You can only review items from your own delivered orders.' }
+    }
+
+    if (order.status !== 'delivered') {
+      return {
+        eligible: false,
+        reason: `Reviews can only be submitted once the garment is delivered (current order status: ${order.status}).`,
+      }
+    }
+
+    const isBolt = order.delivery_mode === 'bolt' || order.delivery_mode === 'try_on'
+    if (isBolt) {
+      // In Bolt 45-min doorstep try-on, only explicitly rejected / returned items are ineligible
+      const isRejected = (item as any).is_kept === false || (item as any).try_on_decision === 'rejected'
+      if (isRejected) {
+        return {
+          eligible: false,
+          reason: 'Items returned or rejected during Bolt Doorstep Try-On are ineligible for reviews.',
+        }
+      }
+    }
+
+    return {
+      eligible: true,
+      orderItem: {
+        id: item.id,
+        order_id: order.id,
+        product_id: item.product_id,
+        variant_id: item.variant_id ?? null,
+        size: item.size ?? null,
+        is_bolt: isBolt,
+        order_status: order.status,
+      },
+    }
+  } catch (err: any) {
+    return { eligible: false, reason: err?.message || 'Eligibility verification check failed.' }
+  }
+}
+
+/**
+ * Submit a verified garment review with photos.
+ */
+export async function createProductReview(
+  supabase: SupabaseClient<Database>,
+  params: {
+    productId: string
+    orderId: string
+    orderItemId: string
+    userId: string
+    rating: number
+    title: string
+    comment: string
+    fitIndicator?: FashionFitIndicator
+    sizePurchased?: string | null
+    isBoltTryOn?: boolean
+    mediaUrls?: string[]
+  }
+): Promise<{ success: boolean; review?: ProductReview; error?: string }> {
+  try {
+    const insertPayload: ProductReviewInsert = {
+      product_id: params.productId,
+      order_id: params.orderId,
+      order_item_id: params.orderItemId,
+      user_id: params.userId,
+      rating: Math.max(1, Math.min(5, Math.round(params.rating))),
+      title: params.title.trim().slice(0, 150),
+      comment: params.comment.trim(),
+      fit_indicator: params.fitIndicator || 'true_to_size',
+      size_purchased: params.sizePurchased || null,
+      is_bolt_try_on: params.isBoltTryOn ?? false,
+      verified_purchase: true,
+      status: 'pending',
+    }
+
+    const { data: review, error: reviewError } = await supabase
+      .from('product_reviews')
+      .insert(insertPayload)
+      .select()
+      .single()
+
+    if (reviewError || !review) {
+      if (reviewError?.code === 'PGRST205' || reviewError?.message?.includes('schema cache')) {
+        const local = saveLocalReview(params)
+        return { success: true, review: local }
+      }
+      return { success: false, error: reviewError?.message || 'Failed to submit review' }
+    }
+
+    if (params.mediaUrls && params.mediaUrls.length > 0) {
+      const mediaRows: ReviewMediaInsert[] = params.mediaUrls.map((url, idx) => ({
+        review_id: review.id,
+        image_url: url,
+        display_order: idx,
+      }))
+
+      const { error: mediaError } = await supabase.from('review_media').insert(mediaRows)
+      if (mediaError) {
+        console.warn('Warning: Failed to insert some review media attachments:', mediaError)
+      }
+    }
+
+    return { success: true, review }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Exception during review creation' }
+  }
+}
+
+/**
+ * Moderate a review (approve, reject, hide) or post an Atelier Concierge reply.
+ */
+export async function updateProductReviewModeration(
+  supabase: SupabaseClient<Database>,
+  reviewId: string,
+  params: {
+    status: ReviewStatus
+    moderatedBy?: string | null
+    rejectionReason?: string | null
+    adminReply?: string | null
+    adminRepliedBy?: string | null
+  }
+): Promise<{ success: boolean; review?: ProductReview; error?: string }> {
+  try {
+    const updatePayload: ProductReviewUpdate = {
+      status: params.status,
+      moderated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    if (params.moderatedBy) updatePayload.moderated_by = params.moderatedBy
+    if (params.rejectionReason !== undefined) updatePayload.rejection_reason = params.rejectionReason
+
+    if (params.adminReply !== undefined) {
+      updatePayload.admin_reply = params.adminReply
+      updatePayload.admin_replied_at = params.adminReply ? new Date().toISOString() : null
+      if (params.adminRepliedBy) updatePayload.admin_replied_by = params.adminRepliedBy
+    }
+
+    const { data, error } = await supabase
+      .from('product_reviews')
+      .update(updatePayload)
+      .eq('id', reviewId)
+      .select()
+      .single()
+
+    if (error || !data) {
+      return { success: false, error: error?.message || 'Failed to update review moderation' }
+    }
+
+    return { success: true, review: data }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Exception updating review moderation' }
+  }
+}
+
+/**
+ * Allow a patron to edit their review within 30 days of submission.
+ * Automatically resets status to 'pending' for re-moderation.
+ */
+export async function updatePatronReview(
+  supabase: SupabaseClient<Database>,
+  reviewId: string,
+  userId: string,
+  params: {
+    rating?: number
+    title?: string
+    comment?: string
+    fit_indicator?: FashionFitIndicator
+  }
+): Promise<{ success: boolean; review?: ProductReview; error?: string }> {
+  try {
+    const { data: existing, error: fetchErr } = await supabase
+      .from('product_reviews')
+      .select('*')
+      .eq('id', reviewId)
+      .single()
+
+    if (fetchErr || !existing) {
+      return { success: false, error: 'Review not found.' }
+    }
+
+    if (existing.user_id !== userId) {
+      return { success: false, error: 'Unauthorized: You can only edit your own reviews.' }
+    }
+
+    const createdAt = new Date(existing.created_at).getTime()
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000
+    if (Date.now() - createdAt > thirtyDaysMs) {
+      return { success: false, error: 'Reviews can only be edited within 30 days of initial submission.' }
+    }
+
+    const updatePayload: ProductReviewUpdate = {
+      updated_at: new Date().toISOString(),
+      status: 'pending', // Re-trigger moderation queue
+    }
+
+    if (params.rating !== undefined) updatePayload.rating = Math.max(1, Math.min(5, Math.round(params.rating)))
+    if (params.title !== undefined) updatePayload.title = params.title.trim().slice(0, 150)
+    if (params.comment !== undefined) updatePayload.comment = params.comment.trim()
+    if (params.fit_indicator !== undefined) updatePayload.fit_indicator = params.fit_indicator
+
+    const { data, error } = await supabase
+      .from('product_reviews')
+      .update(updatePayload)
+      .eq('id', reviewId)
+      .select()
+      .single()
+
+    if (error || !data) {
+      return { success: false, error: error?.message || 'Failed to update review' }
+    }
+
+    return { success: true, review: data }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Exception editing patron review' }
+  }
+}
+
+/**
+ * Retrieve reviews with rich relations for the Admin moderation console.
+ */
+export async function getAdminReviews(
+  supabase: SupabaseClient<Database>,
+  options?: {
+    status?: ReviewStatus | 'all'
+    rating?: number
+    hasPhotos?: boolean
+    isBolt?: boolean
+    search?: string
+    page?: number
+    limit?: number
+  }
+): Promise<{ reviews: ProductReviewWithMedia[]; total: number; pendingCount: number }> {
+  try {
+    const page = options?.page || 1
+    const limit = options?.limit || 20
+    const offset = (page - 1) * limit
+
+    let query = supabase
+      .from('product_reviews')
+      .select(
+        '*, media:review_media(*), user:users(id, full_name, email), product:products(id, title, image_url), order:orders(id, order_number, created_at)',
+        { count: 'exact' }
+      )
+      .order('created_at', { ascending: false })
+
+    if (options?.status && options.status !== 'all') {
+      query = query.eq('status', options.status)
+    }
+
+    if (options?.rating) {
+      query = query.eq('rating', options.rating)
+    }
+
+    if (options?.isBolt !== undefined) {
+      query = query.eq('is_bolt_try_on', options.isBolt)
+    }
+
+    if (options?.search) {
+      query = query.or(`title.ilike.%${options.search}%,comment.ilike.%${options.search}%`)
+    }
+
+    query = query.range(offset, offset + limit - 1)
+
+    const [{ data, count, error }, { count: pendingCount }] = await Promise.all([
+      query,
+      supabase.from('product_reviews').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    ])
+
+    if (error) {
+      if (error?.code === 'PGRST205' || error?.message?.includes('schema cache')) {
+        const local = getLocalReviews(undefined, options?.status === 'all' ? undefined : options?.status) as unknown as ProductReviewWithMedia[]
+        const pending = getLocalReviews(undefined, 'pending').length
+        return { reviews: local, total: local.length, pendingCount: pending }
+      }
+      console.error('Error fetching admin reviews:', error)
+      return { reviews: [], total: 0, pendingCount: pendingCount || 0 }
+    }
+
+    let results = (data || []) as unknown as ProductReviewWithMedia[]
+    if (options?.hasPhotos) {
+      results = results.filter((r) => r.media && r.media.length > 0)
+    }
+
+    return {
+      reviews: results,
+      total: count || 0,
+      pendingCount: pendingCount || 0,
+    }
+  } catch (err) {
+    console.error('Exception fetching admin reviews:', err)
+    return { reviews: [], total: 0, pendingCount: 0 }
+  }
+}
+
 
 
 

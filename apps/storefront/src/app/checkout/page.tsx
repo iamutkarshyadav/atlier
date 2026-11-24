@@ -33,8 +33,11 @@ export default function LuxuryCheckoutPage() {
     items,
     isHydrated: isCartHydrated,
     subtotal,
+    discount,
+    discountedSubtotal,
     tax,
     itemCount,
+    appliedCouponCode,
     clearCart,
   } = useHydratedCart()
 
@@ -221,6 +224,7 @@ export default function LuxuryCheckoutPage() {
       // 3. Construct Order Payload
       const orderPayload = {
         customer_email: formData.email,
+        coupon_code: appliedCouponCode || undefined,
         orderData: {
           name: formData.name,
           user_id: currentUserId,

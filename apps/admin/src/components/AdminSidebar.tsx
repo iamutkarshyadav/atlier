@@ -25,13 +25,17 @@ import {
   ChevronRight,
   Sun,
   Moon,
+  Tag,
+  TrendingDown,
+  BarChart3,
+  Star,
 } from 'lucide-react'
 import { createBrowserClient } from '@repo/supabase/browser'
 import { useTheme } from '@/context/ThemeContext'
 import { SidebarBadge, type SidebarBadgeVariant } from '@/components/ui/SidebarBadge'
 
 export interface NavItemBadgeConfig {
-  key?: 'openOrdersCount' | 'lowStockCount' | 'pendingTransfersCount' | 'openPoCount'
+  key?: 'openOrdersCount' | 'lowStockCount' | 'pendingTransfersCount' | 'openPoCount' | 'pendingReviewsCount'
   variant?: SidebarBadgeVariant
   isLive?: boolean
   title?: string
@@ -104,10 +108,24 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: 'Promotions & Pricing',
+    items: [
+      { href: '/promotions', label: 'Campaigns & Coupons', icon: Tag, exact: true },
+      { href: '/promotions/markdowns', label: 'Scheduled Markdowns', icon: TrendingDown },
+      { href: '/promotions/analytics', label: 'Redemption Analytics', icon: BarChart3 },
+    ],
+  },
+  {
     label: 'Catalog & CMS',
     items: [
       { href: '/categories', label: 'Categories', icon: FolderTree },
       { href: '/collections', label: 'Collections & Occasions', icon: Sparkles },
+      {
+        href: '/reviews',
+        label: 'Patron Reviews & Feedback',
+        icon: Star,
+        badge: { key: 'pendingReviewsCount', variant: 'amber', title: 'Reviews awaiting moderation' },
+      },
       { href: '/barcodes', label: 'Barcode Studio', icon: BarcodeIcon },
       { href: '/customers', label: 'Customers & Staff', icon: Users },
       { href: '/cms', label: 'Storefront CMS', icon: Layers },
@@ -128,7 +146,8 @@ export function AdminSidebar() {
     lowStockCount: number
     pendingTransfersCount: number
     openPoCount: number
-  }>({ openOrdersCount: 0, lowStockCount: 0, pendingTransfersCount: 0, openPoCount: 0 })
+    pendingReviewsCount: number
+  }>({ openOrdersCount: 0, lowStockCount: 0, pendingTransfersCount: 0, openPoCount: 0, pendingReviewsCount: 0 })
 
   useEffect(() => {
     let isMounted = true

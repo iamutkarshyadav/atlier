@@ -14,3 +14,6 @@ export * from './clients/resilientFetch'
 
 // Export query utilities
 export * from './utils/index'
+
+// Export pricing & promotions engine
+export * from './pricing/index'
