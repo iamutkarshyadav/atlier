@@ -413,7 +413,7 @@ export default function BarcodeStudioPage() {
               {/* Header */}
               <div className="border-b border-black pb-1 flex justify-between items-start">
                 <div>
-                  <h3 className="font-serif font-black tracking-widest text-xs uppercase leading-none">
+                  <h3 className="font-sans font-black tracking-widest text-xs uppercase leading-none">
                     ATELIER DE COUTURE
                   </h3>
                   <p className="text-[7.5px] uppercase font-bold text-zinc-700 tracking-wider mt-0.5">
@@ -765,7 +765,7 @@ export default function BarcodeStudioPage() {
                   style={{ minHeight: '34mm' }}
                 >
                   <div className="flex justify-between items-start border-b border-black pb-0.5">
-                    <span className="font-serif font-black uppercase text-[9px]">ATELIER</span>
+                    <span className="font-sans font-black uppercase text-[9px]">ATELIER</span>
                     <span className="font-mono font-bold text-[7.5px]">{selectedVariant?.sku}</span>
                   </div>
                   <div className="py-0.5">

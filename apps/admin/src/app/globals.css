@@ -68,9 +68,50 @@ html.light body {
 
 html.light .text-zinc-100,
 html.light .text-zinc-50,
-html.light .text-neutral-100,
-html.light .text-white {
+html.light .text-neutral-100 {
   color: #0f172a !important;
+}
+
+/* Explicit white text retention on dark/colored buttons and badges */
+html.light .text-white,
+html.light [class*="text-white"],
+html.light button.text-white,
+html.light a.text-white,
+html.light span.text-white,
+html.light .bg-emerald-600,
+html.light .bg-rose-600,
+html.light .bg-blue-600,
+html.light .bg-amber-600,
+html.light button.bg-black,
+html.light a.bg-black,
+html.light button.bg-neutral-900,
+html.light a.bg-neutral-900,
+html.light button.bg-neutral-800,
+html.light a.bg-neutral-800,
+html.light button.bg-zinc-900,
+html.light a.bg-zinc-900,
+html.light [class*="bg-[#14293a]"],
+html.light [class*="bg-[#166534]"],
+html.light [class*="bg-[#0f172a]"] {
+  color: #ffffff !important;
+}
+
+html.light button.bg-black *,
+html.light a.bg-black *,
+html.light button.bg-neutral-900 *,
+html.light a.bg-neutral-900 *,
+html.light button.bg-neutral-800 *,
+html.light a.bg-neutral-800 *,
+html.light button.bg-zinc-900 *,
+html.light a.bg-zinc-900 *,
+html.light [class*="bg-[#14293a]"] *,
+html.light [class*="bg-[#166534]"] *,
+html.light [class*="bg-[#0f172a]"] *,
+html.light .bg-emerald-600 *,
+html.light .bg-rose-600 *,
+html.light .bg-blue-600 *,
+html.light .bg-amber-600 * {
+  color: #ffffff !important;
 }
 
 html.light .text-zinc-200,
@@ -119,28 +160,62 @@ html.light textarea::placeholder {
   color: #94a3b8;
 }
 
-/* Zinc background & border remaps for Light Mode cards & tags */
-html.light .bg-zinc-900 {
+/* Card & container remaps for Light Mode to eliminate dark patches */
+html.light .bg-zinc-900:not(button):not(a),
+html.light .bg-neutral-900:not(button):not(a),
+html.light section.bg-zinc-900,
+html.light section.bg-neutral-900,
+html.light .bg-card,
+html.light section.bg-card,
+html.light div.bg-card,
+html.light section.bg-\[\#121215\],
+html.light section.bg-\[\#121216\],
+html.light div.bg-\[\#121215\],
+html.light div.bg-\[\#121216\],
+html.light .bg-\[\#121215\],
+html.light .bg-\[\#121216\],
+html.light .bg-\[\#141418\]:not(button):not(a),
+html.light .bg-\[\#121212\]:not(button):not(a),
+html.light .bg-\[\#080808\]:not(button):not(a),
+html.light .bg-\[\#08080A\]:not(button):not(a) {
   background-color: #ffffff !important;
+  color: #0f172a !important;
 }
 
-html.light .bg-zinc-950 {
+html.light .bg-zinc-950:not(button):not(a),
+html.light .bg-neutral-950:not(button):not(a),
+html.light .bg-\[\#18181C\],
+html.light .bg-\[\#18181D\],
+html.light .bg-\[\#18181F\],
+html.light .bg-\[\#1F1F26\],
+html.light .bg-\[\#1B1B22\],
+html.light .bg-\[\#252530\] {
   background-color: #f8fafc !important;
+  color: #0f172a !important;
 }
 
-html.light .bg-zinc-800 {
+html.light .bg-zinc-800:not(button):not(a),
+html.light .bg-neutral-800:not(button):not(a) {
   background-color: #f1f5f9 !important;
 }
 
-html.light .border-zinc-800 {
+/* Border remaps for Light Mode */
+html.light .border-border,
+html.light .border-zinc-800,
+html.light .border-neutral-800,
+html.light .border-\[\#23232A\],
+html.light .border-\[\#27272F\],
+html.light .border-\[\#2A2A32\],
+html.light .border-\[\#2A2A35\],
+html.light .border-\[\#2B2B35\],
+html.light .border-\[\#2E2E3A\],
+html.light .border-\[\#1F1F24\] {
   border-color: #e2e8f0 !important;
 }
 
-html.light .border-zinc-750 {
-  border-color: #cbd5e1 !important;
-}
-
-html.light .border-zinc-700 {
+html.light .border-zinc-750,
+html.light .border-zinc-700,
+html.light .border-neutral-700 {
   border-color: #cbd5e1 !important;
 }
 
@@ -180,6 +255,22 @@ html.light .bg-cyan-950\/20 {
   background-color: #ecfeff !important;
   color: #0e7490 !important;
   border-color: #a5f3fc !important;
+}
+
+html.light .bg-purple-950\/60,
+html.light .bg-purple-950\/40,
+html.light .bg-purple-950\/20 {
+  background-color: #faf5ff !important;
+  color: #7e22ce !important;
+  border-color: #e9d5ff !important;
+}
+
+html.light .bg-blue-950\/60,
+html.light .bg-blue-950\/40,
+html.light .bg-blue-950\/20 {
+  background-color: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border-color: #bfdbfe !important;
 }
 
 html.light .hover\:bg-emerald-900\/40:hover {

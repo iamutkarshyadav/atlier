@@ -245,7 +245,7 @@ export function PosCatalog({
                             Only {stockNum} left
                           </span>
                         ) : (
-                          <span className="px-1.5 py-0.5 text-3xs font-mono font-semibold bg-zinc-900/90 text-emerald-400 border border-zinc-700/80 rounded backdrop-blur-sm">
+                          <span className="px-1.5 py-0.5 text-3xs font-mono font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded backdrop-blur-sm">
                             {stockNum} in stock
                           </span>
                         )}

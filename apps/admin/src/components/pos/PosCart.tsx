@@ -74,21 +74,21 @@ export function PosCart({
                 type="button"
                 onClick={() => onSelectCart(idx)}
                 className={`px-3 py-1.5 rounded-t text-2xs font-mono font-semibold transition-all flex items-center gap-1.5 ${isActive
-                  ? 'bg-chrome-900 text-zinc-100 border-t-2 border-emerald-500 shadow-sm'
-                  : 'bg-chrome-950 hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-chrome-900 text-foreground border-t-2 border-emerald-500 shadow-xs'
+                  : 'bg-chrome-950 hover:bg-chrome-850 text-muted-foreground hover:text-foreground'
                   }`}
               >
                 <span>{cart.name}</span>
                 <span
-                  className={`px-1 py-0.2 text-3xs rounded font-bold tabular-nums ${isActive
-                    ? 'bg-zinc-800 text-emerald-400'
-                    : 'bg-zinc-900 text-zinc-500'
+                  className={`px-1 py-0.2 text-3xs rounded-xs font-bold tabular-nums ${isActive
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-chrome-850 text-muted-foreground'
                     }`}
                 >
                   {cart.items.length}
                 </span>
                 {cart.customerName && (
-                  <span className="text-3xs text-zinc-400 max-w-[70px] truncate">
+                  <span className="text-3xs text-muted-foreground max-w-[70px] truncate">
                     ({cart.customerName})
                   </span>
                 )}
@@ -100,7 +100,7 @@ export function PosCart({
             <button
               type="button"
               onClick={onAddCart}
-              className="px-2 py-1.5 text-2xs text-zinc-500 hover:text-zinc-200 font-mono flex items-center gap-1 hover:bg-zinc-900 rounded transition-colors"
+              className="px-2 py-1.5 text-2xs text-muted-foreground hover:text-foreground font-mono flex items-center gap-1 hover:bg-chrome-850 rounded-xs transition-colors cursor-pointer"
               title="Park New Cart"
             >
               <Plus className="w-3 h-3" />

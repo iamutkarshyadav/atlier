@@ -209,7 +209,7 @@ export default function CreatorApparelProductStudio() {
   return (
     <div className="max-w-5xl mx-auto space-y-10 pb-20">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#23232A]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-chrome-800">
         <div>
           <Link
             href="/inventory"
@@ -227,7 +227,7 @@ export default function CreatorApparelProductStudio() {
 
         <div className="flex items-center gap-3">
           <Link href="/inventory">
-            <Button variant="outline" size="sm" className="bg-[#141418] border-[#27272F] text-xs">
+            <Button variant="outline" size="sm" className="bg-chrome-850 hover:bg-chrome-800 text-foreground border-chrome-750 text-xs">
               Cancel
             </Button>
           </Link>
@@ -269,8 +269,8 @@ export default function CreatorApparelProductStudio() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
         {/* SECTION 1: Garment Fundamentals */}
-        <section className="bg-[#121215] border border-[#23232A] p-6 sm:p-8 space-y-6">
-          <div className="flex items-center gap-2 pb-4 border-b border-[#1F1F24]">
+        <section className="bg-chrome-900 border border-chrome-800 p-6 sm:p-8 space-y-6">
+          <div className="flex items-center gap-2 pb-4 border-b border-chrome-800">
             <Scissors className="w-4 h-4 text-[#166534]" />
             <h2 className="text-xs uppercase tracking-wider font-semibold text-white">
               Garment Identity & Classification
@@ -285,7 +285,7 @@ export default function CreatorApparelProductStudio() {
               <Input
                 {...register('title')}
                 placeholder="e.g. Heavyweight Boxy Hoodie"
-                className="bg-[#18181C] border-[#2A2A32] text-white text-xs h-10"
+                className="bg-chrome-950 border-chrome-750 text-white text-xs h-10"
               />
               {errors.title && <p className="text-[11px] text-rose-400">{errors.title.message}</p>}
             </div>
@@ -296,10 +296,10 @@ export default function CreatorApparelProductStudio() {
               </label>
               <select
                 {...register('category_id')}
-                className="w-full h-10 px-3 bg-[#18181C] border border-[#2A2A32] text-white text-xs focus:outline-none focus:border-[#166534]"
+                className="w-full h-10 px-3 bg-chrome-950 border border-chrome-750 text-white text-xs focus:outline-none focus:border-[#166534]"
               >
                 {categories.map((c) => (
-                  <option key={c.id} value={c.id} className="bg-[#18181C] text-white">
+                  <option key={c.id} value={c.id} className="bg-chrome-950 text-white">
                     {c.name}
                   </option>
                 ))}
@@ -322,7 +322,7 @@ export default function CreatorApparelProductStudio() {
                   step="0.01"
                   {...register('price', { valueAsNumber: true })}
                   placeholder="12345.00"
-                  className="bg-[#18181C] border-[#2A2A32] text-white text-xs h-10 pl-7"
+                  className="bg-chrome-950 border-chrome-750 text-white text-xs h-10 pl-7"
                 />
               </div>
               {errors.price && <p className="text-[11px] text-rose-400">{errors.price.message}</p>}
@@ -340,7 +340,7 @@ export default function CreatorApparelProductStudio() {
                   step="0.01"
                   {...register('compare_at_price', { valueAsNumber: true })}
                   placeholder="e.g. 15000"
-                  className="bg-[#18181C] border-[#2A2A32] text-white text-xs h-10 pl-7"
+                  className="bg-chrome-950 border-chrome-750 text-white text-xs h-10 pl-7"
                 />
               </div>
               <span className="text-[10px] text-neutral-500 font-sans block">
@@ -355,7 +355,7 @@ export default function CreatorApparelProductStudio() {
               <Input
                 {...register('edition')}
                 placeholder="e.g. Drop 01 // Limited 150 Pieces"
-                className="bg-[#18181C] border-[#2A2A32] text-white text-xs h-10"
+                className="bg-chrome-950 border-chrome-750 text-white text-xs h-10"
               />
               {errors.edition && (
                 <p className="text-[11px] text-rose-400">{errors.edition.message}</p>
@@ -371,7 +371,7 @@ export default function CreatorApparelProductStudio() {
               {...register('description')}
               rows={3}
               placeholder="Describe the silhouette drape, wash technique, and inspiration..."
-              className="w-full p-3 bg-[#18181C] border border-[#2A2A32] text-white text-xs focus:outline-none focus:border-[#166534]"
+              className="w-full p-3 bg-chrome-950 border border-chrome-750 text-white text-xs focus:outline-none focus:border-[#166534]"
             />
             {errors.description && (
               <p className="text-[11px] text-rose-400">{errors.description.message}</p>
@@ -380,8 +380,8 @@ export default function CreatorApparelProductStudio() {
         </section>
 
         {/* SECTION 2: Fabric Lab & Technical Specifications */}
-        <section className="bg-[#121215] border border-[#23232A] p-6 sm:p-8 space-y-6">
-          <div className="flex items-center gap-2 pb-4 border-b border-[#1F1F24]">
+        <section className="bg-chrome-900 border border-chrome-800 p-6 sm:p-8 space-y-6">
+          <div className="flex items-center gap-2 pb-4 border-b border-chrome-800">
             <Tag className="w-4 h-4 text-[#166534]" />
             <h2 className="text-xs uppercase tracking-wider font-semibold text-white">
               Fabric Lab & Materiality
@@ -396,7 +396,7 @@ export default function CreatorApparelProductStudio() {
               <Input
                 {...register('material')}
                 placeholder="e.g. 480 GSM 100% Organic Cotton French Terry"
-                className="bg-[#18181C] border-[#2A2A32] text-white text-xs h-10"
+                className="bg-chrome-950 border-chrome-750 text-white text-xs h-10"
               />
               {errors.material && (
                 <p className="text-[11px] text-rose-400">{errors.material.message}</p>
@@ -410,7 +410,7 @@ export default function CreatorApparelProductStudio() {
               <Input
                 {...register('silhouette')}
                 placeholder="e.g. Oversized Boxy Cut with Dropped Shoulders"
-                className="bg-[#18181C] border-[#2A2A32] text-white text-xs h-10"
+                className="bg-chrome-950 border-chrome-750 text-white text-xs h-10"
               />
             </div>
           </div>
@@ -422,7 +422,7 @@ export default function CreatorApparelProductStudio() {
             <Input
               {...register('care_instructions')}
               placeholder="e.g. Machine wash cold inside out, hang dry in shade"
-              className="bg-[#18181C] border-[#2A2A32] text-white text-xs h-10"
+              className="bg-chrome-950 border-chrome-750 text-white text-xs h-10"
             />
           </div>
         </section>
@@ -437,8 +437,8 @@ export default function CreatorApparelProductStudio() {
         </section>
 
         {/* SECTION 4: Lookbook & Media Assets */}
-        <section className="bg-[#121215] border border-[#23232A] p-6 sm:p-8 space-y-6">
-          <div className="flex items-center gap-2 pb-4 border-b border-[#1F1F24]">
+        <section className="bg-chrome-900 border border-chrome-800 p-6 sm:p-8 space-y-6">
+          <div className="flex items-center gap-2 pb-4 border-b border-chrome-800">
             <ImageIcon className="w-4 h-4 text-[#166534]" />
             <h2 className="text-xs uppercase tracking-wider font-semibold text-white">
               Lookbook Imagery & Media Gallery
@@ -455,11 +455,11 @@ export default function CreatorApparelProductStudio() {
                 value={primaryImageUrl}
                 onChange={(e) => setPrimaryImageUrl(e.target.value)}
                 placeholder="https://..."
-                className="bg-[#18181C] border-[#2A2A32] text-white text-xs h-10"
+                className="bg-chrome-950 border-chrome-750 text-foreground text-xs h-10"
               />
 
               <div className="pt-2">
-                <label className="inline-block px-3 py-1.5 bg-[#1F1F26] hover:bg-neutral-800 text-xs text-neutral-300 border border-neutral-700 cursor-pointer">
+                <label className="inline-block px-3 py-1.5 bg-chrome-850 hover:bg-chrome-800 text-xs text-foreground border border-chrome-750 cursor-pointer">
                   {isUploadingImage ? 'Uploading Image...' : 'Choose File to Upload'}
                   <input
                     type="file"
@@ -472,7 +472,7 @@ export default function CreatorApparelProductStudio() {
               </div>
 
               {primaryImageUrl && (
-                <div className="relative aspect-[3/4] max-w-[220px] bg-black border border-[#2A2A32] overflow-hidden mt-3">
+                <div className="relative aspect-[3/4] max-w-[220px] bg-chrome-950 border border-chrome-800 overflow-hidden mt-3">
                   <Image
                     src={primaryImageUrl}
                     alt="Primary Preview"
@@ -497,11 +497,11 @@ export default function CreatorApparelProductStudio() {
                 value={secondaryImageUrl}
                 onChange={(e) => setSecondaryImageUrl(e.target.value)}
                 placeholder="https://..."
-                className="bg-[#18181C] border-[#2A2A32] text-white text-xs h-10"
+                className="bg-chrome-950 border-chrome-750 text-foreground text-xs h-10"
               />
 
               {secondaryImageUrl && (
-                <div className="relative aspect-[3/4] max-w-[220px] bg-black border border-[#2A2A32] overflow-hidden mt-3">
+                <div className="relative aspect-[3/4] max-w-[220px] bg-chrome-950 border border-chrome-800 overflow-hidden mt-3">
                   <Image
                     src={secondaryImageUrl}
                     alt="Secondary Preview"
@@ -520,7 +520,7 @@ export default function CreatorApparelProductStudio() {
         </section>
 
         {/* Bottom Actions Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-[#141418] border border-[#2A2A32]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-chrome-850 border border-chrome-750">
           <div className="text-xs text-neutral-400">
             Total Batch Allocation:{' '}
             <span className="font-bold text-white text-sm">
@@ -530,7 +530,7 @@ export default function CreatorApparelProductStudio() {
 
           <div className="flex items-center gap-3">
             <Link href="/inventory">
-              <Button variant="outline" size="sm" className="bg-[#18181F] border-[#2A2A35] text-xs">
+              <Button variant="outline" size="sm" className="bg-chrome-850 border-chrome-750 text-xs">
                 Cancel
               </Button>
             </Link>

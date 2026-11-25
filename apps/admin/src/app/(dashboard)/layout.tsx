@@ -10,7 +10,7 @@ export default function AuthenticatedDashboardLayout({
 }) {
   return (
     <LocationProvider>
-      <div className="flex min-h-screen bg-chrome-950 text-neutral-100 font-sans">
+      <div className="flex min-h-screen bg-chrome-950 text-foreground font-sans">
         <AdminSidebar />
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
           <AdminHeader />

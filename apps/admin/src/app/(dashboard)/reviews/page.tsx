@@ -238,15 +238,15 @@ export default function AdminReviewsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-chrome-800 pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight font-serif text-white">
-              Patron Reviews & Garment Feedback
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Customer Reviews & Moderation
             </h1>
-            <span className="text-2xs font-mono uppercase bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded">
+            <span className="text-2xs font-mono uppercase bg-amber-500/10 text-amber-500 border border-amber-500/30 px-2 py-0.5 rounded">
               Verified Purchase Moderation
             </span>
           </div>
           <p className="text-xs text-zinc-400 mt-1 font-sans">
-            Curate verified customer experiences, oversee sizing fit consensus, and craft Maison TG Concierge replies.
+            Review verified customer experiences, oversee sizing fit feedback, and publish official store replies.
           </p>
         </div>
 
@@ -304,7 +304,7 @@ export default function AdminReviewsPage() {
         </div>
 
         <div className="bg-chrome-900 border border-chrome-800 rounded-lg p-3.5 col-span-2 lg:col-span-1">
-          <div className="text-2xs font-mono uppercase text-zinc-400 mb-1">Patron Photos</div>
+          <div className="text-2xs font-mono uppercase text-zinc-400 mb-1">Customer Photos</div>
           <div className="text-2xl font-bold font-mono text-cyan-400">{metrics.photosCount}</div>
         </div>
       </div>
@@ -441,10 +441,10 @@ export default function AdminReviewsPage() {
       ) : reviews.length === 0 ? (
         <div className="bg-chrome-900 border border-chrome-800 rounded-lg p-12 text-center">
           <Star className="w-10 h-10 text-zinc-600 mx-auto mb-3" />
-          <h3 className="text-sm font-semibold text-zinc-200 font-serif">No Reviews Matching Filters</h3>
-          <p className="text-xs text-zinc-500 mt-1">
+          <h3 className="text-sm font-semibold text-foreground">No Reviews Matching Filters</h3>
+          <p className="text-xs text-muted-foreground mt-1">
             {activeTab === 'pending'
-              ? 'All submitted patron feedback has been moderated.'
+              ? 'All submitted customer feedback has been moderated.'
               : 'Try clearing the search query or adjusting the rating filter.'}
           </p>
         </div>
@@ -480,7 +480,7 @@ export default function AdminReviewsPage() {
                     {/* Garment Details */}
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-zinc-100 font-serif">
+                        <span className="font-semibold text-sm text-foreground">
                           {rev.product?.title || 'Garment Piece'}
                         </span>
                         {rev.product?.id && (
@@ -560,23 +560,23 @@ export default function AdminReviewsPage() {
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-3">
                     {renderStars(rev.rating)}
-                    <span className="font-serif font-bold text-sm text-zinc-100">{rev.title}</span>
+                    <span className="font-bold text-sm text-foreground">{rev.title}</span>
                     {renderFitBadge(rev.fit_indicator)}
-                    <span className="text-2xs font-mono text-zinc-400">
-                      by <span className="text-zinc-200">{rev.user?.name || rev.user?.full_name || 'Patron'}</span>
+                    <span className="text-2xs font-mono text-muted-foreground">
+                      by <span className="text-foreground">{rev.user?.name || rev.user?.full_name || 'Customer'}</span>
                     </span>
                   </div>
 
-                  <p className="text-xs text-zinc-300 leading-relaxed font-sans whitespace-pre-line">
+                  <p className="text-xs text-foreground/80 leading-relaxed font-sans whitespace-pre-line">
                     {rev.comment}
                   </p>
 
                   {/* Customer Photos */}
                   {rev.media && rev.media.length > 0 && (
                     <div className="pt-2">
-                      <div className="text-2xs font-mono uppercase text-zinc-500 mb-1.5 flex items-center gap-1">
+                      <div className="text-2xs font-mono uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
                         <ImageIcon className="w-3 h-3" />
-                        Patron Photos ({rev.media.length})
+                        Customer Photos ({rev.media.length})
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {rev.media.map((med, idx) => (
@@ -607,10 +607,10 @@ export default function AdminReviewsPage() {
                   {/* Atelier Concierge Reply Display */}
                   {rev.admin_reply && (
                     <div className="bg-chrome-950/80 border-l-2 border-amber-400/80 rounded-r p-3 mt-2 space-y-1">
-                      <div className="flex items-center justify-between text-2xs font-mono text-amber-400">
+                      <div className="flex items-center justify-between text-2xs font-mono text-amber-500">
                         <span className="font-bold tracking-wider uppercase flex items-center gap-1.5">
                           <MessageSquare className="w-3 h-3" />
-                          Maison TG Concierge Response
+                          Official Store Response
                         </span>
                         {rev.admin_replied_at && (
                           <span className="text-zinc-500">
@@ -618,7 +618,7 @@ export default function AdminReviewsPage() {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-zinc-300 italic font-sans">{rev.admin_reply}</p>
+                      <p className="text-xs text-zinc-300 font-sans">{rev.admin_reply}</p>
                     </div>
                   )}
                 </div>
@@ -626,14 +626,14 @@ export default function AdminReviewsPage() {
                 {/* Inline Reply Composer */}
                 {replyOpenId === rev.id && (
                   <div className="bg-chrome-950 border border-chrome-800 rounded p-3 space-y-2 mt-3">
-                    <div className="text-2xs font-mono uppercase text-amber-400 font-semibold">
-                      Craft Atelier Concierge Reply
+                    <div className="text-2xs font-mono uppercase text-amber-500 font-semibold">
+                      Publish Official Store Response
                     </div>
                     <textarea
                       rows={3}
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
-                      placeholder="e.g. Thank you for your feedback on the silk drape. Our design team will contact you regarding complimentary alterations..."
+                      placeholder="e.g. Thank you for your feedback! Our team is glad the fit and fabric met your expectations..."
                       className="w-full bg-chrome-900 border border-chrome-800 rounded p-2 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-hidden focus:border-amber-500/50 font-sans"
                     />
                     <div className="flex items-center justify-end gap-2">
@@ -649,9 +649,9 @@ export default function AdminReviewsPage() {
                       <button
                         disabled={isLoading || !replyText.trim()}
                         onClick={() => handleSaveConciergeReply(rev.id)}
-                        className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-chrome-950 font-mono text-2xs font-bold rounded transition-colors disabled:opacity-50"
+                        className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-mono text-2xs font-bold rounded transition-colors disabled:opacity-50"
                       >
-                        {isLoading ? 'Publishing...' : 'Publish Official Reply'}
+                        {isLoading ? 'Publishing...' : 'Publish Response'}
                       </button>
                     </div>
                   </div>
@@ -710,10 +710,10 @@ export default function AdminReviewsPage() {
                           setReplyText(rev.admin_reply || '')
                         }
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-chrome-950 hover:bg-chrome-850 text-zinc-300 border border-chrome-800 text-xs font-mono font-medium rounded transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-chrome-950 hover:bg-chrome-850 text-foreground border border-chrome-800 text-xs font-mono font-medium rounded transition-colors"
                     >
                       <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
-                      {rev.admin_reply ? 'Edit Concierge Reply' : 'Reply as Concierge'}
+                      {rev.admin_reply ? 'Edit Store Response' : 'Reply as Store'}
                     </button>
                   </div>
 
@@ -735,21 +735,21 @@ export default function AdminReviewsPage() {
 
       {/* Reject Modal */}
       {rejectModalId && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-chrome-900 border border-chrome-800 rounded-lg p-5 max-w-md w-full space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-chrome-900 border border-chrome-800 rounded-lg p-5 max-w-md w-full space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold font-serif text-white flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-rose-400" />
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-500" />
                 Reject Customer Review
               </h3>
               <button
                 onClick={() => setRejectModalId(null)}
-                className="text-zinc-500 hover:text-zinc-300"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-muted-foreground">
               Provide an internal moderation reason for rejecting this review (e.g., inappropriate language, off-topic, spam).
             </p>
             <textarea
@@ -757,18 +757,18 @@ export default function AdminReviewsPage() {
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               placeholder="Reason for rejection..."
-              className="w-full bg-chrome-950 border border-chrome-800 rounded p-2 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-hidden focus:border-rose-500"
+              className="w-full bg-chrome-950 border border-chrome-800 rounded p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:border-rose-500"
             />
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setRejectModalId(null)}
-                className="px-3 py-1.5 text-xs font-mono text-zinc-400 hover:text-zinc-200"
+                className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleUpdateStatus(rejectModalId, 'rejected', rejectionReason)}
-                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-medium rounded"
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-medium rounded cursor-pointer"
               >
                 Confirm Rejection
               </button>

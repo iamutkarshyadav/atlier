@@ -707,7 +707,7 @@ export default function LuxuryAdminOrdersPage() {
                                       <tr key={item.id} className="hover:bg-chrome-850">
                                         <td className="p-2">
                                           <div className="flex items-center gap-2">
-                                            <div className="relative w-7 h-9 bg-black border border-chrome-750 overflow-hidden shrink-0">
+                                            <div className="relative w-7 h-9 bg-chrome-950 border border-chrome-800 overflow-hidden shrink-0">
                                               {item.product?.image_url && (
                                                 <Image
                                                   src={item.product.image_url}

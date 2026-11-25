@@ -40,7 +40,7 @@ export default function EditPopupPage() {
   if (isLoading) {
     return (
       <div className="p-16 text-center text-xs text-muted-foreground space-y-2">
-        <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#14293a]" />
+        <Loader2 className="w-5 h-5 animate-spin mx-auto text-foreground" />
         <p>Loading Pop-Up Studio Campaign...</p>
       </div>
     )
@@ -56,7 +56,7 @@ export default function EditPopupPage() {
         <button
           type="button"
           onClick={() => router.push('/popups')}
-          className="px-4 py-2 bg-[#14293a] text-white text-xs font-semibold rounded-xs"
+          className="px-4 py-2 bg-chrome-850 hover:bg-chrome-800 text-foreground border border-chrome-750 dark:bg-zinc-100 dark:text-zinc-900 text-xs font-semibold rounded-xs transition-colors"
         >
           Return to Pop-Up Studio
         </button>

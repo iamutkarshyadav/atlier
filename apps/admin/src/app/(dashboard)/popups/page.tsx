@@ -191,7 +191,7 @@ export default function PopupsDashboardPage() {
           </button>
           <Link
             href="/popups/new"
-            className="px-4 py-2 bg-[#14293a] hover:bg-[#b91c1c] text-white text-xs font-semibold rounded-xs transition-colors flex items-center gap-1.5 shadow-sm"
+            className="px-4 py-2 bg-chrome-850 hover:bg-chrome-800 text-foreground border border-chrome-750 dark:bg-zinc-100 dark:text-zinc-900 dark:border-transparent dark:hover:bg-zinc-200 text-xs font-semibold rounded-xs transition-colors flex items-center gap-1.5 shadow-xs"
           >
             <Plus className="w-4 h-4" />
             <span>Create Pop-Up</span>
@@ -201,7 +201,7 @@ export default function PopupsDashboardPage() {
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <div className="p-4 rounded-sm border border-border bg-card text-card-foreground shadow-xs">
+        <div className="p-4 rounded-sm border border-chrome-800 bg-chrome-900 text-foreground shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
             <span>Active Campaigns</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -212,7 +212,7 @@ export default function PopupsDashboardPage() {
           </div>
         </div>
 
-        <div className="p-4 rounded-sm border border-border bg-card text-card-foreground shadow-xs">
+        <div className="p-4 rounded-sm border border-chrome-800 bg-chrome-900 text-foreground shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
             <span>Total Impressions</span>
             <Eye className="w-4 h-4 text-blue-600" />
@@ -222,7 +222,7 @@ export default function PopupsDashboardPage() {
           </div>
         </div>
 
-        <div className="p-4 rounded-sm border border-border bg-card text-card-foreground shadow-xs">
+        <div className="p-4 rounded-sm border border-chrome-800 bg-chrome-900 text-foreground shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
             <span>CTA Click Actions</span>
             <MousePointerClick className="w-4 h-4 text-purple-600" />
@@ -232,7 +232,7 @@ export default function PopupsDashboardPage() {
           </div>
         </div>
 
-        <div className="p-4 rounded-sm border border-border bg-card text-card-foreground shadow-xs">
+        <div className="p-4 rounded-sm border border-chrome-800 bg-chrome-900 text-foreground shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
             <span>Click-Through Rate</span>
             <ArrowUpRight className="w-4 h-4 text-emerald-600" />
@@ -256,10 +256,10 @@ export default function PopupsDashboardPage() {
             <button
               key={tab.id}
               onClick={() => setActiveFilter(tab.id as any)}
-              className={`px-3 py-1.5 rounded-xs text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xs text-xs font-medium whitespace-nowrap transition-colors cursor-pointer border ${
                 activeFilter === tab.id
-                  ? 'bg-[#14293a] text-white shadow-xs'
-                  : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground border border-border'
+                  ? 'bg-chrome-800 text-foreground border-chrome-750 shadow-xs font-semibold dark:bg-zinc-100 dark:text-zinc-900 dark:border-transparent'
+                  : 'bg-chrome-900 hover:bg-chrome-850 text-zinc-500 hover:text-zinc-300 border-chrome-800'
               }`}
             >
               {tab.label}
@@ -275,7 +275,7 @@ export default function PopupsDashboardPage() {
             placeholder="Search campaigns..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-border rounded-xs focus:outline-hidden focus:border-[#14293a] focus:ring-1 focus:ring-[#14293a]"
+            className="w-full pl-8 pr-3 py-1.5 text-xs bg-chrome-950 border border-chrome-750 rounded-xs text-foreground focus:outline-hidden focus:border-chrome-700"
           />
         </div>
       </div>
@@ -290,7 +290,7 @@ export default function PopupsDashboardPage() {
 
       {isLoading ? (
         <div className="p-12 text-center text-muted-foreground text-xs space-y-2">
-          <RefreshCw className="w-5 h-5 animate-spin mx-auto text-[#14293a]" />
+          <RefreshCw className="w-5 h-5 animate-spin mx-auto text-foreground" />
           <p>Loading pop-up studio campaigns...</p>
         </div>
       ) : filteredPopups.length === 0 ? (
@@ -304,7 +304,7 @@ export default function PopupsDashboardPage() {
           </p>
           <Link
             href="/popups/new"
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#14293a] hover:bg-[#b91c1c] text-white text-xs font-semibold rounded-xs transition-colors shadow-xs"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-chrome-850 hover:bg-chrome-800 text-foreground border border-chrome-750 dark:bg-zinc-100 dark:text-zinc-900 dark:border-transparent text-xs font-semibold rounded-xs transition-colors shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Create New Pop-Up</span>
@@ -315,10 +315,10 @@ export default function PopupsDashboardPage() {
           {filteredPopups.map((popup) => (
             <div
               key={popup.id}
-              className="group border border-border hover:border-[#14293a] bg-card rounded-sm overflow-hidden flex flex-col justify-between transition-all shadow-xs hover:shadow-md"
+              className="group border border-chrome-800 hover:border-chrome-750 bg-chrome-900 rounded-sm overflow-hidden flex flex-col justify-between transition-all shadow-xs hover:shadow-md"
             >
               {/* Card Banner / Thumbnail */}
-              <div className="relative h-36 w-full bg-neutral-100 overflow-hidden border-b border-border">
+              <div className="relative h-36 w-full bg-chrome-950 overflow-hidden border-b border-chrome-800">
                 {popup.banner_image_url ? (
                   <Image
                     src={popup.banner_image_url}
@@ -327,7 +327,7 @@ export default function PopupsDashboardPage() {
                     className="object-cover group-hover:scale-102 transition-transform duration-300"
                   />
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-neutral-50 to-neutral-200 text-neutral-400">
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-chrome-950 text-zinc-500">
                     <Layers className="w-8 h-8 mb-1" />
                     <span className="text-2xs font-mono">No Image Banner</span>
                   </div>
@@ -343,10 +343,10 @@ export default function PopupsDashboardPage() {
                     type="button"
                     onClick={() => handleToggleActive(popup)}
                     disabled={togglingId === popup.id}
-                    className={`px-2 py-0.5 rounded-xs text-[10px] font-mono font-bold tracking-wider uppercase transition-colors shadow-xs cursor-pointer flex items-center gap-1 ${
+                    className={`px-2 py-0.5 rounded-xs text-[10px] font-mono font-bold tracking-wider uppercase transition-colors shadow-xs cursor-pointer flex items-center gap-1 border ${
                       popup.is_active
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                        : 'bg-neutral-800/80 text-white hover:bg-neutral-900'
+                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
+                        : 'bg-chrome-850 text-zinc-400 border-chrome-750 hover:bg-chrome-800 hover:text-foreground'
                     }`}
                     title="Click to toggle active status"
                   >
@@ -437,7 +437,7 @@ export default function PopupsDashboardPage() {
 
                   <Link
                     href={`/popups/${popup.id}`}
-                    className="flex-1 py-1.5 px-3 bg-[#14293a] hover:bg-[#b91c1c] text-white text-xs font-semibold rounded-xs transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
+                    className="flex-1 py-1.5 px-3 bg-chrome-850 hover:bg-chrome-800 text-foreground border border-chrome-750 text-xs font-semibold rounded-xs transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
                   >
                     <Settings2 className="w-3.5 h-3.5" />
                     <span>Studio Editor</span>

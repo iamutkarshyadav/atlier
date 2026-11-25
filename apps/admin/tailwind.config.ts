@@ -12,6 +12,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        card: {
+          DEFAULT: 'rgb(var(--chrome-900) / <alpha-value>)',
+          foreground: 'rgb(var(--text-main, 15 23 42) / <alpha-value>)',
+        },
+        border: 'rgb(var(--chrome-800) / <alpha-value>)',
+        muted: {
+          DEFAULT: 'rgb(var(--chrome-850) / <alpha-value>)',
+          foreground: 'rgb(var(--text-muted, 100 116 139) / <alpha-value>)',
+        },
         chrome: {
           950: 'rgb(var(--chrome-950) / <alpha-value>)',
           900: 'rgb(var(--chrome-900) / <alpha-value>)',

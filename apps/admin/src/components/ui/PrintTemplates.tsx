@@ -383,7 +383,7 @@ export function PurchaseOrderPrintModal({
           {/* Header */}
           <div className="flex justify-between items-start border-b-2 border-black pb-4">
             <div>
-              <h1 className="text-2xl font-serif font-black tracking-widest">ATELIER</h1>
+              <h1 className="text-2xl font-sans font-black tracking-widest">ATELIER</h1>
               <p className="text-xs font-semibold text-zinc-700 font-mono">SUPPLY CHAIN & LOGISTICS DIVISION</p>
               <p className="text-2xs text-zinc-500">Corporate Master Procurement Manifest</p>
             </div>

@@ -442,7 +442,7 @@ export default function EditPromotionPage() {
                 <span className="text-[10px] font-mono font-bold tracking-widest uppercase bg-white/20 text-white backdrop-blur-xs px-2.5 py-0.5 rounded-xs w-fit mb-1.5">
                   {promotionType === 'coupon' ? `CODE: ${couponCode || 'PROMO'}` : 'OFFER'}
                 </span>
-                <h4 className="text-white font-serif font-bold text-lg leading-tight">
+                <h4 className="text-white font-sans font-bold text-lg leading-tight">
                   {name || 'Privilege Preview'}
                 </h4>
                 <p className="text-white/80 text-xs font-mono mt-0.5">

@@ -52,8 +52,8 @@ export default function LuxuryInvoicePage({ params }: InvoicePageProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center font-mono text-xs text-neutral-400 space-y-3">
-        <div className="w-8 h-8 border-2 border-white border-t-transparent animate-spin rounded-full" />
+      <div className="min-h-screen bg-chrome-950 flex flex-col items-center justify-center font-mono text-xs text-muted-foreground space-y-3">
+        <div className="w-8 h-8 border-2 border-foreground border-t-transparent animate-spin rounded-full" />
         <p className="tracking-widest uppercase">Rendering Atelier Commercial Invoice...</p>
       </div>
     )
@@ -61,8 +61,8 @@ export default function LuxuryInvoicePage({ params }: InvoicePageProps) {
 
   if (!order) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center font-mono">
-        <p className="text-rose-400 text-xs mb-4">Invoice for Order &ldquo;{orderId}&rdquo; Not Found.</p>
+      <div className="min-h-screen bg-chrome-950 flex flex-col items-center justify-center p-6 text-center font-mono">
+        <p className="text-rose-500 text-xs mb-4">Invoice for Order &ldquo;{orderId}&rdquo; Not Found.</p>
         <Link href="/orders">
           <Button variant="terminal" size="sm">
             ← Return to Order Manifest
@@ -124,10 +124,10 @@ export default function LuxuryInvoicePage({ params }: InvoicePageProps) {
             <span className="text-[10px] uppercase tracking-widest font-mono text-neutral-500 block">
               MAISON DE CRÉATION HAUTE COUTURE
             </span>
-            <h1 className="font-serif text-3xl sm:text-4xl font-black uppercase tracking-tight text-black mt-1">
+            <h1 className="font-sans text-3xl sm:text-4xl font-black uppercase tracking-tight text-black mt-1">
               ATELIER GUSTAVO
             </h1>
-            <p className="text-xs text-neutral-600 font-serif italic mt-0.5">
+            <p className="text-xs text-neutral-600 font-sans mt-0.5">
               42 Rue de Sèvres, 75007 Paris • France • contact@ateliergustavo.com
             </p>
           </div>
@@ -152,7 +152,7 @@ export default function LuxuryInvoicePage({ params }: InvoicePageProps) {
             <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500 font-bold block">
               BILLED & DISPATCHED TO
             </span>
-            <p className="text-sm font-bold text-black font-serif">{recipientName}</p>
+            <p className="text-sm font-bold text-black font-sans">{recipientName}</p>
             <p className="text-neutral-700 leading-relaxed">
               {order.shipping_address || (order.user?.street_address ? `${order.user.street_address}, ${order.user.city || ''} ${order.user.postal_code || ''}` : 'Address not specified at checkout')}
             </p>
@@ -227,7 +227,7 @@ export default function LuxuryInvoicePage({ params }: InvoicePageProps) {
                           </div>
                         )}
                         <div>
-                          <p className="font-bold text-black font-serif text-sm">
+                          <p className="font-bold text-black font-sans text-sm">
                             {item.product?.title || 'Atelier Bespoke Piece'}
                           </p>
                           <p className="text-[10px] text-neutral-600">

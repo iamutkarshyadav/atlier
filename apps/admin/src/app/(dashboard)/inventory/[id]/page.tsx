@@ -282,7 +282,7 @@ export default function GarmentEditStudioPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-24 font-mono">
       {/* Top Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#23232A]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-chrome-800">
         <div>
           <Link
             href="/inventory"
@@ -305,7 +305,7 @@ export default function GarmentEditStudioPage() {
 
         <div className="flex items-center gap-3">
           <Link href="/inventory">
-            <Button variant="terminal" size="sm" className="bg-[#141418] border-[#27272F] text-xs">
+            <Button variant="terminal" size="sm" className="bg-chrome-850 border-chrome-750 text-xs">
               Cancel
             </Button>
           </Link>
@@ -349,8 +349,8 @@ export default function GarmentEditStudioPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column (7 cols): Base Garment Specifications */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="p-6 bg-[#121216] border border-[#23232A] space-y-5">
-            <div className="flex items-center gap-2 text-xs text-neutral-300 font-semibold border-b border-[#23232A] pb-3">
+          <div className="p-6 bg-chrome-900 border border-chrome-800 space-y-5">
+            <div className="flex items-center gap-2 text-xs text-neutral-300 font-semibold border-b border-chrome-800 pb-3">
               <Scissors className="w-4 h-4 text-amber-400" />
               <span className="uppercase tracking-caps">Garment Provenance & Materiality</span>
             </div>
@@ -362,7 +362,7 @@ export default function GarmentEditStudioPage() {
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-[#18181D] border border-[#2B2B35] px-3.5 py-2 text-xs text-white focus:border-amber-400 focus:outline-none"
+                  className="w-full bg-chrome-950 border border-chrome-750 px-3.5 py-2 text-xs text-white focus:border-amber-400 focus:outline-none"
                   required
                 />
               </div>
@@ -373,7 +373,7 @@ export default function GarmentEditStudioPage() {
                   <select
                     value={categoryId}
                     onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full bg-[#18181D] border border-[#2B2B35] px-3 py-2 text-xs text-white focus:border-amber-400 focus:outline-none"
+                    className="w-full bg-chrome-950 border border-chrome-750 px-3 py-2 text-xs text-white focus:border-amber-400 focus:outline-none"
                   >
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -390,7 +390,7 @@ export default function GarmentEditStudioPage() {
                     step="0.01"
                     value={price}
                     onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-[#18181D] border border-[#2B2B35] px-3.5 py-2 text-xs text-white focus:border-amber-400 focus:outline-none font-mono"
+                    className="w-full bg-chrome-950 border border-chrome-750 px-3.5 py-2 text-xs text-white focus:border-amber-400 focus:outline-none font-mono"
                     required
                   />
                   <span className="text-[10px] text-neutral-500 font-sans mt-0.5 block">Active price shoppers pay</span>
@@ -404,7 +404,7 @@ export default function GarmentEditStudioPage() {
                     value={compareAtPrice}
                     onChange={(e) => setCompareAtPrice(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                     placeholder="e.g. 12499"
-                    className="w-full bg-[#18181D] border border-[#2B2B35] px-3.5 py-2 text-xs text-white focus:border-amber-400 focus:outline-none font-mono"
+                    className="w-full bg-chrome-950 border border-chrome-750 px-3.5 py-2 text-xs text-white focus:border-amber-400 focus:outline-none font-mono"
                   />
                   <span className="text-[10px] text-neutral-500 font-sans mt-0.5 block">
                     {compareAtPrice && Number(compareAtPrice) > price
@@ -422,7 +422,7 @@ export default function GarmentEditStudioPage() {
                     value={material}
                     onChange={(e) => setMaterial(e.target.value)}
                     placeholder="e.g. 480 GSM Organic Cotton French Terry"
-                    className="w-full bg-[#18181D] border border-[#2B2B35] px-3.5 py-2 text-xs text-white focus:border-amber-400 focus:outline-none"
+                    className="w-full bg-chrome-950 border border-chrome-750 px-3.5 py-2 text-xs text-white focus:border-amber-400 focus:outline-none"
                   />
                 </div>
 
@@ -433,7 +433,7 @@ export default function GarmentEditStudioPage() {
                     value={edition}
                     onChange={(e) => setEdition(e.target.value)}
                     placeholder="Drop 01 // Limited 150 Pieces"
-                    className="w-full bg-[#18181D] border border-[#2B2B35] px-3.5 py-2 text-xs text-white focus:border-amber-400 focus:outline-none"
+                    className="w-full bg-chrome-950 border border-chrome-750 px-3.5 py-2 text-xs text-white focus:border-amber-400 focus:outline-none"
                   />
                 </div>
               </div>
@@ -444,20 +444,20 @@ export default function GarmentEditStudioPage() {
                   rows={4}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-[#18181D] border border-[#2B2B35] p-3 text-xs text-white focus:border-amber-400 focus:outline-none font-sans leading-relaxed"
+                  className="w-full bg-chrome-950 border border-chrome-750 p-3 text-xs text-white focus:border-amber-400 focus:outline-none font-sans leading-relaxed"
                 />
               </div>
             </div>
           </div>
 
           {/* Multi-Image Gallery Asset Studio */}
-          <div className="p-6 bg-[#121216] border border-[#23232A] space-y-5">
-            <div className="flex items-center justify-between border-b border-[#23232A] pb-3">
+          <div className="p-6 bg-chrome-900 border border-chrome-800 space-y-5">
+            <div className="flex items-center justify-between border-b border-chrome-800 pb-3">
               <div className="flex items-center gap-2 text-xs text-neutral-300 font-semibold">
                 <UploadCloud className="w-4 h-4 text-emerald-400" />
                 <span className="uppercase tracking-caps">Multi-Image Gallery & Supabase Storage</span>
               </div>
-              <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1B1B22] hover:bg-[#252530] border border-[#2E2E3A] text-xs text-neutral-200 transition-colors">
+              <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-chrome-850 hover:bg-[#252530] border border-[#2E2E3A] text-xs text-neutral-200 transition-colors">
                 <Plus className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Upload Media</span>
                 <input
@@ -472,7 +472,7 @@ export default function GarmentEditStudioPage() {
             </div>
 
             {isUploadingMedia && (
-              <div className="p-3 bg-neutral-900 border border-neutral-700 text-xs text-amber-300 flex items-center gap-2">
+              <div className="p-3 bg-chrome-850 border border-chrome-750 text-xs text-amber-400 flex items-center gap-2">
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                 <span>Uploading high-resolution assets to Supabase Storage bucket 'products'...</span>
               </div>
@@ -485,8 +485,8 @@ export default function GarmentEditStudioPage() {
                 return (
                   <div
                     key={idx}
-                    className={`relative aspect-[3/4] bg-black border ${
-                      isPrimary ? 'border-amber-400' : 'border-[#2E2E3A]'
+                    className={`relative aspect-[3/4] bg-chrome-950 border ${
+                      isPrimary ? 'border-amber-400' : 'border-chrome-800'
                     } overflow-hidden group`}
                   >
                     <Image src={m.url} alt={m.alt_text || 'Media'} fill unoptimized className="object-cover" sizes="120px" />
@@ -523,8 +523,8 @@ export default function GarmentEditStudioPage() {
 
         {/* Right Column (5 cols): Per-Variant Stock Matrix & Barcode Tagging */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="p-6 bg-[#121216] border border-[#23232A] space-y-5">
-            <div className="flex items-center justify-between border-b border-[#23232A] pb-3">
+          <div className="p-6 bg-chrome-900 border border-chrome-800 space-y-5">
+            <div className="flex items-center justify-between border-b border-chrome-800 pb-3">
               <div className="flex items-center gap-2 text-xs text-neutral-300 font-semibold">
                 <BarcodeIcon className="w-4 h-4 text-amber-400" />
                 <span className="uppercase tracking-caps">Size Matrix & Barcode Tagging</span>
@@ -538,17 +538,17 @@ export default function GarmentEditStudioPage() {
                 return (
                   <div
                     key={v.id}
-                    className="p-3.5 bg-[#16161D] border border-[#252530] space-y-3 hover:border-[#383848] transition-colors"
+                    className="p-3.5 bg-chrome-950 border border-chrome-750 space-y-3 hover:border-chrome-700 transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="w-8 h-8 bg-black text-amber-400 border border-[#2D2D3A] flex items-center justify-center font-bold text-xs font-mono">
+                        <span className="w-8 h-8 bg-chrome-850 text-foreground border border-chrome-750 flex items-center justify-center font-bold text-xs font-mono">
                           {v.size}
                         </span>
                         <div>
-                          <p className="text-xs font-bold text-white font-mono">{v.sku}</p>
-                          <span className="text-[10px] text-neutral-500 font-mono">
-                            Allocated Stock: <strong className="text-white">{v.stock}</strong> units
+                          <p className="text-xs font-bold text-foreground font-mono">{v.sku}</p>
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            Allocated Stock: <strong className="text-foreground">{v.stock}</strong> units
                           </span>
                         </div>
                       </div>
@@ -559,16 +559,16 @@ export default function GarmentEditStudioPage() {
                           type="button"
                           onClick={() => handleVariantStockChange(v.id, -1)}
                           disabled={updatingVariantId === v.id || v.stock <= 0}
-                          className="w-7 h-7 bg-[#20202A] hover:bg-neutral-800 text-white border border-[#303040] text-xs flex items-center justify-center active:scale-95 disabled:opacity-30"
+                          className="w-7 h-7 bg-chrome-850 hover:bg-chrome-800 text-foreground border border-chrome-750 text-xs flex items-center justify-center active:scale-95 disabled:opacity-30 cursor-pointer"
                         >
                           -
                         </button>
-                        <span className="w-8 text-center text-xs font-bold text-white font-mono">{v.stock}</span>
+                        <span className="w-8 text-center text-xs font-bold text-foreground font-mono">{v.stock}</span>
                         <button
                           type="button"
                           onClick={() => handleVariantStockChange(v.id, 1)}
                           disabled={updatingVariantId === v.id}
-                          className="w-7 h-7 bg-[#20202A] hover:bg-neutral-800 text-white border border-[#303040] text-xs flex items-center justify-center active:scale-95"
+                          className="w-7 h-7 bg-chrome-850 hover:bg-chrome-800 text-foreground border border-chrome-750 text-xs flex items-center justify-center active:scale-95 cursor-pointer"
                         >
                           +
                         </button>
@@ -577,14 +577,14 @@ export default function GarmentEditStudioPage() {
 
                     {/* Rendered Code 128 Barcode & Print Action */}
                     <div className="pt-2 border-t border-[#22222E] flex items-center justify-between gap-3">
-                      <div className="overflow-hidden bg-[#0A0A0C] p-1.5 border border-[#252532] rounded-none">
+                      <div className="overflow-hidden bg-chrome-900 p-1.5 border border-chrome-750 rounded-none">
                         <Barcode value={barcodeValue} height={28} barWidth={1.3} theme="terminal" />
                       </div>
 
                       <button
                         type="button"
                         onClick={() => handlePrintVariantLabel(v)}
-                        className="px-2.5 py-1.5 bg-[#1F1F28] hover:bg-[#2A2A38] border border-[#353545] text-neutral-200 text-[10px] font-mono flex items-center gap-1.5 shrink-0 transition-colors"
+                        className="px-2.5 py-1.5 bg-chrome-850 hover:bg-[#2A2A38] border border-chrome-750 text-neutral-200 text-[10px] font-mono flex items-center gap-1.5 shrink-0 transition-colors"
                         title="Print 2x1 inch physical thermal tag"
                       >
                         <Printer className="w-3 h-3 text-amber-400" />
