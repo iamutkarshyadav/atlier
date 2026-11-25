@@ -108,9 +108,10 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: 'Promotions & Pricing',
+    label: 'Promotions & Engagement',
     items: [
       { href: '/promotions', label: 'Campaigns & Coupons', icon: Tag, exact: true },
+      { href: '/popups', label: 'Pop-Up Studio', icon: Layers, exact: false },
       { href: '/promotions/markdowns', label: 'Scheduled Markdowns', icon: TrendingDown },
       { href: '/promotions/analytics', label: 'Redemption Analytics', icon: BarChart3 },
     ],
@@ -122,7 +123,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/collections', label: 'Collections & Occasions', icon: Sparkles },
       {
         href: '/reviews',
-        label: 'Patron Reviews & Feedback',
+        label: 'Customer Reviews',
         icon: Star,
         badge: { key: 'pendingReviewsCount', variant: 'amber', title: 'Reviews awaiting moderation' },
       },

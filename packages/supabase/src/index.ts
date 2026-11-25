@@ -1,5 +1,6 @@
 // Export types
 export * from './types/database.types'
+export * from './types/popups'
 
 // Export Supabase JS client builder & types
 export { createClient } from '@supabase/supabase-js'
@@ -11,6 +12,7 @@ export * from './clients/resilientFetch'
 
 // Export query utilities
 export * from './utils/index'
+export * from './utils/popups'
 
 // Export pricing & promotions engine
 export * from './pricing/index'

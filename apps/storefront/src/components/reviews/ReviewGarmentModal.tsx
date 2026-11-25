@@ -40,11 +40,11 @@ interface ReviewGarmentModalProps {
 }
 
 const RATING_LABELS: Record<number, string> = {
-  1: 'Disappointing',
-  2: 'Below Expectations',
-  3: 'Satisfactory',
-  4: 'Admirable',
-  5: 'Exceptional / Haute',
+  1: 'Poor (1/5)',
+  2: 'Fair (2/5)',
+  3: 'Good (3/5)',
+  4: 'Very Good (4/5)',
+  5: 'Excellent (5/5)',
 }
 
 export function ReviewGarmentModal({
@@ -148,7 +148,7 @@ export function ReviewGarmentModal({
 
         const data = await res.json()
         if (data.success) {
-          setSuccessMessage('Your revised impressions have been saved.')
+          setSuccessMessage('Your review has been updated.')
           setTimeout(() => {
             onSuccess?.()
             onClose()
@@ -176,7 +176,7 @@ export function ReviewGarmentModal({
 
         const data = await res.json()
         if (data.success) {
-          setSuccessMessage('Thank you for sharing your impressions. Your review is being curated.')
+          setSuccessMessage('Thank you for sharing your review! Your feedback is now published.')
           setTimeout(() => {
             onSuccess?.()
             onClose()
@@ -208,12 +208,12 @@ export function ReviewGarmentModal({
 
         {/* Modal Header */}
         <div className="border-b border-[#e5e7eb] pb-4">
-          <div className="flex items-center gap-1.5 text-2xs uppercase tracking-widest text-[#b91c1c] font-mono font-bold">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Maison TG Patron Impressions</span>
+          <div className="flex items-center gap-1.5 text-2xs uppercase tracking-wider text-[#14293a] font-mono font-bold">
+            <Star className="w-3.5 h-3.5 fill-[#14293a] text-[#14293a]" />
+            <span>Product Review & Rating</span>
           </div>
-          <h3 className="text-2xl font-serif font-bold text-[#14293a] mt-1">
-            {isEditing ? 'Revise Your Impressions' : 'Share Your Impressions'}
+          <h3 className="text-xl font-sans font-bold text-[#14293a] mt-1">
+            {isEditing ? 'Edit Your Review' : 'Write a Customer Review'}
           </h3>
 
           {/* Garment Summary Card */}
@@ -233,7 +233,7 @@ export function ReviewGarmentModal({
               )}
             </div>
             <div>
-              <p className="text-xs font-bold text-[#14293a] font-serif">
+              <p className="text-xs font-bold text-[#14293a] font-sans">
                 {orderItem.product?.title || 'Garment Piece'}
               </p>
               <div className="flex flex-wrap items-center gap-2 text-2xs font-mono text-[#6c7079] mt-0.5">
@@ -282,7 +282,7 @@ export function ReviewGarmentModal({
                   </button>
                 ))}
               </div>
-              <span className="text-xs font-serif font-semibold text-[#14293a] ml-2 italic">
+              <span className="text-xs font-sans font-semibold text-[#14293a] ml-2">
                 {RATING_LABELS[currentActiveRating]}
               </span>
             </div>
@@ -291,13 +291,13 @@ export function ReviewGarmentModal({
           {/* 2. Fit Consensus Indicator */}
           <div>
             <label className="block text-[11px] uppercase tracking-wider text-[#6c7079] font-mono font-bold mb-1.5">
-              Garment Fit & Tailoring
+              Fit & Sizing
             </label>
             <div className="grid grid-cols-3 gap-2.5">
               {[
                 { val: 'runs_small', label: 'Runs Small', desc: 'Snug / fitted' },
-                { val: 'true_to_size', label: 'True to Size', desc: 'Precision fit' },
-                { val: 'runs_large', label: 'Runs Large', desc: 'Generous cut' },
+                { val: 'true_to_size', label: 'True to Size', desc: 'Standard fit' },
+                { val: 'runs_large', label: 'Runs Large', desc: 'Relaxed / loose' },
               ].map((opt) => {
                 const isSelected = fitIndicator === opt.val
                 return (
@@ -328,7 +328,7 @@ export function ReviewGarmentModal({
           {/* 3. Review Title */}
           <div>
             <label className="block text-[11px] uppercase tracking-wider text-[#6c7079] font-mono font-bold mb-1">
-              Headline Summary
+              Headline
             </label>
             <input
               type="text"
@@ -336,22 +336,22 @@ export function ReviewGarmentModal({
               maxLength={150}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Masterful drape, impeccably finished seams"
+              placeholder="e.g. Great quality and fits true to size"
               className="w-full bg-white border border-[#d3d6db] rounded-xs p-2.5 text-xs text-[#14293a] placeholder-[#8a909a] focus:outline-hidden focus:border-[#14293a] focus:ring-1 focus:ring-[#14293a] font-sans"
             />
           </div>
 
-          {/* 4. Detailed Impressions */}
+          {/* 4. Detailed Review */}
           <div>
             <label className="block text-[11px] uppercase tracking-wider text-[#6c7079] font-mono font-bold mb-1">
-              Detailed Impressions
+              Review Details
             </label>
             <textarea
               required
               rows={4}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Describe the fabric tactile feel, silhouette drape, occasion pairing, and craftsmanship details..."
+              placeholder="Share details about the fit, fabric feel, finish, and overall experience..."
               className="w-full bg-white border border-[#d3d6db] rounded-xs p-2.5 text-xs text-[#14293a] placeholder-[#8a909a] focus:outline-hidden focus:border-[#14293a] focus:ring-1 focus:ring-[#14293a] font-sans"
             />
           </div>
@@ -441,7 +441,7 @@ export function ReviewGarmentModal({
               className="px-6 py-2.5 bg-[#14293a] hover:bg-neutral-800 text-white font-mono font-bold text-xs uppercase tracking-wider rounded-xs transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {isEditing ? 'Save Changes' : 'Submit Impressions'}
+              {isEditing ? 'Save Changes' : 'Submit Review'}
             </button>
           </div>
         </form>

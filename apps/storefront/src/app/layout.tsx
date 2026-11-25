@@ -4,6 +4,7 @@ import './globals.css'
 import { Navbar } from '../components/Navbar'
 import { Footer } from '../components/Footer'
 import { ThemeInjector } from '../components/cms/ThemeInjector'
+import { UniversalPopupEngine } from '../components/popups/UniversalPopupEngine'
 import { createServerSupabaseClient } from '@repo/supabase/server'
 import {
   getStorefrontTokens,
@@ -67,6 +68,7 @@ export default async function RootLayout({
         <Navbar initialCategories={categories} announcement={announcementConfig} />
         <main className="flex-1">{children}</main>
         <Footer />
+        <UniversalPopupEngine />
       </body>
     </html>
   )

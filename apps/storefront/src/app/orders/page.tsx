@@ -440,17 +440,17 @@ export default function CustomerOrdersPage() {
 
         {/* Settled & Delivered Review Banner */}
         {ord.status === 'delivered' && (
-          <div className="bg-amber-50/80 border border-amber-300/80 rounded-sm p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="bg-white border border-[#e5e7eb] rounded-sm p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs hover:border-[#14293a] transition-colors">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shrink-0">
-                <Sparkles className="w-4 h-4 text-amber-600" />
+              <div className="w-9 h-9 rounded-full bg-[#14293a]/5 border border-[#14293a]/10 flex items-center justify-center text-[#14293a] shrink-0">
+                <Star className="w-4 h-4 fill-[#14293a] text-[#14293a]" />
               </div>
               <div>
-                <h5 className="font-serif font-bold text-xs text-[#14293a]">
-                  Garment Delivered & Settled — Share Your Impressions
+                <h5 className="font-sans font-bold text-xs text-[#14293a]">
+                  Delivered — Rate Your Purchase & Fit
                 </h5>
-                <p className="text-[11px] text-[#6c7079]">
-                  Rate tailoring craftsmanship, silhouette drape, and fit for the Atelier.
+                <p className="text-[11px] text-[#6c7079] mt-0.5">
+                  Share your feedback on sizing, quality, and fit to help fellow shoppers.
                 </p>
               </div>
             </div>
@@ -477,10 +477,10 @@ export default function CustomerOrdersPage() {
                     setSelectedExistingReview(null)
                     setIsReviewModalOpen(true)
                   }}
-                  className="px-3.5 py-1.5 bg-[#14293a] hover:bg-neutral-800 text-white text-xs font-mono font-medium rounded-xs transition-colors flex items-center gap-1.5 shrink-0 shadow-xs"
+                  className="px-4 py-2 bg-[#14293a] hover:bg-[#b91c1c] text-white text-xs font-sans font-semibold rounded-xs transition-colors flex items-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
                 >
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  <span>Rate Garment</span>
+                  <Star className="w-3.5 h-3.5 fill-white text-white" />
+                  <span>Rate & Review</span>
                 </button>
               )
             })()}
@@ -557,10 +557,10 @@ export default function CustomerOrdersPage() {
                                     setSelectedExistingReview(existingReview)
                                     setIsReviewModalOpen(true)
                                   }}
-                                  className="text-xs font-mono font-medium text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-xs flex items-center gap-1.5 transition-colors shadow-2xs"
+                                  className="text-xs font-sans font-medium text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-xs flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
                                 >
                                   <Star className="w-3 h-3 fill-emerald-600 text-emerald-600" />
-                                  <span>Impressions Shared ({existingReview.rating}★ - {existingReview.status})</span>
+                                  <span>Review Submitted ({existingReview.rating}★)</span>
                                 </button>
                               )
                             }
@@ -580,10 +580,10 @@ export default function CustomerOrdersPage() {
                                   setSelectedExistingReview(null)
                                   setIsReviewModalOpen(true)
                                 }}
-                                className="text-xs font-mono font-bold text-[#14293a] bg-amber-400 hover:bg-amber-300 border border-amber-500/40 px-3 py-1 rounded-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                                className="text-xs font-sans font-semibold text-white bg-[#14293a] hover:bg-[#b91c1c] border border-transparent px-3 py-1 rounded-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
                               >
-                                <Star className="w-3 h-3 fill-[#14293a] text-[#14293a]" />
-                                <span>Rate & Share Impressions</span>
+                                <Star className="w-3 h-3 fill-white text-white" />
+                                <span>Write Review</span>
                               </button>
                             )
                           })()}
