@@ -3,9 +3,11 @@ import type { Metadata } from 'next'
 import { createServerSupabaseClient } from '@repo/supabase/server'
 import {
   getProductWithVariantsAndMedia,
+  getPromotions,
+  getEffectiveProductPricing,
   DEFAULT_PRODUCTS,
   type Product,
-} from '@repo/supabase/utils'
+} from '@repo/supabase'
 import { ProductInteractiveIsland } from './ProductInteractiveIsland'
 import { ProductReviewsSection } from '@/components/reviews/ProductReviewsSection'
 
@@ -35,16 +37,31 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
 export default async function ProductDetailPage({ params }: ProductPageProps) {
   const supabase = await createServerSupabaseClient()
-  const { product, variants, media } = await getProductWithVariantsAndMedia(
-    supabase,
-    params.id
-  )
+  const [{ product, variants, media }, promotions, schedulesRes] = await Promise.all([
+    getProductWithVariantsAndMedia(supabase, params.id),
+    getPromotions(supabase, { onlyActive: true }).catch(() => []),
+    Promise.resolve(
+      supabase
+        .from('price_schedules')
+        .select('*')
+        .eq('is_active', true)
+        .lte('starts_at', new Date().toISOString())
+        .gte('ends_at', new Date().toISOString())
+    ).catch(() => ({ data: [] })),
+  ])
 
   // Graceful fallback for demo prototypes
   const resolvedProduct: Product =
     product ||
     DEFAULT_PRODUCTS.find((p) => p.id === params.id) ||
     DEFAULT_PRODUCTS[0]!
+
+  const priceSchedules = schedulesRes?.data || []
+  const pricing = getEffectiveProductPricing(
+    resolvedProduct,
+    promotions,
+    priceSchedules
+  )
 
   return (
     <div className="min-h-screen bg-white text-[#14293a] selection:bg-[#b91c1c] selection:text-white pb-20 font-sans">
@@ -53,6 +70,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
           product={resolvedProduct}
           variants={variants}
           media={media}
+          initialPricing={pricing}
         />
 
         <ProductReviewsSection

@@ -23,6 +23,7 @@ export interface CartItem {
   category: string
   edition: string
   price: number
+  originalPrice?: number
   quantity: number
   image: string
   size?: string

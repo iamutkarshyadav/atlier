@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Zap, Heart, Check, ShoppingBag } from 'lucide-react'
+import { Zap, Heart, Check, ShoppingBag, Tag } from 'lucide-react'
 import type { Product } from '@repo/supabase/utils'
 import { useCartStore } from '../store/useCartStore'
 import { useHydratedWishlist } from '../store/useWishlistStore'
@@ -25,13 +25,17 @@ const COLOR_SWATCHES: Record<string, string[]> = {
 }
 
 export interface ProductCardProps {
-  product: Product
+  product: Product & { compare_at_price?: number | null; extra_offer_tag?: string | null }
   secondaryImage?: string
   priority?: boolean
   className?: string
   showTryOnBadge?: boolean
   showReassuranceLine?: boolean
   badgeLabel?: string
+  mrp?: number
+  sellingPrice?: number
+  discountPercentage?: number
+  extraOfferTag?: string
   onQuickAdd?: (product: Product, size: string) => void
 }
 
@@ -43,6 +47,10 @@ export function ProductCard({
   showTryOnBadge = true,
   showReassuranceLine = true,
   badgeLabel,
+  mrp,
+  sellingPrice,
+  discountPercentage,
+  extraOfferTag,
   onQuickAdd,
 }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false)
@@ -62,7 +70,22 @@ export function ProductCard({
   const categorySwatches =
     (product.category && COLOR_SWATCHES[product.category]) || ['#1C1C1C', '#F0EAE1', '#2A303C']
 
-  const numPrice = Number(product.price)
+  const numPrice = Number(sellingPrice !== undefined ? sellingPrice : product.price)
+  const originalMrp = Number(
+    mrp !== undefined
+      ? mrp
+      : (product as any).compare_at_price ||
+        (discountPercentage && discountPercentage > 0
+          ? Math.round((numPrice * 100) / (100 - discountPercentage))
+          : null)
+  )
+  const effectiveDiscountPct =
+    discountPercentage !== undefined
+      ? discountPercentage
+      : originalMrp && originalMrp > numPrice
+        ? Math.round(((originalMrp - numPrice) / originalMrp) * 100)
+        : 0
+  const effectiveOfferTag = extraOfferTag || (product as any).extra_offer_tag
 
   const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -84,6 +107,7 @@ export function ProductCard({
         category: product.category || 'Atelier Collection',
         edition: 'Permanent Collection',
         price: numPrice,
+        originalPrice: originalMrp && originalMrp > numPrice ? originalMrp : undefined,
         quantity: 1,
         image: product.image_url || '',
         size,
@@ -238,12 +262,30 @@ export function ProductCard({
           </p>
         )}
 
-        {/* Price Row */}
-        <div className="pt-0.5 flex items-baseline gap-2">
+        {/* Price Row (Flipkart / Myntra Strikethrough & % OFF Badge) */}
+        <div className="pt-0.5 flex flex-wrap items-baseline gap-1.5">
           <span className="text-xs sm:text-sm font-bold font-sans tabular-nums text-[#14293a]">
             ₹{numPrice.toLocaleString('en-IN')}
           </span>
+          {originalMrp && originalMrp > numPrice && (
+            <span className="text-[11px] text-[#8a909a] font-sans line-through tabular-nums">
+              ₹{originalMrp.toLocaleString('en-IN')}
+            </span>
+          )}
+          {effectiveDiscountPct > 0 && (
+            <span className="text-[10px] font-sans font-bold text-[#b91c1c] tracking-tight">
+              ({effectiveDiscountPct}% OFF)
+            </span>
+          )}
         </div>
+
+        {/* Subtle Extra Offer Tag */}
+        {effectiveOfferTag && (
+          <div className="flex items-center gap-1 text-[10px] font-mono text-[#b91c1c] pt-0.5">
+            <Tag className="w-2.5 h-2.5 shrink-0" />
+            <span className="truncate">{effectiveOfferTag}</span>
+          </div>
+        )}
 
         {/* Micro Doorstep Try-On Reassurance Chip */}
         {showTryOnBadge && showReassuranceLine && (

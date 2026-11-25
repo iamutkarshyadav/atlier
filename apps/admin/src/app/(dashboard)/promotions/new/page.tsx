@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   Tag,
   ArrowLeft,
@@ -19,6 +20,9 @@ import {
   RefreshCw,
   Plus,
   Trash2,
+  UploadCloud,
+  ImageIcon,
+  X,
 } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -54,7 +58,7 @@ export default function NewPromotionPage() {
   const [promotionType, setPromotionType] = useState<
     'coupon' | 'automatic_cart' | 'tiered_threshold' | 'buy_x_get_y' | 'shipping_waiver'
   >('coupon')
-  const [discountType, setDiscountType] = useState<'percentage' | 'fixed_amount'>('percentage')
+  const [discountType, setDiscountType] = useState<'percentage' | 'fixed_amount' | 'free_shipping'>('percentage')
   const [discountValue, setDiscountValue] = useState<number>(10)
   const [maxDiscountAmount, setMaxDiscountAmount] = useState<number | ''>('')
   const [minOrderSubtotal, setMinOrderSubtotal] = useState<number | ''>('')
@@ -66,6 +70,11 @@ export default function NewPromotionPage() {
   const [startsAt, setStartsAt] = useState<string>(new Date().toISOString().slice(0, 16))
   const [endsAt, setEndsAt] = useState<string>('')
   const [initialCouponCode, setInitialCouponCode] = useState<string>('')
+
+  // Banner Image State
+  const [bannerImageUrl, setBannerImageUrl] = useState<string>('')
+  const [isUploadingBanner, setIsUploadingBanner] = useState<boolean>(false)
+  const [bannerUploadError, setBannerUploadError] = useState<string | null>(null)
 
   // Targeting Rules State
   const [targetType, setTargetType] = useState<'entire_order' | 'category' | 'collection'>('entire_order')
@@ -108,6 +117,36 @@ export default function NewPromotionPage() {
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-|-$/g, '')
       )
+    }
+  }
+
+  // Handle Banner Image Upload
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploadingBanner(true)
+    setBannerUploadError(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('folder', 'banners')
+
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await res.json()
+      const uploadedUrl = data.publicUrl || data.url
+      if (res.ok && data.success && uploadedUrl) {
+        setBannerImageUrl(uploadedUrl)
+        setBannerUploadError(null)
+      } else {
+        setBannerUploadError(data.error || 'Failed to upload banner image')
+      }
+    } catch (err: any) {
+      setBannerUploadError(err?.message || 'Error uploading banner file')
+    } finally {
+      setIsUploadingBanner(false)
     }
   }
 
@@ -184,6 +223,7 @@ export default function NewPromotionPage() {
           name: name.trim(),
           slug: slug.trim().toLowerCase(),
           description: description.trim() || null,
+          banner_image_url: bannerImageUrl.trim() || null,
           promotion_type: promotionType,
           discount_type: discountType,
           discount_value: Number(discountValue) || 0,
@@ -348,12 +388,105 @@ export default function NewPromotionPage() {
             </div>
           </div>
 
-          {/* Step 2: Discount Mechanism */}
+          {/* Step 2: Background Banner & Visual Presentation */}
+          <div className="p-5 rounded-lg border border-border/60 bg-card space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="h-4 w-4 text-primary" />
+                <h2 className="text-xs font-mono font-semibold uppercase tracking-wider">
+                  2. Background Banner &amp; Photo Grid Presentation
+                </h2>
+              </div>
+              <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                Card Background
+              </span>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Upload an editorial background photo for the storefront &ldquo;Special Offers &amp; Sale&rdquo; photo grid and offers page.
+            </p>
+
+            {bannerImageUrl ? (
+              <div className="relative w-full h-44 rounded-md overflow-hidden border border-border/80 group">
+                <Image
+                  src={bannerImageUrl}
+                  alt="Promotion Banner"
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-4 flex flex-col justify-end">
+                  <span className="text-[10px] font-mono font-bold tracking-widest uppercase bg-white/20 text-white backdrop-blur-xs px-2 py-0.5 rounded-xs w-fit mb-1">
+                    {promotionType === 'coupon' ? 'INVITATION CODE' : 'SEASONAL SALE'}
+                  </span>
+                  <h4 className="text-white font-sans font-bold text-base leading-tight">
+                    {name || 'Privilege Preview'}
+                  </h4>
+                  <p className="text-white/80 text-xs font-mono">
+                    {discountType === 'percentage'
+                      ? `${discountValue}% OFF`
+                      : discountType === 'free_shipping'
+                        ? 'FREE SHIPPING'
+                        : `₹${discountValue} OFF`}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setBannerImageUrl('')}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 hover:bg-black text-white transition-colors"
+                  title="Remove image"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <label className="border-2 border-dashed border-border/80 hover:border-primary/60 rounded-md p-6 flex flex-col items-center justify-center cursor-pointer transition-colors bg-muted/10 hover:bg-muted/20">
+                  <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
+                  <span className="text-xs font-mono font-semibold text-foreground">
+                    {isUploadingBanner ? 'Uploading high-res asset...' : 'Click to Upload Banner Image'}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground mt-1">
+                    JPEG, PNG, WebP or AVIF (Max 10 MB)
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/avif"
+                    onChange={handleBannerUpload}
+                    disabled={isUploadingBanner}
+                    className="hidden"
+                  />
+                </label>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-muted-foreground uppercase shrink-0">
+                    Or Image URL:
+                  </span>
+                  <input
+                    type="url"
+                    placeholder="https://images.unsplash.com/photo-..."
+                    value={bannerImageUrl}
+                    onChange={(e) => setBannerImageUrl(e.target.value)}
+                    className="flex-1 px-3 py-1.5 text-xs font-mono bg-background border border-border/60 rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+            )}
+
+            {bannerUploadError && (
+              <div className="p-2.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-mono flex items-center gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                <span>{bannerUploadError}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Step 3: Discount Mechanism */}
           <div className="p-5 rounded-lg border border-border/60 bg-card space-y-4">
             <div className="flex items-center gap-2">
               <Percent className="h-4 w-4 text-emerald-500" />
               <h2 className="text-xs font-mono font-semibold uppercase tracking-wider">
-                2. Discount Mechanism & Financials
+                3. Discount Mechanism &amp; Financials
               </h2>
             </div>
 

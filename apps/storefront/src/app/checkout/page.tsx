@@ -41,6 +41,14 @@ export default function LuxuryCheckoutPage() {
     clearCart,
   } = useHydratedCart()
 
+  const catalogSavings = items.reduce((acc, item) => {
+    if (item.originalPrice && item.originalPrice > item.price) {
+      return acc + (item.originalPrice - item.price) * item.quantity
+    }
+    return acc
+  }, 0)
+  const totalCombinedSavings = discount + catalogSavings
+
   const {
     pincode,
     city: boltCity,
@@ -933,6 +941,30 @@ export default function LuxuryCheckoutPage() {
           {/* RIGHT COLUMN: ORDER SUMMARY SIDEBAR */}
           {/* ========================================================= */}
           <div className="lg:col-span-4 space-y-5">
+            {/* Prominent Savings Banner */}
+            {totalCombinedSavings > 0 && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-sm text-xs text-emerald-950 flex items-center justify-between shadow-xs">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <div>
+                    <span className="font-bold block">
+                      You are saving ₹{totalCombinedSavings.toLocaleString('en-IN')} on this order
+                    </span>
+                    <span className="text-[11px] text-emerald-800">
+                      {discount > 0 && catalogSavings > 0
+                        ? `Includes ₹${catalogSavings.toLocaleString('en-IN')} catalog markdown + ₹${discount.toLocaleString('en-IN')} code ${appliedCouponCode}`
+                        : discount > 0
+                        ? `Privilege code ${appliedCouponCode} active`
+                        : 'Seasonal markdown discount applied'}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-2xs font-mono font-bold uppercase tracking-wider bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded-full">
+                  SAVED
+                </span>
+              </div>
+            )}
+
             <div className="p-6 border border-[#d3d6db] bg-[#f8f8f8] space-y-4 sticky top-28 shadow-sm rounded-sm">
               <div className="flex justify-between items-center border-b border-[#d3d6db] pb-3">
                 <span className="text-xs uppercase tracking-wider font-bold text-[#14293a]">
@@ -969,9 +1001,16 @@ export default function LuxuryCheckoutPage() {
                         )}
                       </div>
                     </div>
-                    <span className="text-xs font-bold text-[#14293a] shrink-0">
-                      ₹{(item.price * item.quantity).toLocaleString('en-IN')}
-                    </span>
+                    <div className="text-right shrink-0">
+                      <span className="text-xs font-bold text-[#14293a] block tabular-nums">
+                        ₹{(item.price * item.quantity).toLocaleString('en-IN')}
+                      </span>
+                      {item.originalPrice && item.originalPrice > item.price && (
+                        <span className="text-[10px] text-[#8a909a] line-through block tabular-nums">
+                          ₹{(item.originalPrice * item.quantity).toLocaleString('en-IN')}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -996,6 +1035,14 @@ export default function LuxuryCheckoutPage() {
 
               {/* Price Calculations Breakdown */}
               <div className="border-t border-[#d3d6db] pt-3 space-y-2 text-xs">
+                {catalogSavings > 0 && (
+                  <div className="flex justify-between text-[#8a909a] text-xs">
+                    <span>Total MRP</span>
+                    <span className="line-through tabular-nums">
+                      ₹{(subtotal + catalogSavings).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between text-[#6c7079]">
                   <span>Garments Subtotal</span>
                   <span className="font-bold text-[#14293a]">₹{subtotal.toLocaleString('en-IN')}</span>

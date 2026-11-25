@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@repo/supabase/server'
-import { createPromotionWithRules, getLocalPromotions } from '@repo/supabase/utils'
+import { createPromotionWithRules, getLocalPromotions, extractBannerImageUrl, cleanPromotionDescription } from '@repo/supabase/utils'
 import { triggerStorefrontRevalidation } from '@/lib/revalidate'
 
 export const dynamic = 'force-dynamic'
@@ -44,7 +44,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    return NextResponse.json({ promotions: data || [] }, { status: 200 })
+    const normalized = (data || []).map((p: any) => ({
+      ...p,
+      banner_image_url: extractBannerImageUrl(p),
+      description: cleanPromotionDescription(p.description),
+    }))
+
+    return NextResponse.json({ promotions: normalized }, { status: 200 })
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || 'Failed to list promotions' },
@@ -84,6 +90,7 @@ export async function POST(req: NextRequest) {
     // Trigger ISR revalidation on storefront so active banners/markdowns refresh
     await triggerStorefrontRevalidation({ path: '/' }).catch(() => {})
     await triggerStorefrontRevalidation({ path: '/shop' }).catch(() => {})
+    await triggerStorefrontRevalidation({ path: '/offers' }).catch(() => {})
 
     return NextResponse.json(
       { success: true, promotion: result.promotion },

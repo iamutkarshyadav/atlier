@@ -17,6 +17,9 @@ import {
   Heart,
   ChevronRight,
   Search,
+  Percent,
+  Tag,
+  Sparkles,
 } from 'lucide-react'
 import { createBrowserClient } from '@repo/supabase/browser'
 import {
@@ -29,6 +32,11 @@ import {
   type ProductVariant,
   type CollectionWithRelations,
 } from '@repo/supabase/utils'
+import {
+  getEffectiveProductPricing,
+  type ProductPricingSummary,
+  type PromotionWithRules,
+} from '@repo/supabase/pricing'
 import { useCartStore } from '../../store/useCartStore'
 import { ProductCard } from '../../components/ProductCard'
 
@@ -58,6 +66,8 @@ function ShopContent() {
   const queryParam = searchParams.get('q') || searchParams.get('search') || ''
   const deliveryParam = searchParams.get('delivery')
   const sortParam = searchParams.get('sort')
+  const minDiscountParam = searchParams.get('minDiscount')
+  const onSaleParam = searchParams.get('onSale') === 'true'
   const initialSort =
     sortParam === 'newest'
       ? 'newest'
@@ -65,13 +75,16 @@ function ShopContent() {
         ? 'price-asc'
         : sortParam === 'price-desc'
           ? 'price-desc'
-          : 'recommended'
+          : sortParam === 'discount-desc'
+            ? 'discount-desc'
+            : 'recommended'
 
   const [categories, setCategories] = useState<Category[]>([])
   const [collections, setCollections] = useState<CollectionWithRelations[]>(DEFAULT_COLLECTIONS)
   const [selectedCollectionSlug, setSelectedCollectionSlug] = useState<string | null>(collectionParam)
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [variantsMap, setVariantsMap] = useState<Record<string, ProductVariant[]>>({})
+  const [pricingMap, setPricingMap] = useState<Record<string, ProductPricingSummary>>({})
   const [isLoading, setIsLoading] = useState(true)
 
   // Filter States
@@ -81,7 +94,11 @@ function ShopContent() {
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const [priceTier, setPriceTier] = useState<'all' | 'under-5000' | '5000-12000' | 'above-12000'>('all')
   const [tryOnOnly, setTryOnOnly] = useState<boolean>(deliveryParam === 'try_on')
-  const [sortBy, setSortBy] = useState<'recommended' | 'price-asc' | 'price-desc' | 'newest'>(initialSort)
+  const [minDiscount, setMinDiscount] = useState<number | null>(
+    minDiscountParam ? parseInt(minDiscountParam, 10) || null : null
+  )
+  const [onSaleOnly, setOnSaleOnly] = useState<boolean>(onSaleParam)
+  const [sortBy, setSortBy] = useState<'recommended' | 'price-asc' | 'price-desc' | 'newest' | 'discount-desc'>(initialSort)
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
   const [showSidebar, setShowSidebar] = useState(true)
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null)
@@ -141,6 +158,7 @@ function ShopContent() {
   // Collapsible section toggles
   const [openSections, setOpenSections] = useState({
     categories: true,
+    discount: true,
     sizes: true,
     colors: true,
     price: true,
@@ -236,6 +254,7 @@ function ShopContent() {
             title: row.title,
             description: row.description,
             price: Number(row.price),
+            compare_at_price: (row as any).compare_at_price ? Number((row as any).compare_at_price) : null,
             stock: row.stock,
             image_url: row.image_url,
             category_id: row.category_id,
@@ -250,6 +269,30 @@ function ShopContent() {
 
         setAllProducts(prods)
         setVariantsMap(vMap)
+
+        // Compute effective pricing across all products
+        let activePromos: PromotionWithRules[] = []
+        let serverPricingMap: Record<string, ProductPricingSummary> = {}
+        try {
+          const offersRes = await fetch('/api/offers')
+          if (offersRes.ok) {
+            const offersData = await offersRes.json()
+            if (offersData.success) {
+              if (offersData.pricingMap) {
+                serverPricingMap = offersData.pricingMap
+              }
+              if (Array.isArray(offersData.campaigns)) {
+                activePromos = offersData.campaigns
+              }
+            }
+          }
+        } catch {}
+
+        const pMap: Record<string, ProductPricingSummary> = {}
+        prods.forEach((p) => {
+          pMap[p.id] = serverPricingMap[p.id] || getEffectiveProductPricing(p, activePromos)
+        })
+        setPricingMap(pMap)
       } finally {
         setIsLoading(false)
       }
@@ -411,19 +454,30 @@ function ShopContent() {
       if (priceTier === '5000-12000' && (price < 5000 || price > 12000)) return false
       if (priceTier === 'above-12000' && price <= 12000) return false
 
+      // 6. Discount & Sale Filters
+      const pricing = pricingMap[product.id]
+      const discountPct = pricing?.discountPercentage || 0
+      if (onSaleOnly && discountPct <= 0) return false
+      if (minDiscount !== null && discountPct < minDiscount) return false
+
       return true
     })
-  }, [allProducts, searchQuery, selectedCategory, selectedSize, selectedColor, priceTier, categories, variantsMap])
+  }, [allProducts, searchQuery, selectedCategory, selectedSize, selectedColor, priceTier, categories, variantsMap, onSaleOnly, minDiscount, pricingMap])
 
   // Sorting
   const sortedProducts = useMemo(() => {
     return [...filteredProducts].sort((a, b) => {
       if (sortBy === 'price-asc') return a.price - b.price
       if (sortBy === 'price-desc') return b.price - a.price
+      if (sortBy === 'discount-desc') {
+        const discA = pricingMap[a.id]?.discountPercentage || 0
+        const discB = pricingMap[b.id]?.discountPercentage || 0
+        return discB - discA
+      }
       if (sortBy === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       return 0
     })
-  }, [filteredProducts, sortBy])
+  }, [filteredProducts, sortBy, pricingMap])
 
   // Active filter count
   const activeFilterCount = useMemo(() => {
@@ -434,8 +488,10 @@ function ShopContent() {
     if (selectedColor) count++
     if (priceTier !== 'all') count++
     if (tryOnOnly) count++
+    if (minDiscount !== null) count++
+    if (onSaleOnly) count++
     return count
-  }, [selectedCategory, searchQuery, selectedSize, selectedColor, priceTier, tryOnOnly])
+  }, [selectedCategory, searchQuery, selectedSize, selectedColor, priceTier, tryOnOnly, minDiscount, onSaleOnly])
 
   const clearAllFilters = () => {
     setSelectedCategory('All')
@@ -444,6 +500,8 @@ function ShopContent() {
     setSelectedColor(null)
     setPriceTier('all')
     setTryOnOnly(false)
+    setMinDiscount(null)
+    setOnSaleOnly(false)
     setSortBy('recommended')
     router.push('/shop')
   }
@@ -457,6 +515,9 @@ function ShopContent() {
   const handleQuickAdd = (product: Product, size: string = 'M') => {
     const variants = variantsMap[product.id] || []
     const matchingVar = variants.find((v) => v.size === size && v.stock > 0) || variants[0]
+    const pricing = pricingMap[product.id]
+    const activePrice = pricing?.sellingPrice ?? (matchingVar?.price_override ?? product.price)
+    const originalPrice = pricing?.mrp && pricing.mrp > activePrice ? pricing.mrp : undefined
 
     const added = addItem({
       id: matchingVar ? `${product.id}-${matchingVar.id}` : `${product.id}-${size}`,
@@ -464,7 +525,8 @@ function ShopContent() {
       title: product.title,
       category: product.category || 'Atelier Collection',
       edition: product.edition || '100% Cotton',
-      price: matchingVar?.price_override ?? product.price,
+      price: activePrice,
+      originalPrice,
       quantity: 1,
       image: product.image_url || '/images/prod1-primary.jpg',
       size: size || matchingVar?.size || 'M',
@@ -599,10 +661,11 @@ function ShopContent() {
               <select
                 id="shop-sort"
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'recommended' | 'price-asc' | 'price-desc' | 'newest')}
+                onChange={(e) => setSortBy(e.target.value as any)}
                 className="bg-white border border-[#d3d6db] px-3 py-1.5 text-xs text-[#14293a] focus:outline-none focus:border-[#14293a] rounded-sm cursor-pointer shadow-xs font-sans"
               >
                 <option value="recommended">Recommended</option>
+                <option value="discount-desc">Discount: High to Low</option>
                 <option value="price-asc">Price: Low to High</option>
                 <option value="price-desc">Price: High to Low</option>
                 <option value="newest">Newest</option>
@@ -615,6 +678,22 @@ function ShopContent() {
         {activeFilterCount > 0 && (
           <div className="flex flex-wrap items-center gap-2 mb-6 text-xs">
             <span className="text-[#6c7079] font-medium text-[11px] uppercase tracking-wider">Active:</span>
+            {onSaleOnly && (
+              <span className="inline-flex items-center gap-1 bg-red-50 border border-red-200 px-2.5 py-1 rounded-sm text-xs font-semibold text-[#b91c1c]">
+                <span>On Sale Only</span>
+                <button onClick={() => setOnSaleOnly(false)} className="text-[#b91c1c] hover:text-black">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {minDiscount !== null && (
+              <span className="inline-flex items-center gap-1 bg-[#f8f8f8] border border-[#d3d6db] px-2.5 py-1 rounded-sm text-xs font-medium text-[#14293a]">
+                <span>Min. {minDiscount}% Off</span>
+                <button onClick={() => setMinDiscount(null)} className="text-[#8a909a] hover:text-[#b91c1c]">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
             {selectedCategory !== 'All' && (
               <span className="inline-flex items-center gap-1 bg-[#f8f8f8] border border-[#d3d6db] px-2.5 py-1 rounded-sm text-xs font-medium text-[#14293a]">
                 Category: {selectedCategory}
@@ -687,6 +766,66 @@ function ShopContent() {
                   <RotateCcw className="w-3 h-3" />
                   <span>Clear</span>
                 </button>
+              )}
+            </div>
+
+            {/* On Sale Only Switch */}
+            <div className="py-3 border-b border-[#e5e7eb] flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#14293a] flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-[#b91c1c]" />
+                <span>On Sale Only</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setOnSaleOnly((prev) => !prev)}
+                className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer ${
+                  onSaleOnly ? 'bg-[#b91c1c]' : 'bg-[#d3d6db]'
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${
+                    onSaleOnly ? 'translate-x-4' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Discount Facet */}
+            <div className="py-4 border-b border-[#e5e7eb] space-y-2">
+              <button
+                onClick={() => toggleSection('discount')}
+                className="w-full flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#14293a] cursor-pointer"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Percent className="w-3.5 h-3.5 text-[#b91c1c]" />
+                  <span>Discount</span>
+                </span>
+                {openSections.discount ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+
+              {openSections.discount && (
+                <div className="space-y-1 pt-1 text-xs">
+                  {[
+                    { label: 'All Discounts', val: null },
+                    { label: '10% and above', val: 10 },
+                    { label: '20% and above', val: 20 },
+                    { label: '30% and above', val: 30 },
+                    { label: '50% and above', val: 50 },
+                  ].map((tier) => (
+                    <button
+                      key={String(tier.val)}
+                      onClick={() => setMinDiscount(tier.val)}
+                      className={`w-full text-left py-1 px-2 rounded-sm transition-colors flex items-center justify-between ${
+                        minDiscount === tier.val
+                          ? 'bg-[#14293a] text-white font-bold'
+                          : 'text-[#6c7079] hover:text-[#14293a] hover:bg-white'
+                      }`}
+                    >
+                      <span>{tier.label}</span>
+                      {minDiscount === tier.val && <Check className="w-3 h-3 text-[#b91c1c]" />}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
@@ -937,15 +1076,36 @@ function ShopContent() {
               </div>
             ) : (
               <div className={`grid grid-cols-2 md:grid-cols-2 ${showSidebar ? 'lg:grid-cols-3 2xl:grid-cols-4' : 'lg:grid-cols-4'} gap-4 sm:gap-6`}>
-                {sortedProducts.map((prod, idx) => (
-                  <ProductCard
-                    key={prod.id}
-                    product={prod}
-                    priority={idx < 4}
-                    showTryOnBadge={tryOnOnly}
-                    onQuickAdd={(p, sz) => handleQuickAdd(p, sz)}
-                  />
-                ))}
+                {sortedProducts.map((prod, idx) => {
+                  const pricing = pricingMap[prod.id]
+                  return (
+                    <ProductCard
+                      key={prod.id}
+                      product={{
+                        ...prod,
+                        price: pricing?.sellingPrice ?? prod.price,
+                        ...((pricing?.mrp && pricing.mrp > (pricing?.sellingPrice ?? prod.price))
+                          ? { compare_at_price: pricing.mrp }
+                          : {}),
+                        extra_offer_tag: pricing?.bestCoupon
+                          ? `Extra ${pricing.bestCoupon.label}`
+                          : undefined,
+                      } as any}
+                      mrp={pricing?.mrp}
+                      sellingPrice={pricing?.sellingPrice}
+                      discountPercentage={pricing?.discountPercentage}
+                      extraOfferTag={pricing?.bestCoupon?.label}
+                      priority={idx < 4}
+                      showTryOnBadge={tryOnOnly}
+                      badgeLabel={
+                        pricing?.discountPercentage && pricing.discountPercentage > 0
+                          ? `${pricing.discountPercentage}% OFF`
+                          : undefined
+                      }
+                      onQuickAdd={(p, sz) => handleQuickAdd(p, sz)}
+                    />
+                  )
+                })}
               </div>
             )}
           </main>
@@ -968,6 +1128,56 @@ function ShopContent() {
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* Mobile On Sale Only Switch */}
+            <div className="py-3 border-b border-[#e5e7eb] flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#14293a] flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-[#b91c1c]" />
+                <span>On Sale Only</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setOnSaleOnly((prev) => !prev)}
+                className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer ${
+                  onSaleOnly ? 'bg-[#b91c1c]' : 'bg-[#d3d6db]'
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${
+                    onSaleOnly ? 'translate-x-4' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Mobile Discount Facet */}
+            <div className="py-3 border-b border-[#e5e7eb] space-y-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#14293a] flex items-center gap-1.5">
+                <Percent className="w-3.5 h-3.5 text-[#b91c1c]" />
+                <span>Discount</span>
+              </span>
+              <div className="grid grid-cols-2 gap-1.5 text-xs">
+                {[
+                  { label: 'All Discounts', val: null },
+                  { label: 'Min. 10% Off', val: 10 },
+                  { label: 'Min. 20% Off', val: 20 },
+                  { label: 'Min. 30% Off', val: 30 },
+                  { label: 'Min. 50% Off', val: 50 },
+                ].map((tier) => (
+                  <button
+                    key={String(tier.val)}
+                    onClick={() => setMinDiscount(tier.val)}
+                    className={`py-1 px-2 border rounded-sm text-center text-xs transition-colors ${
+                      minDiscount === tier.val
+                        ? 'bg-[#14293a] text-white border-[#14293a] font-bold'
+                        : 'bg-white border-[#d3d6db] text-[#14293a]'
+                    }`}
+                  >
+                    {tier.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Mobile Categories */}

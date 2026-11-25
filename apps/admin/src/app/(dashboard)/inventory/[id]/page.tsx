@@ -53,6 +53,7 @@ export default function GarmentEditStudioPage() {
   const [categoryId, setCategoryId] = useState('')
   const [description, setDescription] = useState('')
   const [price, setPrice] = useState<number>(0)
+  const [compareAtPrice, setCompareAtPrice] = useState<number | ''>('')
   const [material, setMaterial] = useState('')
   const [edition, setEdition] = useState('')
   const [primaryImageUrl, setPrimaryImageUrl] = useState('')
@@ -80,6 +81,11 @@ export default function GarmentEditStudioPage() {
           setCategoryId(dossier.product.category_id || (cats[0]?.id ?? ''))
           setDescription(dossier.product.description || '')
           setPrice(Number(dossier.product.price) || 0)
+          setCompareAtPrice(
+            (dossier.product as any).compare_at_price
+              ? Number((dossier.product as any).compare_at_price)
+              : ''
+          )
           setMaterial(dossier.product.material || '')
           setEdition(dossier.product.edition || '')
           setPrimaryImageUrl(dossier.product.image_url || '')
@@ -186,6 +192,7 @@ export default function GarmentEditStudioPage() {
         category_id: categoryId,
         description,
         price,
+        compare_at_price: compareAtPrice === '' ? null : Number(compareAtPrice),
         material,
         edition,
         image_url: primaryImageUrl || mediaList[0]?.url,
@@ -360,7 +367,7 @@ export default function GarmentEditStudioPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[10px] uppercase text-neutral-400 mb-1">Parent Category</label>
                   <select
@@ -377,7 +384,7 @@ export default function GarmentEditStudioPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase text-neutral-400 mb-1">Retail Price (INR)</label>
+                  <label className="block text-[10px] uppercase text-neutral-400 mb-1">Selling Price (INR)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -386,6 +393,24 @@ export default function GarmentEditStudioPage() {
                     className="w-full bg-[#18181D] border border-[#2B2B35] px-3.5 py-2 text-xs text-white focus:border-amber-400 focus:outline-none font-mono"
                     required
                   />
+                  <span className="text-[10px] text-neutral-500 font-sans mt-0.5 block">Active price shoppers pay</span>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase text-neutral-400 mb-1">Listing Price / MRP (Compare-At)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={compareAtPrice}
+                    onChange={(e) => setCompareAtPrice(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                    placeholder="e.g. 12499"
+                    className="w-full bg-[#18181D] border border-[#2B2B35] px-3.5 py-2 text-xs text-white focus:border-amber-400 focus:outline-none font-mono"
+                  />
+                  <span className="text-[10px] text-neutral-500 font-sans mt-0.5 block">
+                    {compareAtPrice && Number(compareAtPrice) > price
+                      ? `Struck through (Save ${Math.round(((Number(compareAtPrice) - price) / Number(compareAtPrice)) * 100)}% OFF)`
+                      : 'Crossed-out MRP when > Selling Price'}
+                  </span>
                 </div>
               </div>
 

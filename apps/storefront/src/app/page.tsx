@@ -7,6 +7,7 @@ import {
   getPromotionalBanners,
   getStorefrontConfig,
   getCollections,
+  getPromotions,
   DEFAULT_PRODUCTS,
   DEFAULT_CATEGORIES,
   DEFAULT_COLLECTIONS,
@@ -15,13 +16,19 @@ import {
   type Category,
   type PromotionalBanner,
   type CollectionWithRelations,
+  type PromotionWithRules,
 } from '@repo/supabase/utils'
+import {
+  getEffectiveProductPricing,
+  type ProductPricingSummary,
+} from '@repo/supabase/pricing'
 import { HeroSplitScreen, type HeroSlide } from '../components/HeroSplitScreen'
 import { TrustServiceStrip } from '../components/TrustServiceStrip'
 import { HomepageProductShowcase } from '../components/HomepageProductShowcase'
 import { CuratedSpotlightGrid } from '../components/CuratedSpotlightGrid'
 import { ShopByOccasion } from '../components/ShopByOccasion'
 import { NewsletterStrip } from '../components/NewsletterStrip'
+import { OffersDealsSection } from '../components/OffersDealsSection'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -47,20 +54,33 @@ export default async function HomePage() {
   let categories: Category[] = []
   let banners: PromotionalBanner[] = []
   let collections: CollectionWithRelations[] = []
+  let promotions: PromotionWithRules[] = []
+  let priceSchedules: any[] = []
   let homepageSections = DEFAULT_HOMEPAGE_SECTIONS
 
   try {
-    const [fetchedProds, fetchedCats, fetchedBanners, fetchedConfig, fetchedCollections] = await Promise.all([
+    const [fetchedProds, fetchedCats, fetchedBanners, fetchedConfig, fetchedCollections, fetchedPromos, schedulesRes] = await Promise.all([
       getStorefrontProducts(supabase, 'all'),
       getCategories(supabase),
       getPromotionalBanners(supabase, true),
       getStorefrontConfig(supabase),
       getCollections(supabase, { showOnHome: true, onlyActive: true }),
+      getPromotions(supabase, { onlyActive: true }).catch(() => []),
+      Promise.resolve(
+        supabase
+          .from('price_schedules')
+          .select('*')
+          .eq('is_active', true)
+          .lte('starts_at', new Date().toISOString())
+          .gte('ends_at', new Date().toISOString())
+      ).catch(() => ({ data: [] })),
     ])
     products = fetchedProds && fetchedProds.length > 0 ? fetchedProds : DEFAULT_PRODUCTS
     categories = Array.isArray(fetchedCats) && fetchedCats.length > 0 ? fetchedCats : DEFAULT_CATEGORIES
     banners = fetchedBanners || []
     collections = Array.isArray(fetchedCollections) ? fetchedCollections : DEFAULT_COLLECTIONS
+    promotions = Array.isArray(fetchedPromos) ? fetchedPromos : []
+    priceSchedules = schedulesRes?.data || []
     if (fetchedConfig?.homepage_sections && Array.isArray(fetchedConfig.homepage_sections)) {
       homepageSections = fetchedConfig.homepage_sections
     }
@@ -69,6 +89,12 @@ export default async function HomePage() {
     categories = DEFAULT_CATEGORIES
     collections = DEFAULT_COLLECTIONS
   }
+
+  // Precompute live effective pricing (strikethrough MRP, selling price, discounts)
+  const pricingMap: Record<string, ProductPricingSummary> = {}
+  products.forEach((p) => {
+    pricingMap[p.id] = getEffectiveProductPricing(p, promotions, priceSchedules)
+  })
 
   const heroSlides: HeroSlide[] =
     banners.length > 0
@@ -85,8 +111,16 @@ export default async function HomePage() {
         }))
       : []
 
-  // Ensure Shop by Occasion is part of the flow even if missing from legacy DB
+  // Ensure Shop by Occasion and Offers & Deals are part of the flow
   let effectiveSections = [...homepageSections]
+  if (!effectiveSections.some((s: any) => s.id === 'offers_deals')) {
+    effectiveSections.push({
+      id: 'offers_deals',
+      name: 'Curated Offers & Privileges',
+      order: 2.2,
+      is_active: true,
+    })
+  }
   if (!effectiveSections.some((s: any) => s.id === 'shop_by_occasion')) {
     effectiveSections.push({
       id: 'shop_by_occasion',
@@ -103,6 +137,7 @@ export default async function HomePage() {
 
   const sectionRenderer: Record<string, React.ReactNode> = {
     hero_carousel: <HeroSplitScreen key="hero_carousel" slides={heroSlides} />,
+    offers_deals: <OffersDealsSection key="offers_deals" />,
     trust_strip: <TrustServiceStrip key="trust_strip" />,
     marquee: (
       <div key="marquee" className="bg-[#f8f8f8] border-b border-[#d3d6db] py-3 overflow-hidden select-none text-xs tracking-wider uppercase font-semibold">
@@ -116,7 +151,14 @@ export default async function HomePage() {
         </div>
       </div>
     ),
-    product_showcase: <HomepageProductShowcase key="product_showcase" products={products} categories={categories} />,
+    product_showcase: (
+      <HomepageProductShowcase
+        key="product_showcase"
+        products={products}
+        categories={categories}
+        pricingMap={pricingMap}
+      />
+    ),
     shop_by_occasion: <ShopByOccasion key="shop_by_occasion" collections={collections} />,
     spotlight_grid: <CuratedSpotlightGrid key="spotlight_grid" />,
   }

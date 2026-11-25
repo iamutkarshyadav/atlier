@@ -4,6 +4,8 @@ import {
   allocateProRataDiscounts,
   evaluateCartPromotions,
   recalculateTryOnSettlement,
+  getEffectiveProductPricing,
+  calculateDiscountBuckets,
   type CartItemPricingInput,
   type PromotionWithRules,
 } from './index'
@@ -497,5 +499,218 @@ describe('Bolt Try-On Doorstep Reconciliation Engine', () => {
     expect(result.recalculatedTax).toBe(roundCurrency(42500 * 0.12)) // 5100
     expect(result.finalPayable).toBe(47600)
     expect(result.reconciliationNotes).toContain('Privilege maintained')
+  })
+})
+
+describe('Effective Product Pricing & Storefront Offer Resolution', () => {
+  const dummyProduct: any = {
+    id: 'prod-001',
+    title: 'Architectural Heavyweight Boxy Hoodie',
+    price: 10000,
+    category_id: 'cat-hoodies',
+    category: 'Hoodies & Fleece',
+    stock: 50,
+  }
+
+  const publicCouponPromo: PromotionWithRules = {
+    id: 'promo-101',
+    name: 'Private Client Welcome Privilege',
+    slug: 'welcome-10',
+    description: '10% off entire order with code WELCOME10',
+    promotion_type: 'coupon',
+    discount_type: 'percentage',
+    discount_value: 10,
+    min_order_subtotal: 0,
+    max_discount_amount: 2500,
+    is_stackable: false,
+    priority: 10,
+    starts_at: '2026-01-01T00:00:00.000Z',
+    ends_at: null,
+    is_active: true,
+    total_redemptions_count: 0,
+    usage_limit_total: null,
+    usage_limit_per_customer: 1,
+    enforce_margin_floor: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    rules: [
+      {
+        id: 'r1',
+        promotion_id: 'promo-101',
+        target_type: 'entire_order',
+        match_operator: 'include',
+        target_id: null,
+        min_quantity: null,
+        created_at: new Date().toISOString(),
+      },
+    ],
+    coupons: [
+      {
+        id: 'c1',
+        promotion_id: 'promo-101',
+        code: 'WELCOME10',
+        is_single_use: false,
+        max_uses: null,
+        times_used: 0,
+        assigned_customer_email: null,
+        is_active: true,
+        created_at: new Date().toISOString(),
+      },
+    ],
+  }
+
+  it('resolves compare_at_price and computes accurate discount percentage', () => {
+    const discountedProduct = {
+      ...dummyProduct,
+      compare_at_price: 15000,
+      price: 10000,
+    }
+
+    const pricing = getEffectiveProductPricing(discountedProduct, [publicCouponPromo])
+
+    expect(pricing.mrp).toBe(15000)
+    expect(pricing.sellingPrice).toBe(10000)
+    expect(pricing.discountPercentage).toBe(33) // (15000 - 10000)/15000 = 33.33% => 33
+    expect(pricing.hasDiscount).toBe(true)
+  })
+
+  it('calculates bestCouponPrice and attaches applicable public coupons', () => {
+    const pricing = getEffectiveProductPricing(dummyProduct, [publicCouponPromo])
+
+    expect(pricing.sellingPrice).toBe(10000)
+    // 10% coupon off ₹10,000 = ₹1,000 off => Best price = ₹9,000
+    expect(pricing.bestCouponPrice).toBe(9000)
+    expect(pricing.bestCoupon?.code).toBe('WELCOME10')
+    expect(pricing.bestCoupon?.savingsAmount).toBe(1000)
+    expect(pricing.applicableOffers.length).toBeGreaterThanOrEqual(1)
+    expect(pricing.applicableOffers[0].code).toBe('WELCOME10')
+  })
+
+  it('evaluates active price schedules taking precedence over base price', () => {
+    const now = new Date().toISOString()
+    const future = new Date(Date.now() + 86400000).toISOString()
+    const past = new Date(Date.now() - 86400000).toISOString()
+
+    const activeSchedule = {
+      id: 'sched-1',
+      product_id: dummyProduct.id,
+      original_price: 12000,
+      scheduled_price: 8000,
+      starts_at: past,
+      ends_at: future,
+      is_active: true,
+    }
+
+    const pricing = getEffectiveProductPricing(dummyProduct, [publicCouponPromo], [activeSchedule])
+
+    expect(pricing.mrp).toBe(12000)
+    expect(pricing.sellingPrice).toBe(8000)
+    expect(pricing.discountPercentage).toBe(33) // (12000 - 8000)/12000 = 33%
+    // Best coupon: 10% off ₹8000 = ₹800 => ₹7200
+    expect(pricing.bestCouponPrice).toBe(7200)
+  })
+
+  it('accurately tallies discount bucket counts across products', () => {
+    const prods = [
+      { id: 'p1' },
+      { id: 'p2' },
+      { id: 'p3' },
+      { id: 'p4' },
+    ] as any[]
+
+    const pricingList = [
+      { productId: 'p1', discountPercentage: 15 },
+      { productId: 'p2', discountPercentage: 35 },
+      { productId: 'p3', discountPercentage: 55 },
+      { productId: 'p4', discountPercentage: 0 },
+    ] as any[]
+
+    const buckets = calculateDiscountBuckets(prods, pricingList)
+    expect(buckets.onSaleTotal).toBe(3)
+    expect(buckets.min10).toBe(3) // 15, 35, 55
+    expect(buckets.min20).toBe(2) // 35, 55
+    expect(buckets.min30).toBe(2) // 35, 55
+    expect(buckets.min50).toBe(1) // 55
+  })
+
+  it('correctly discounts test garment with storewide fixed-amount promotion (Curator Sovereign Wardrobe Tier)', () => {
+    const testGarment: any = {
+      id: '013f7fda-210d-43d8-894f-97126fe5bf6f',
+      title: 'test garmemt',
+      price: 12345,
+      category: 'test category 1',
+    }
+
+    const sovereignTierPromo: PromotionWithRules = {
+      id: 'ed95c0bd-4a1e-4c7c-93d5-3dc6e1829cf9',
+      name: 'Curator Sovereign Wardrobe Tier',
+      slug: 'sovereign-wardrobe-tier',
+      description: 'Complimentary ₹2,500 private client courtesy on royal curations.',
+      promotion_type: 'tiered_threshold',
+      discount_type: 'fixed_amount',
+      discount_value: 2500,
+      min_order_subtotal: null,
+      max_discount_amount: 2500,
+      is_stackable: false,
+      priority: 2,
+      is_active: true,
+      rules: [],
+      coupons: [
+        {
+          id: 'c-curator',
+          promotion_id: 'ed95c0bd-4a1e-4c7c-93d5-3dc6e1829cf9',
+          code: 'CURATOR26',
+          is_active: true,
+          is_single_use: false,
+          max_uses: 500,
+          times_used: 0,
+          assigned_customer_email: null,
+          created_at: new Date().toISOString(),
+        },
+      ],
+      starts_at: '2026-01-01T00:00:00Z',
+      ends_at: null,
+      total_redemptions_count: 0,
+      usage_limit_total: null,
+      usage_limit_per_customer: 1,
+      enforce_margin_floor: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const pricing = getEffectiveProductPricing(testGarment, [sovereignTierPromo])
+
+    expect(pricing.mrp).toBe(12345)
+    expect(pricing.sellingPrice).toBe(9845) // 12345 - 2500
+    expect(pricing.discountPercentage).toBe(20) // (12345 - 9845)/12345 = 20.25% => 20
+    expect(pricing.hasDiscount).toBe(true)
+    expect(pricing.applicableOffers.length).toBeGreaterThan(0)
+  })
+
+  it('handles camelCase promotion payloads returned from JSON API routes', () => {
+    const testGarment: any = {
+      id: '013f7fda-210d-43d8-894f-97126fe5bf6f',
+      title: 'test garmemt',
+      price: 12345,
+    }
+
+    const camelPromo: any = {
+      id: 'promo-camel',
+      name: 'Spring Clearance',
+      slug: 'spring-clearance',
+      promotionType: 'automatic_cart',
+      discountType: 'percentage',
+      discountValue: 20,
+      minOrderSubtotal: null,
+      isActive: true,
+      rules: [{ targetType: 'entire_order' }],
+    }
+
+    const pricing = getEffectiveProductPricing(testGarment, [camelPromo])
+
+    expect(pricing.mrp).toBe(12345)
+    expect(pricing.sellingPrice).toBe(9876) // 12345 - 20% (2469) = 9876
+    expect(pricing.discountPercentage).toBe(20)
+    expect(pricing.hasDiscount).toBe(true)
   })
 })

@@ -4,15 +4,21 @@ import React from 'react'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import type { Product, Category } from '@repo/supabase/utils'
+import type { ProductPricingSummary } from '@repo/supabase/pricing'
 import { CategoryStrip } from './CategoryStrip'
 import { ProductCard } from './ProductCard'
 
 export interface HomepageProductShowcaseProps {
   products: Product[]
   categories?: Category[]
+  pricingMap?: Record<string, ProductPricingSummary>
 }
 
-export function HomepageProductShowcase({ products, categories }: HomepageProductShowcaseProps) {
+export function HomepageProductShowcase({
+  products,
+  categories,
+  pricingMap = {},
+}: HomepageProductShowcaseProps) {
   const displayProducts = products.slice(0, 8)
 
   return (
@@ -48,14 +54,32 @@ export function HomepageProductShowcase({ products, categories }: HomepageProduc
 
           {/* 4-Column Responsive Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {displayProducts.map((prod, idx) => (
-              <ProductCard
-                key={prod.id}
-                product={prod}
-                priority={idx < 4}
-                showTryOnBadge={false}
-              />
-            ))}
+            {displayProducts.map((prod, idx) => {
+              const pricing = pricingMap[prod.id]
+              const hasPriceDrop = pricing?.mrp && pricing.sellingPrice && pricing.mrp > pricing.sellingPrice
+              return (
+                <ProductCard
+                  key={prod.id}
+                  product={{
+                    ...prod,
+                    price: pricing?.sellingPrice ?? prod.price,
+                    ...(hasPriceDrop ? { compare_at_price: pricing!.mrp } : {}),
+                    extra_offer_tag: pricing?.bestCoupon ? `Extra ${pricing.bestCoupon.label}` : undefined,
+                  } as any}
+                  mrp={pricing?.mrp}
+                  sellingPrice={pricing?.sellingPrice}
+                  discountPercentage={pricing?.discountPercentage}
+                  extraOfferTag={pricing?.bestCoupon?.label}
+                  priority={idx < 4}
+                  showTryOnBadge={false}
+                  badgeLabel={
+                    pricing?.discountPercentage && pricing.discountPercentage > 0
+                      ? `${pricing.discountPercentage}% OFF`
+                      : undefined
+                  }
+                />
+              )
+            })}
           </div>
 
           {/* Bottom Explore Button */}

@@ -164,6 +164,7 @@ export function saveLocalPromotion(params: {
     name: params.promotion.name || 'Untitled Privilege',
     slug: params.promotion.slug || `privilege-${Date.now()}`,
     description: params.promotion.description || null,
+    banner_image_url: params.promotion.banner_image_url || null,
     promotion_type: params.promotion.promotion_type || 'coupon',
     discount_type: params.promotion.discount_type || 'percentage',
     discount_value: params.promotion.discount_value ?? 10,
@@ -207,8 +208,14 @@ export function saveLocalPromotion(params: {
   return newPromo
 }
 
+const DEFAULT_PROMOTIONS_SEED: LocalPromotionRecord[] = []
+
 export function getLocalPromotions(activeOnly = false): LocalPromotionRecord[] {
-  const promotions = readJsonFile<LocalPromotionRecord[]>(PROMOTIONS_FILE, [])
+  let promotions = readJsonFile<LocalPromotionRecord[]>(PROMOTIONS_FILE, [])
+  if (!promotions || promotions.length === 0) {
+    promotions = DEFAULT_PROMOTIONS_SEED
+    writeJsonFile(PROMOTIONS_FILE, promotions)
+  }
   if (activeOnly) {
     return promotions.filter((p) => p.is_active)
   }

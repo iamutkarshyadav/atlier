@@ -448,6 +448,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     title: 'Heavyweight Boxy Hoodie',
     description: 'Custom-milled 480 GSM loopback organic French Terry. Engineered with an exaggerated dropped shoulder, double-layered architectural hood, and concealed side-seam pockets. Mineral washed for a vintage drape.',
     price: 165.0,
+    compare_at_price: 245.0,
     stock: 115,
     image_url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85',
     category_id: 'c1000000-0000-0000-0000-000000000001',
@@ -463,6 +464,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     title: 'Vintage Washed Boxy Tee',
     description: '280 GSM heavyweight combed cotton jersey with distressed neck ribbing and raw edge blind hem. Sun-faded wash treatment creates individual character on every piece.',
     price: 75.0,
+    compare_at_price: 110.0,
     stock: 140,
     image_url: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=85',
     category_id: 'c1000000-0000-0000-0000-000000000002',
@@ -478,6 +480,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     title: 'Cropped Weatherproof Flight Bomber',
     description: 'High-density technical nylon shell with quilted synthetic insulation. Cropped torso silhouette with elongated sleeves and custom matte nickel two-way zipper hardware.',
     price: 285.0,
+    compare_at_price: 380.0,
     stock: 55,
     image_url: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1200&q=85',
     category_id: 'c1000000-0000-0000-0000-000000000003',
@@ -493,6 +496,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     title: 'Pleated Selvedge Carpenter Pant',
     description: 'Cut from 14oz shuttle-loomed Japanese raw black selvedge denim. Double front pleats create an elegant wide drape falling straight over chunky footwear.',
     price: 210.0,
+    compare_at_price: 280.0,
     stock: 75,
     image_url: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=1200&q=85',
     category_id: 'c1000000-0000-0000-0000-000000000004',
@@ -508,6 +512,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     title: 'Architectural Raw Linen Smock',
     description: 'Hand-loomed 380 GSM Belgian flax linen with flat-felled French seams, wide kimono-cut sleeves, and natural horn button closures.',
     price: 240.0,
+    compare_at_price: 320.0,
     stock: 45,
     image_url: '/images/prod3-front.jpg',
     category_id: 'c1000000-0000-0000-0000-000000000002',
@@ -523,6 +528,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     title: 'Relaxed Flared Minimalist Track Pant',
     description: 'Custom 400 GSM double-knit jersey with center front pinch pleat and hidden zip ankle vents. Elasticized drawcord waist with custom metal aglets.',
     price: 145.0,
+    compare_at_price: 195.0,
     stock: 80,
     image_url: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=1200&q=85',
     category_id: 'c1000000-0000-0000-0000-000000000004',
@@ -2065,6 +2071,7 @@ export interface CreateApparelPayload {
   category_id: string
   description: string
   price: number
+  compare_at_price?: number | null
   material: string
   edition: string
   image_url?: string
@@ -2101,6 +2108,7 @@ export async function createProductWithVariantsAndMedia(
       category: categoryName,
       description: payload.description,
       price: payload.price,
+      compare_at_price: payload.compare_at_price ?? null,
       stock: totalStock,
       material: payload.material,
       edition: payload.edition,
@@ -2111,14 +2119,44 @@ export async function createProductWithVariantsAndMedia(
       is_archived: false,
     }
 
-    const { data: newProd, error: prodErr } = await supabase
+    let { data: newProd, error: prodErr } = await supabase
       .from('products')
       .insert(productInsert)
       .select()
       .single()
 
+    // Graceful fallback if compare_at_price column does not exist in Supabase DB schema
+    if (prodErr && prodErr.code === '42703') {
+      const fallbackInsert = { ...productInsert }
+      delete (fallbackInsert as any).compare_at_price
+      const retryRes = await supabase
+        .from('products')
+        .insert(fallbackInsert)
+        .select()
+        .single()
+      newProd = retryRes.data
+      prodErr = retryRes.error
+    }
+
     if (prodErr || !newProd) {
       return { success: false, error: prodErr?.message || 'Failed to create product record' }
+    }
+
+    // Synchronize compare_at_price to price_schedules so MRP strikethrough is natively active
+    if (payload.compare_at_price && Number(payload.compare_at_price) > Number(payload.price)) {
+      try {
+        await supabase.from('price_schedules').insert({
+          product_id: newProd.id,
+          original_price: Number(payload.compare_at_price),
+          scheduled_price: Number(payload.price),
+          starts_at: new Date().toISOString(),
+          ends_at: '2099-12-31T23:59:59Z',
+          is_active: true,
+          reason: 'archival_markdown',
+        })
+      } catch (schedErr) {
+        console.warn('[createProductWithVariantsAndMedia] Price schedule sync warning:', schedErr)
+      }
     }
 
     if (payload.variants && payload.variants.length > 0) {
@@ -2234,6 +2272,7 @@ export async function updateProductWithVariantsAndMedia(
     if (payload.title) updatePayload.title = payload.title
     if (payload.description) updatePayload.description = payload.description
     if (payload.price !== undefined) updatePayload.price = payload.price
+    if (payload.compare_at_price !== undefined) updatePayload.compare_at_price = payload.compare_at_price
     if (payload.material) updatePayload.material = payload.material
     if (payload.edition) updatePayload.edition = payload.edition
     if (payload.image_url) updatePayload.image_url = payload.image_url
@@ -2243,7 +2282,37 @@ export async function updateProductWithVariantsAndMedia(
       updatePayload.category = categories.find((c) => c.id === payload.category_id)?.name || null
     }
 
-    await supabase.from('products').update(updatePayload).eq('id', productId)
+    let { error: updateErr } = await supabase.from('products').update(updatePayload).eq('id', productId)
+
+    // Graceful fallback if compare_at_price column does not exist
+    if (updateErr && updateErr.code === '42703' && 'compare_at_price' in updatePayload) {
+      const fallbackPayload = { ...updatePayload }
+      delete (fallbackPayload as any).compare_at_price
+      const retryRes = await supabase.from('products').update(fallbackPayload).eq('id', productId)
+      updateErr = retryRes.error
+    }
+
+    // Synchronize compare_at_price to price_schedules so MRP strikethrough is natively active
+    if (payload.compare_at_price && payload.price && Number(payload.compare_at_price) > Number(payload.price)) {
+      try {
+        await supabase
+          .from('price_schedules')
+          .update({ is_active: false })
+          .eq('product_id', productId)
+
+        await supabase.from('price_schedules').insert({
+          product_id: productId,
+          original_price: Number(payload.compare_at_price),
+          scheduled_price: Number(payload.price),
+          starts_at: new Date().toISOString(),
+          ends_at: '2099-12-31T23:59:59Z',
+          is_active: true,
+          reason: 'archival_markdown',
+        })
+      } catch (schedErr) {
+        console.warn('[updateProductWithVariantsAndMedia] Price schedule sync warning:', schedErr)
+      }
+    }
 
     // Upsert variants with auto-generated barcode_data
     if (payload.variants && payload.variants.length > 0) {
@@ -3926,11 +3995,25 @@ export async function getPromotions(
     const { data, error } = await query
 
     if (error) {
+      if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+        return getLocalPromotions(options?.onlyActive) as unknown as PromotionWithRules[]
+      }
       console.error('Error fetching promotions:', error)
       return []
     }
 
-    return (data || []) as unknown as PromotionWithRules[]
+    if (!data || data.length === 0) {
+      const fallback = getLocalPromotions(options?.onlyActive)
+      if (fallback.length > 0) return fallback as unknown as PromotionWithRules[]
+    }
+
+    const normalized = (data || []).map((p: any) => ({
+      ...p,
+      banner_image_url: extractBannerImageUrl(p),
+      description: cleanPromotionDescription(p.description),
+    }))
+
+    return normalized as unknown as PromotionWithRules[]
   } catch (err) {
     console.error('getPromotions exception:', err)
     return []
@@ -3952,7 +4035,12 @@ export async function getPromotionById(
       .single()
 
     if (error || !data) return null
-    return data as unknown as PromotionWithRules
+    const normalized = {
+      ...data,
+      banner_image_url: extractBannerImageUrl(data),
+      description: cleanPromotionDescription(data.description),
+    }
+    return normalized as unknown as PromotionWithRules
   } catch {
     return null
   }
@@ -4008,6 +4096,25 @@ export async function getPromotionByCouponCode(
 }
 
 /**
+ * Helper to extract banner image url whether from native column or encoded in description
+ */
+export function extractBannerImageUrl(promo: any): string | null {
+  if (!promo) return null
+  if (promo.banner_image_url) return promo.banner_image_url
+  if (promo.description && typeof promo.description === 'string') {
+    const match = promo.description.match(/\[banner:([^\]]+)\]/)
+    if (match && match[1]) return match[1].trim()
+  }
+  return null
+}
+
+export function cleanPromotionDescription(desc?: string | null): string | null {
+  if (!desc) return null
+  const cleaned = desc.replace(/\[banner:[^\]]+\]/g, '').trim()
+  return cleaned || null
+}
+
+/**
  * Create a new promotion with nested rules and coupons in a clean sequence
  */
 export async function createPromotionWithRules(
@@ -4017,12 +4124,31 @@ export async function createPromotionWithRules(
   coupons: Omit<PromotionCouponInsert, 'promotion_id'>[] = []
 ): Promise<{ success: boolean; promotion?: PromotionWithRules; error?: string }> {
   try {
+    let insertPayload: any = { ...promoData }
+    let bannerToStore = insertPayload.banner_image_url
+
     // 1. Insert Master Promotion
-    const { data: newPromo, error: promoErr } = await supabase
+    let { data: newPromo, error: promoErr } = await supabase
       .from('promotions')
-      .insert(promoData as any)
+      .insert(insertPayload)
       .select('*')
       .single()
+
+    // If banner_image_url column is not yet present on remote DB schema, fallback to description encoding
+    if (promoErr && (promoErr.code === '42703' || promoErr.message?.includes('banner_image_url'))) {
+      const bannerUrl = insertPayload.banner_image_url
+      delete insertPayload.banner_image_url
+      if (bannerUrl) {
+        insertPayload.description = `${insertPayload.description || ''}\n\n[banner:${bannerUrl}]`.trim()
+      }
+      const retry = await supabase
+        .from('promotions')
+        .insert(insertPayload)
+        .select('*')
+        .single()
+      newPromo = retry.data
+      promoErr = retry.error
+    }
 
     if (promoErr || !newPromo) {
       if (promoErr?.code === 'PGRST205' || promoErr?.message?.includes('schema cache')) {
@@ -4069,18 +4195,45 @@ export async function updatePromotion(
   updates: PromotionUpdate
 ): Promise<{ success: boolean; promotion?: Promotion; error?: string }> {
   try {
-    const { data, error } = await supabase
+    let updatePayload: any = {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    }
+
+    let { data, error } = await supabase
       .from('promotions')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-      } as any)
+      .update(updatePayload)
       .eq('id', id)
       .select('*')
       .single()
 
+    // If banner_image_url column is not yet present on remote DB schema, fallback to description encoding
+    if (error && (error.code === '42703' || error.message?.includes('banner_image_url'))) {
+      const bannerUrl = updatePayload.banner_image_url
+      delete updatePayload.banner_image_url
+      if (bannerUrl !== undefined) {
+        const currentDesc = cleanPromotionDescription(updatePayload.description) || ''
+        updatePayload.description = bannerUrl ? `${currentDesc}\n\n[banner:${bannerUrl}]`.trim() : currentDesc
+      }
+      const retry = await supabase
+        .from('promotions')
+        .update(updatePayload)
+        .eq('id', id)
+        .select('*')
+        .single()
+      data = retry.data
+      error = retry.error
+    }
+
     if (error) return { success: false, error: error.message }
-    return { success: true, promotion: data as unknown as Promotion }
+    const normalized = data
+      ? {
+          ...data,
+          banner_image_url: extractBannerImageUrl(data),
+          description: cleanPromotionDescription(data.description),
+        }
+      : data
+    return { success: true, promotion: normalized as unknown as Promotion }
   } catch (err: any) {
     return { success: false, error: err?.message || 'Exception updating promotion' }
   }
@@ -4151,7 +4304,7 @@ export async function getProductReviews(
   try {
     let query = supabase
       .from('product_reviews')
-      .select('*, media:review_media(*), user:users(id, full_name, email)', { count: 'exact' })
+      .select('*, media:review_media(*), user:users!product_reviews_user_id_fkey(id, name, email)', { count: 'exact' })
       .eq('product_id', productId)
       .eq('status', 'approved')
       .order('created_at', { ascending: false })
@@ -4539,7 +4692,7 @@ export async function getAdminReviews(
     let query = supabase
       .from('product_reviews')
       .select(
-        '*, media:review_media(*), user:users(id, full_name, email), product:products(id, title, image_url), order:orders(id, order_number, created_at)',
+        '*, media:review_media(*), user:users!product_reviews_user_id_fkey(id, name, email), product:products(id, title, image_url), order:orders(id, order_number, created_at)',
         { count: 'exact' }
       )
       .order('created_at', { ascending: false })

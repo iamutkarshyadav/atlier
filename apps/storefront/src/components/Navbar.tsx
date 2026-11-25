@@ -20,6 +20,8 @@ import {
   Menu,
   MapPin,
   Heart,
+  Sparkles,
+  Tag,
 } from 'lucide-react'
 import { useHydratedCart } from '../store/useCartStore'
 import { useHydratedBolt } from '../store/useBoltStore'
@@ -215,6 +217,46 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
     loadLatestProducts()
   }, [])
 
+  // Dynamic Highest-Priority Offer for Announcement Bar
+  const [dynamicOffer, setDynamicOffer] = useState<{
+    badge?: string
+    message?: string
+    link_url?: string
+    code?: string
+  } | null>(null)
+  const hasFetchedOffersRef = useRef(false)
+
+  useEffect(() => {
+    if (hasFetchedOffersRef.current) return
+    hasFetchedOffersRef.current = true
+
+    async function loadOffers() {
+      try {
+        const res = await fetch('/api/offers')
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.success && data.featuredOffer) {
+          const fo = data.featuredOffer
+          const firstCoupon = fo.publicCoupons?.[0]?.code
+          setDynamicOffer({
+            badge:
+              fo.discountType === 'percentage'
+                ? `FLAT ${Math.round(fo.discountValue)}% OFF`
+                : fo.discountType === 'free_shipping'
+                  ? 'FREE TRY-ON & SHIPPING'
+                  : `₹${Math.round(fo.discountValue)} OFF`,
+            message: firstCoupon
+              ? `${fo.name} • Use Code ${firstCoupon}`
+              : fo.description || fo.name,
+            link_url: '/offers',
+            code: firstCoupon,
+          })
+        }
+      } catch {}
+    }
+    loadOffers()
+  }, [])
+
   // Build memoized category tree: parents without parent_id, children grouped by parent_id
   const { parentCategories, subcategoriesMap } = useMemo(() => {
     const parents = categories
@@ -370,13 +412,29 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
       {/* ========================================================= */}
       {announcement?.is_active !== false && (
         <div className="bg-[#f8f8f8] border-b border-[#e5e7eb] py-1.5 px-4 text-center text-xs tracking-wider font-sans font-medium text-[#14293a] flex flex-wrap items-center justify-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-[#b91c1c] font-semibold">
-            <Zap className="w-3 h-3 fill-[#b91c1c] text-[#b91c1c]" />
-            {announcement?.badge || 'BOLT 45-MIN DOORSTEP TRY-ON'}
-          </span>
+          {dynamicOffer ? (
+            <Link
+              href={dynamicOffer.link_url || '/offers'}
+              className="inline-flex items-center gap-1.5 text-[#b91c1c] font-semibold hover:underline"
+            >
+              <Sparkles className="w-3 h-3 fill-[#b91c1c] text-[#b91c1c]" />
+              <span>{dynamicOffer.badge}</span>
+              <span className="text-[#14293a] font-normal hidden sm:inline">• {dynamicOffer.message}</span>
+              <span className="text-[10px] font-mono font-bold bg-[#b91c1c] text-white px-1.5 py-0.2 rounded-xs ml-1">
+                EXPLORE OFFERS →
+              </span>
+            </Link>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-[#b91c1c] font-semibold">
+              <Zap className="w-3 h-3 fill-[#b91c1c] text-[#b91c1c]" />
+              {announcement?.badge || 'BOLT 45-MIN DOORSTEP TRY-ON'}
+            </span>
+          )}
           <span className="text-[#6c7079] hidden sm:inline">|</span>
           <span className="text-[#6c7079] hidden sm:inline">
-            {announcement?.message || 'Try up to 5 pieces at home before buying • Free express delivery on orders over ₹1,999'}
+            {dynamicOffer
+              ? 'Try up to 5 pieces at home before buying • Free express delivery on orders over ₹1,999'
+              : (announcement?.message || 'Try up to 5 pieces at home before buying • Free express delivery on orders over ₹1,999')}
           </span>
           <button
             type="button"
@@ -671,6 +729,24 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
                 </button>
               </li>
             )}
+
+            {/* Item 2.5: OFFERS (Flipkart/Myntra style prominent Hub Link) */}
+            <li className="relative shrink-0">
+              <Link
+                href="/offers"
+                className={`inline-flex items-center gap-1.5 py-3 text-xs font-sans font-bold tracking-wider uppercase whitespace-nowrap transition-colors border-b-2 ${
+                  pathname === '/offers'
+                    ? 'text-[#b91c1c] border-[#b91c1c]'
+                    : 'text-[#14293a] border-transparent hover:text-[#b91c1c] hover:border-[#b91c1c]'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#b91c1c]" />
+                <span>OFFERS</span>
+                <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 bg-[#b91c1c] text-white rounded-full tracking-wider animate-pulse">
+                  SALE
+                </span>
+              </Link>
+            </li>
 
             {/* Dynamic Parent Categories */}
             {parentCategories.map((cat) => {
@@ -1102,6 +1178,20 @@ export function Navbar({ initialCategories = DEFAULT_CATEGORIES, announcement }:
                     <span>New Arrivals</span>
                     <span className="text-[9px] px-1.5 py-0.5 bg-[#b91c1c] text-white rounded font-sans">
                       NEW
+                    </span>
+                  </Link>
+
+                  {/* Offers & Privileges Hub Link */}
+                  <Link
+                    href="/offers"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between py-2.5 px-3 rounded-sm text-xs font-sans font-bold uppercase tracking-wider text-[#b91c1c] bg-red-50/60 hover:bg-red-50 transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span>Offers &amp; Sale</span>
+                    </span>
+                    <span className="text-[9px] px-1.5 py-0.5 bg-[#b91c1c] text-white rounded font-mono font-bold tracking-wider">
+                      SALE
                     </span>
                   </Link>
 

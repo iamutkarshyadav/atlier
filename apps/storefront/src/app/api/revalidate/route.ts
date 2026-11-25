@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       revalidatePath(path)
       if (path === '/') {
         revalidatePath('/shop')
+        revalidatePath('/offers')
       }
     }
 

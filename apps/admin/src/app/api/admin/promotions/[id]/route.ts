@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@repo/supabase/server'
+import { updatePromotion, extractBannerImageUrl, cleanPromotionDescription } from '@repo/supabase/utils'
 import { triggerStorefrontRevalidation } from '@/lib/revalidate'
 
 export const dynamic = 'force-dynamic'
@@ -37,7 +38,13 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ promotion }, { status: 200 })
+    const normalizedPromotion = {
+      ...promotion,
+      banner_image_url: extractBannerImageUrl(promotion),
+      description: cleanPromotionDescription(promotion.description),
+    }
+
+    return NextResponse.json({ promotion: normalizedPromotion }, { status: 200 })
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || 'Failed to fetch promotion' },
@@ -53,26 +60,49 @@ export async function PATCH(
   try {
     const { id } = params
     const body = await req.json()
+    const { couponCode, ...promoUpdates } = body
     const supabase = createServiceRoleClient()
 
-    const { data: updated, error } = await supabase
-      .from('promotions')
-      .update({
-        ...body,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select('*')
-      .single()
+    const result = await updatePromotion(supabase, id, promoUpdates)
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 })
+    }
+
+    // If couponCode is provided, update or create the associated code
+    if (couponCode !== undefined && typeof couponCode === 'string') {
+      const cleanCode = couponCode.trim().toUpperCase()
+      if (cleanCode) {
+        // Check if a coupon already exists for this promo
+        const { data: existingCoupons } = await supabase
+          .from('promotion_coupons')
+          .select('id')
+          .eq('promotion_id', id)
+          .limit(1)
+
+        if (existingCoupons && existingCoupons.length > 0) {
+          await supabase
+            .from('promotion_coupons')
+            .update({ code: cleanCode })
+            .eq('id', existingCoupons[0].id)
+        } else {
+          await supabase
+            .from('promotion_coupons')
+            .insert({
+              promotion_id: id,
+              code: cleanCode,
+              is_single_use: false,
+              is_active: true,
+            })
+        }
+      }
     }
 
     await triggerStorefrontRevalidation({ path: '/' }).catch(() => {})
     await triggerStorefrontRevalidation({ path: '/shop' }).catch(() => {})
+    await triggerStorefrontRevalidation({ path: '/offers' }).catch(() => {})
 
-    return NextResponse.json({ success: true, promotion: updated }, { status: 200 })
+    return NextResponse.json({ success: true, promotion: result.promotion }, { status: 200 })
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || 'Failed to update promotion' },

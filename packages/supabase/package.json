@@ -10,7 +10,8 @@
     "./browser": "./src/clients/browser.ts",
     "./server": "./src/clients/server.ts",
     "./middleware": "./src/clients/middleware.ts",
-    "./utils": "./src/utils/index.ts"
+    "./utils": "./src/utils/index.ts",
+    "./pricing": "./src/pricing/index.ts"
   },
   "scripts": {
     "test": "vitest run"

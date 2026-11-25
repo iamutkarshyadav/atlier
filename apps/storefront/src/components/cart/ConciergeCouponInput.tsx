@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { Tag, Check, X, Loader2, Sparkles, AlertCircle } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { useHydratedCart } from '../../store/useCartStore'
+import { ApplyCouponModal } from './ApplyCouponModal'
 
 export function ConciergeCouponInput() {
   const {
@@ -17,6 +18,7 @@ export function ConciergeCouponInput() {
   } = useHydratedCart()
 
   const [inputCode, setInputCode] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,7 +61,7 @@ export function ConciergeCouponInput() {
 
             <button
               onClick={removeCouponCode}
-              className="text-[#6c7079] hover:text-[#b91c1c] transition-colors p-1"
+              className="text-[#6c7079] hover:text-[#b91c1c] transition-colors p-1 cursor-pointer"
               title="Remove privilege"
             >
               <X className="h-4 w-4" />
@@ -71,6 +73,14 @@ export function ConciergeCouponInput() {
               Total Privilege Savings: ₹{pricingEvaluation.totalDiscount.toLocaleString('en-IN')}
             </p>
           )}
+
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="text-2xs font-mono text-[#6c7079] hover:text-[#14293a] underline pt-0.5 cursor-pointer block"
+          >
+            Change / View other available coupons
+          </button>
         </div>
       ) : (
         <form onSubmit={handleApply} className="space-y-2">
@@ -97,6 +107,17 @@ export function ConciergeCouponInput() {
             </Button>
           </div>
 
+          <div className="flex items-center justify-between pt-1">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="text-xs font-mono font-bold text-[#b91c1c] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>View All Offers / Apply Coupon →</span>
+            </button>
+          </div>
+
           {promotionError && (
             <div className="flex items-center gap-1.5 text-[11px] text-[#b91c1c] font-sans pt-0.5">
               <AlertCircle className="h-3.5 w-3.5 shrink-0" />
@@ -105,6 +126,11 @@ export function ConciergeCouponInput() {
           )}
         </form>
       )}
+
+      <ApplyCouponModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   )
 }

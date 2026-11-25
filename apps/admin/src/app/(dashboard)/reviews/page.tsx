@@ -563,7 +563,7 @@ export default function AdminReviewsPage() {
                     <span className="font-serif font-bold text-sm text-zinc-100">{rev.title}</span>
                     {renderFitBadge(rev.fit_indicator)}
                     <span className="text-2xs font-mono text-zinc-400">
-                      by <span className="text-zinc-200">{rev.user?.full_name || 'Patron'}</span>
+                      by <span className="text-zinc-200">{rev.user?.name || rev.user?.full_name || 'Patron'}</span>
                     </span>
                   </div>
 

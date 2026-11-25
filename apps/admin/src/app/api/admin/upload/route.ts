@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       publicUrl,
+      url: publicUrl,
       path: filePath,
       bucket: bucketName,
     })

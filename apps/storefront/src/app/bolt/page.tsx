@@ -177,6 +177,7 @@ function BoltContent() {
             title: row.title,
             description: row.description,
             price: Number(row.price),
+            compare_at_price: row.compare_at_price ? Number(row.compare_at_price) : null,
             stock: row.stock,
             image_url: row.image_url,
             category_id: row.category_id,
@@ -334,13 +335,20 @@ function BoltContent() {
   }
 
   const handleQuickAdd = (product: Product, size: string) => {
+    const prodPrice = Number(product.price)
+    const originalPrice =
+      Number((product as any).compare_at_price) > prodPrice
+        ? Number((product as any).compare_at_price)
+        : undefined
+
     addItem({
       id: `${product.id}-${size}`,
       productId: product.id,
       title: product.title,
       category: product.category || 'Atelier Collection',
       edition: 'Permanent Collection',
-      price: Number(product.price),
+      price: prodPrice,
+      originalPrice,
       quantity: 1,
       image: product.image_url || '',
       size,

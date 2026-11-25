@@ -3,9 +3,10 @@
 -- Migration: 20261127_promotions_and_pricing_engine.sql
 -- ==============================================================================
 
--- 1. Cost Price Columns & Security Baseline
+-- 1. Cost Price & Compare-At Listing Price Columns & Security Baseline
 ALTER TABLE public.products
-  ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10, 2) DEFAULT 0.00;
+  ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10, 2) DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS compare_at_price NUMERIC(10, 2) DEFAULT NULL;
 
 ALTER TABLE public.product_variants
   ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10, 2);
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS public.promotions (
   name VARCHAR(255) NOT NULL,
   slug VARCHAR(255) NOT NULL UNIQUE,
   description TEXT,
+  banner_image_url TEXT,
   promotion_type public.promotion_type NOT NULL DEFAULT 'coupon',
   discount_type public.discount_type NOT NULL DEFAULT 'percentage',
   discount_value NUMERIC(10, 2) NOT NULL CHECK (discount_value >= 0),
@@ -81,6 +83,8 @@ CREATE TABLE IF NOT EXISTS public.promotions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+ALTER TABLE public.promotions ADD COLUMN IF NOT EXISTS banner_image_url TEXT;
 
 -- 4. Promotion Rules Table (Targeting Categories, Collections, Products, Delivery Modes)
 CREATE TABLE IF NOT EXISTS public.promotion_rules (

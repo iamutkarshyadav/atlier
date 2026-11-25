@@ -21,22 +21,27 @@ import {
   Layers,
   Star,
   Heart,
+  Sparkles,
+  Tag,
 } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { useCartStore } from '../../../store/useCartStore'
 import { useHydratedWishlist } from '../../../store/useWishlistStore'
 import type { Product, ProductVariant, ProductMedia } from '@repo/supabase/utils'
+import type { ProductPricingSummary, ApplicableOfferSummary } from '@repo/supabase/pricing'
 
 interface ProductInteractiveIslandProps {
   product: Product
   variants: ProductVariant[]
   media: ProductMedia[]
+  initialPricing?: ProductPricingSummary
 }
 
 export function ProductInteractiveIsland({
   product,
   variants,
   media,
+  initialPricing,
 }: ProductInteractiveIslandProps) {
   const addItem = useCartStore((s) => s.addItem)
   const { isWishlisted: checkWishlisted, toggleWishlist } = useHydratedWishlist()
@@ -82,9 +87,34 @@ export function ProductInteractiveIsland({
     setExpandedAccordions((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
-  // Selected variant derivation
+  // Selected variant derivation & live pricing resolution
   const selectedVariant = availableVariants.find((v) => v.id === selectedVariantId)
-  const activePrice = selectedVariant?.price_override ?? Number(product.price)
+  const variantPrice = selectedVariant?.price_override ?? Number(product.price)
+  const mrp =
+    initialPricing?.mrp ??
+    (Number((product as any).compare_at_price) > variantPrice
+      ? Number((product as any).compare_at_price)
+      : variantPrice)
+  const sellingPrice = initialPricing?.sellingPrice ?? variantPrice
+  const discountPercentage =
+    initialPricing?.discountPercentage ??
+    (mrp > sellingPrice ? Math.round(((mrp - sellingPrice) / mrp) * 100) : 0)
+  const bestCouponPrice = initialPricing?.bestCouponPrice ?? sellingPrice
+  const bestCoupon = initialPricing?.bestCoupon ?? null
+  const applicableOffers = initialPricing?.applicableOffers ?? []
+
+  const [copiedCode, setCopiedCode] = useState<string | null>(null)
+  const [selectedOfferTerms, setSelectedOfferTerms] = useState<ApplicableOfferSummary | null>(null)
+
+  const handleCopyCode = (code: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(code)
+    }
+    setCopiedCode(code)
+    setTimeout(() => setCopiedCode(null), 2500)
+  }
+
+  const activePrice = sellingPrice
   const isOutOfStock = hasVariants
     ? availableVariants.length === 0 || (selectedVariantId ? !selectedVariant || selectedVariant.stock <= 0 : false)
     : product.stock <= 0
@@ -111,6 +141,7 @@ export function ProductInteractiveIsland({
       category: product.category || 'Apparel',
       edition: product.edition || 'Collection',
       price: activePrice,
+      originalPrice: mrp > activePrice ? mrp : undefined,
       quantity,
       image: galleryImages[0] || '/images/prod1-primary.jpg',
       size: selectedVariant
@@ -225,21 +256,118 @@ export function ProductInteractiveIsland({
               {product.title}
             </h1>
 
-            {/* Price Tag with Tax Disclaimer */}
-            <div className="flex items-baseline gap-3 pt-1">
+            {/* Price Tag with Strikethrough & % OFF Badge */}
+            <div className="flex flex-wrap items-baseline gap-2.5 pt-1">
               <span className="text-2xl sm:text-3xl font-bold tabular-nums text-[#14293a]">
-                ₹{Math.round(activePrice).toLocaleString('en-IN')}
+                ₹{Math.round(sellingPrice).toLocaleString('en-IN')}
               </span>
-              {selectedVariant?.price_override && (
-                <span className="text-sm text-[#8a909a] tabular-nums line-through">
-                  ₹{Math.round(Number(product.price)).toLocaleString('en-IN')}
+              {mrp > sellingPrice && (
+                <span className="text-base text-[#8a909a] tabular-nums line-through">
+                  ₹{Math.round(mrp).toLocaleString('en-IN')}
                 </span>
               )}
-              <span className="text-xs text-[#6c7079]">
+              {discountPercentage > 0 && (
+                <span className="text-sm font-bold text-[#b91c1c] tracking-tight">
+                  ({discountPercentage}% OFF)
+                </span>
+              )}
+              <span className="text-xs text-[#6c7079] w-full sm:w-auto">
                 (Inclusive of all taxes &amp; duties)
               </span>
             </div>
           </div>
+
+          {/* Myntra / Flipkart Style "Best Price & Available Offers" Box */}
+          {(bestCouponPrice < mrp || sellingPrice < mrp || applicableOffers.length > 0) && (
+            <div className="p-4 bg-emerald-50/40 border border-emerald-200/90 rounded-sm space-y-3 font-sans">
+              {/* Best Price Header */}
+              {(bestCouponPrice < mrp || sellingPrice < mrp) && (
+                <div className="flex items-center justify-between pb-2.5 border-b border-emerald-200/60">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-emerald-800 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                      Best Price Unlocked
+                    </span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold font-mono text-emerald-900">
+                        ₹{Math.round(Math.min(bestCouponPrice, sellingPrice)).toLocaleString('en-IN')}
+                      </span>
+                      {bestCoupon && bestCouponPrice < sellingPrice ? (
+                        <span className="text-2xs font-mono text-emerald-700 font-semibold">
+                          with coupon <strong className="underline">{bestCoupon.code}</strong>
+                        </span>
+                      ) : discountPercentage > 0 ? (
+                        <span className="text-2xs font-mono text-emerald-700 font-semibold">
+                          ({discountPercentage}% OFF applied)
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {bestCoupon && bestCouponPrice < sellingPrice && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCode(bestCoupon.code)}
+                      className={`px-3 py-1.5 text-xs font-mono font-bold rounded-xs border transition-all cursor-pointer ${
+                        copiedCode === bestCoupon.code
+                          ? 'bg-emerald-700 text-white border-emerald-700'
+                          : 'bg-white text-emerald-900 border-emerald-300 hover:bg-emerald-100/50'
+                      }`}
+                    >
+                      {copiedCode === bestCoupon.code ? 'COPIED!' : `COPY '${bestCoupon.code}'`}
+                    </button>
+                  )}
+                </div>
+              )}
+
+            {/* Applicable Offers List */}
+            <div className="space-y-2">
+              <span className="text-[11px] font-mono uppercase font-bold tracking-wider text-[#14293a] flex items-center gap-1">
+                <Tag className="w-3 h-3 text-[#b91c1c]" />
+                Available Offers ({applicableOffers.length > 0 ? applicableOffers.length : 1}):
+              </span>
+
+              <div className="space-y-1.5 text-xs">
+                {applicableOffers.length > 0 ? (
+                  applicableOffers.map((offer, idx) => (
+                    <div key={idx} className="flex items-start justify-between gap-2 text-xs">
+                      <div className="flex items-start gap-1.5 min-w-0">
+                        <span className="text-[#b91c1c] font-bold shrink-0 mt-0.5">•</span>
+                        <p className="text-[#14293a] leading-tight text-xs">
+                          <strong className="font-semibold">{offer.name}:</strong>{' '}
+                          <span className="text-[#6c7079]">{offer.description || offer.badgeText}</span>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {offer.code && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyCode(offer.code!)}
+                            className="text-[10px] font-mono font-bold text-[#b91c1c] hover:underline cursor-pointer"
+                          >
+                            {copiedCode === offer.code ? 'Copied' : `Code: ${offer.code}`}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOfferTerms(offer)}
+                          className="text-[10px] font-sans text-[#6c7079] hover:text-[#14293a] underline cursor-pointer"
+                        >
+                          T&amp;C
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex items-center justify-between text-xs text-[#6c7079]">
+                    <span>Standard Express Pan-India Delivery &amp; Doorstep Try-On Available</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          )}
 
           <p className="text-xs sm:text-sm text-[#6c7079] leading-relaxed">
             {product.description ||
@@ -602,6 +730,78 @@ export function ProductInteractiveIsland({
               fill
               className="object-contain"
             />
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* OFFER TERMS & CONDITIONS MODAL                            */}
+      {/* ========================================================= */}
+      {selectedOfferTerms && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#d3d6db] rounded-sm max-w-md w-full p-6 space-y-4 shadow-2xl relative font-sans text-[#14293a]">
+            <button
+              onClick={() => setSelectedOfferTerms(null)}
+              className="absolute top-4 right-4 p-1 text-[#8a909a] hover:text-[#14293a] rounded-xs cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="border-b border-[#e5e7eb] pb-3">
+              <span className="text-2xs font-mono font-bold uppercase tracking-widest text-[#b91c1c]">
+                Offer Terms &amp; Conditions
+              </span>
+              <h3 className="text-lg font-sans font-bold text-[#14293a] mt-0.5">
+                {selectedOfferTerms.name}
+              </h3>
+            </div>
+
+            <div className="space-y-3 text-xs text-[#6c7079]">
+              <div className="p-3 bg-[#f8f9fa] border border-[#e5e7eb] rounded-xs space-y-1">
+                <span className="text-[10px] font-mono uppercase font-bold text-[#14293a] block">
+                  Offer Details:
+                </span>
+                <p className="text-xs text-[#14293a]">
+                  {selectedOfferTerms.description || selectedOfferTerms.badgeText}
+                </p>
+              </div>
+
+              <ul className="space-y-1.5 list-disc list-inside text-xs text-[#6c7079]">
+                {selectedOfferTerms.minOrderSubtotal ? (
+                  <li>
+                    Minimum cart order value required: <strong>₹{selectedOfferTerms.minOrderSubtotal.toLocaleString('en-IN')}</strong>
+                  </li>
+                ) : (
+                  <li>No minimum order value required.</li>
+                )}
+                {selectedOfferTerms.maxDiscountAmount && (
+                  <li>
+                    Maximum discount capped at <strong>₹{selectedOfferTerms.maxDiscountAmount.toLocaleString('en-IN')}</strong>.
+                  </li>
+                )}
+                {selectedOfferTerms.code && (
+                  <li>
+                    Valid with promotional code <strong>{selectedOfferTerms.code}</strong> at checkout.
+                  </li>
+                )}
+                <li>
+                  Applicable across permanent archive and selected seasonal silhouettes.
+                </li>
+                <li>
+                  Strict margin-floor protection is maintained; cannot be applied below supplier costs.
+                </li>
+              </ul>
+            </div>
+
+            <div className="pt-3 border-t border-[#e5e7eb] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedOfferTerms(null)}
+                className="px-4 py-2 bg-[#14293a] text-white text-xs font-mono uppercase font-bold tracking-wider rounded-xs cursor-pointer"
+              >
+                Close Terms
+              </button>
+            </div>
           </div>
         </div>
       )}

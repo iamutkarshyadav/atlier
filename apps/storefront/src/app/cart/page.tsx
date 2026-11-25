@@ -40,6 +40,14 @@ export default function LuxuryCartPage() {
   const isBoltSelected = deliveryMode === 'try_on' && isServiceable
   const isOverBoltLimit = isBoltSelected && itemCount > 5
 
+  const catalogSavings = items.reduce((acc, item) => {
+    if (item.originalPrice && item.originalPrice > item.price) {
+      return acc + (item.originalPrice - item.price) * item.quantity
+    }
+    return acc
+  }, 0)
+  const totalCombinedSavings = discount + catalogSavings
+
   const handleProceedToCheckout = async () => {
     if (isOverBoltLimit) return
     setIsCheckingAuth(true)
@@ -186,9 +194,21 @@ export default function LuxuryCartPage() {
                         <p className="text-xs text-[#6c7079]">
                           {item.size ? `Size: ${item.size}` : 'Standard Edition'}
                         </p>
-                        <span className="text-xs font-bold text-[#14293a] block">
-                          ₹{Number(item.price).toLocaleString('en-IN')}
-                        </span>
+                        <div className="flex items-baseline gap-1.5 pt-0.5">
+                          <span className="text-xs font-bold text-[#14293a] tabular-nums">
+                            ₹{Number(item.price).toLocaleString('en-IN')}
+                          </span>
+                          {item.originalPrice && item.originalPrice > item.price && (
+                            <span className="text-[11px] text-[#8a909a] line-through tabular-nums">
+                              ₹{Number(item.originalPrice).toLocaleString('en-IN')}
+                            </span>
+                          )}
+                          {item.originalPrice && item.originalPrice > item.price && (
+                            <span className="text-[10px] font-bold text-[#b91c1c] tracking-tight">
+                              ({Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}% OFF)
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -214,9 +234,16 @@ export default function LuxuryCartPage() {
                         </button>
                       </div>
 
-                      <span className="text-sm font-bold text-[#14293a] min-w-[90px] text-right">
-                        ₹{(item.price * item.quantity).toLocaleString('en-IN')}
-                      </span>
+                      <div className="text-right min-w-[90px]">
+                        <span className="text-sm font-bold text-[#14293a] block tabular-nums">
+                          ₹{(item.price * item.quantity).toLocaleString('en-IN')}
+                        </span>
+                        {item.originalPrice && item.originalPrice > item.price && (
+                          <span className="text-[11px] text-[#8a909a] line-through block tabular-nums">
+                            ₹{(item.originalPrice * item.quantity).toLocaleString('en-IN')}
+                          </span>
+                        )}
+                      </div>
 
                       <button
                         onClick={() => removeItem(item.id)}
@@ -294,6 +321,30 @@ export default function LuxuryCartPage() {
               {/* Concierge VIP Invitation Code Entry */}
               <ConciergeCouponInput />
 
+              {/* Prominent Total Savings Banner */}
+              {totalCombinedSavings > 0 && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-sm text-xs text-emerald-950 flex items-center justify-between shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div>
+                      <span className="font-bold block">
+                        You are saving ₹{totalCombinedSavings.toLocaleString('en-IN')} on this order
+                      </span>
+                      <span className="text-[11px] text-emerald-800">
+                        {discount > 0 && catalogSavings > 0
+                          ? `Includes ₹${catalogSavings.toLocaleString('en-IN')} catalog markdown + ₹${discount.toLocaleString('en-IN')} promotional privilege`
+                          : discount > 0
+                          ? 'Private client privilege active'
+                          : 'Seasonal markdown discount applied'}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-2xs font-mono font-bold uppercase tracking-wider bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded-full">
+                    SAVED
+                  </span>
+                </div>
+              )}
+
               <div className="p-6 border border-[#d3d6db] bg-[#f8f8f8] space-y-5 sticky top-28 shadow-sm rounded-sm">
                 <div className="flex items-center justify-between border-b border-[#d3d6db] pb-3">
                   <span className="text-xs uppercase tracking-wider font-bold text-[#14293a]">
@@ -306,10 +357,26 @@ export default function LuxuryCartPage() {
                 </div>
 
                 <div className="space-y-2.5 text-xs">
+                  {catalogSavings > 0 && (
+                    <div className="flex justify-between text-[#8a909a] text-xs">
+                      <span>Total MRP</span>
+                      <span className="line-through tabular-nums">
+                        ₹{(subtotal + catalogSavings).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between text-[#6c7079]">
                     <span>Garments Subtotal</span>
                     <span className="font-bold text-[#14293a]">₹{subtotal.toLocaleString('en-IN')}</span>
                   </div>
+
+                  {catalogSavings > 0 && (
+                    <div className="flex justify-between text-emerald-700 bg-emerald-50 px-2 py-1.5 border border-emerald-200 rounded text-xs">
+                      <span className="font-medium">Catalog Markdown</span>
+                      <span className="font-bold font-mono">-₹{catalogSavings.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
 
                   {discount > 0 && (
                     <div className="flex justify-between text-emerald-700 bg-emerald-50 px-2 py-1.5 border border-emerald-200 rounded text-xs">

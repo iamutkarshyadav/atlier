@@ -23,13 +23,20 @@ export default function WishlistPage() {
       product.category?.toLowerCase().includes('denim')
     const effectiveSize = isPants ? '32' : size
 
+    const prodPrice = Number(product.price)
+    const originalPrice =
+      Number((product as any).compare_at_price) > prodPrice
+        ? Number((product as any).compare_at_price)
+        : undefined
+
     addItem({
       id: `${product.id}-${effectiveSize}`,
       productId: product.id,
       title: product.title,
       category: product.category || 'Atelier Collection',
       edition: 'Permanent Collection',
-      price: Number(product.price),
+      price: prodPrice,
+      originalPrice,
       quantity: 1,
       image: product.image_url || '',
       size: effectiveSize,

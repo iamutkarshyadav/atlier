@@ -1131,6 +1131,7 @@ export interface Database {
           material: string | null
           edition: string | null
           cost_price?: number
+          compare_at_price?: number | null
           average_rating?: number
           review_count?: number
           fit_runs_small_count?: number
@@ -1157,6 +1158,7 @@ export interface Database {
           category?: string | null
           material?: string | null
           edition?: string | null
+          compare_at_price?: number | null
           is_archived?: boolean
           created_at?: string
           updated_at?: string
@@ -1178,6 +1180,7 @@ export interface Database {
           category?: string | null
           material?: string | null
           edition?: string | null
+          compare_at_price?: number | null
           is_archived?: boolean
           created_at?: string
           updated_at?: string
@@ -1896,6 +1899,7 @@ export interface Database {
           name: string
           slug: string
           description: string | null
+          banner_image_url?: string | null
           promotion_type: PromotionType
           discount_type: DiscountType
           discount_value: number
@@ -1918,6 +1922,7 @@ export interface Database {
           name: string
           slug: string
           description?: string | null
+          banner_image_url?: string | null
           promotion_type?: PromotionType
           discount_type?: DiscountType
           discount_value: number
@@ -1940,6 +1945,7 @@ export interface Database {
           name?: string
           slug?: string
           description?: string | null
+          banner_image_url?: string | null
           promotion_type?: PromotionType
           discount_type?: DiscountType
           discount_value?: number
@@ -2548,7 +2554,8 @@ export interface ProductReviewWithMedia extends ProductReview {
   media?: ReviewMedia[]
   user?: {
     id: string
-    full_name: string | null
+    name?: string | null
+    full_name?: string | null
     email?: string | null
   } | null
   order?: {

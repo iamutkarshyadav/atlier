@@ -42,6 +42,7 @@ const apparelFormSchema = z.object({
   category_id: z.string().min(1, 'Category is mandatory'),
   description: z.string().min(10, 'A provenance description of the garment is required'),
   price: z.number().positive('Retail price must be greater than zero'),
+  compare_at_price: z.number().optional().nullable(),
   material: z.string().min(2, 'Fabric & GSM specification required (e.g. 480 GSM French Terry)'),
   edition: z.string().min(2, 'Drop / Edition tag required (e.g. Drop 01 // Strict 150 Pieces)'),
   silhouette: z.string().optional(),
@@ -163,6 +164,7 @@ export default function CreatorApparelProductStudio() {
         category_id: data.category_id,
         description: data.description,
         price: data.price,
+        compare_at_price: data.compare_at_price,
         material: data.material,
         edition: data.edition,
         image_url: primaryImageUrl,
@@ -308,10 +310,10 @@ export default function CreatorApparelProductStudio() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="space-y-2">
               <label className="text-xs uppercase text-neutral-300 font-medium block">
-                Retail Price (INR) <span className="text-[#166534]">*</span>
+                Selling Price (INR) <span className="text-[#166534]">*</span>
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-2.5 text-xs text-neutral-500 font-mono">₹</span>
@@ -319,11 +321,31 @@ export default function CreatorApparelProductStudio() {
                   type="number"
                   step="0.01"
                   {...register('price', { valueAsNumber: true })}
-                  placeholder="165.00"
+                  placeholder="12345.00"
                   className="bg-[#18181C] border-[#2A2A32] text-white text-xs h-10 pl-7"
                 />
               </div>
               {errors.price && <p className="text-[11px] text-rose-400">{errors.price.message}</p>}
+              <span className="text-[10px] text-neutral-500 font-sans block">Active price shoppers pay</span>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs uppercase text-neutral-300 font-medium block">
+                Listing Price / MRP (Compare-At)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-xs text-neutral-500 font-mono">₹</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  {...register('compare_at_price', { valueAsNumber: true })}
+                  placeholder="e.g. 15000"
+                  className="bg-[#18181C] border-[#2A2A32] text-white text-xs h-10 pl-7"
+                />
+              </div>
+              <span className="text-[10px] text-neutral-500 font-sans block">
+                Crossed-out MRP shown with strikethrough when &gt; Selling Price
+              </span>
             </div>
 
             <div className="space-y-2">

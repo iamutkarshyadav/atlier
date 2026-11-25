@@ -18,7 +18,10 @@ import {
   ToggleLeft,
   ToggleRight,
   ExternalLink,
+  Pencil,
+  ImageIcon,
 } from 'lucide-react'
+import Image from 'next/image'
 import { Button } from '@repo/ui'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { SlideOverDrawer } from '@/components/ui/SlideOverDrawer'
@@ -28,6 +31,7 @@ interface PromotionItem {
   name: string
   slug: string
   description: string | null
+  banner_image_url?: string | null
   promotion_type: 'coupon' | 'automatic_cart' | 'tiered_threshold' | 'buy_x_get_y' | 'shipping_waiver'
   discount_type: 'percentage' | 'fixed_amount'
   discount_value: number
@@ -325,15 +329,32 @@ export default function PromotionsPage() {
               key={promo.id}
               className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/30 transition-colors"
             >
-              <div className="space-y-1.5 max-w-xl">
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="font-semibold text-sm font-mono tracking-tight">{promo.name}</span>
-                  <StatusBadge
-                    variant={promo.is_active ? 'active' : 'inactive'}
-                    status={promo.is_active ? 'emerald' : 'neutral'}
-                  >
-                    {promo.is_active ? 'LIVE' : 'PAUSED'}
-                  </StatusBadge>
+              <div className="flex items-start gap-4 max-w-xl">
+                {promo.banner_image_url ? (
+                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-md overflow-hidden shrink-0 border border-border/80">
+                    <Image
+                      src={promo.banner_image_url}
+                      alt={promo.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-md shrink-0 border border-dashed border-border/80 bg-muted/20 flex flex-col items-center justify-center text-muted-foreground">
+                    <ImageIcon className="h-5 w-5" />
+                    <span className="text-[9px] font-mono mt-1">No Image</span>
+                  </div>
+                )}
+
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className="font-semibold text-sm font-mono tracking-tight">{promo.name}</span>
+                    <StatusBadge
+                      variant={promo.is_active ? 'active' : 'inactive'}
+                      status={promo.is_active ? 'emerald' : 'neutral'}
+                    >
+                      {promo.is_active ? 'LIVE' : 'PAUSED'}
+                    </StatusBadge>
                   <span className="text-[10px] font-mono px-2 py-0.5 bg-muted rounded border border-border/60 uppercase">
                     {promo.promotion_type.replace('_', ' ')}
                   </span>
@@ -377,9 +398,17 @@ export default function PromotionsPage() {
                   )}
                 </div>
               </div>
+            </div>
 
               {/* Actions */}
               <div className="flex items-center gap-2 self-end md:self-center">
+                <Link href={`/promotions/${promo.id}`}>
+                  <Button variant="outline" size="sm" className="font-mono text-xs">
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                    Edit Details
+                  </Button>
+                </Link>
+
                 {promo.promotion_type === 'coupon' && (
                   <Button
                     variant="outline"
