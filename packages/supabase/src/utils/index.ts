@@ -72,17 +72,23 @@ import type {
   FashionFitIndicator,
   ProductReviewWithMedia,
   ProductRatingAggregate,
+  EligibleReviewOrderItem,
 } from '../types/database.types'
 
 export * from '../types/database.types'
 export * from './barcode'
 export * from './boltAccounting'
 export * from './localFallbackStore'
+export * from './sizeOrder'
+export * from './orderTracking'
+import { BOLT_HOLD_FEE, GST_RATE } from '../pricing/constants'
+import { sortVariantsBySize } from './sizeOrder'
 import {
   saveLocalReview,
   getLocalReviews,
   hasLocalReview,
   updateLocalReview,
+  toggleLocalReviewHelpfulVote,
   saveLocalPromotion,
   getLocalPromotions,
 } from './localFallbackStore'
@@ -1754,8 +1760,14 @@ export async function createOrderWithItems(
   orderData: OrderInsert,
   items: Array<{
     productId: string
+    variantId?: string | null
     quantity: number
     unitPrice: number
+    discountAmount?: number
+    originalUnitPrice?: number
+    finalUnitPrice?: number
+    promotionId?: string | null
+    hsnCode?: string | null
     size?: string
   }>
 ): Promise<{ data: Order | null; error?: string }> {
@@ -1771,17 +1783,62 @@ export async function createOrderWithItems(
       return { data: null, error: orderError?.message || 'Failed to create order record' }
     }
 
-    // 2. Insert items into order_items table
+    // 2. Insert items into order_items table (resolving mandatory variant_id)
     if (items.length > 0) {
-      const orderItemsPayload: OrderItemInsert[] = items.map((it) => ({
-        order_id: newOrder.id,
-        product_id: it.productId,
-        quantity: it.quantity,
-        unit_price: it.unitPrice,
-        size: it.size || null,
-        is_kept: null,
-        try_on_decision: 'pending',
-      }))
+      const orderItemsPayload: OrderItemInsert[] = []
+      for (const it of items) {
+        let resolvedVariantId = it.variantId || null
+
+        if (!resolvedVariantId) {
+          if (it.size) {
+            const { data: matchedVariant } = await supabase
+              .from('product_variants')
+              .select('id')
+              .eq('product_id', it.productId)
+              .eq('size', it.size)
+              .limit(1)
+              .maybeSingle()
+            resolvedVariantId = matchedVariant?.id || null
+          }
+
+          if (!resolvedVariantId) {
+            const { data: fallbackVariant } = await supabase
+              .from('product_variants')
+              .select('id')
+              .eq('product_id', it.productId)
+              .limit(1)
+              .maybeSingle()
+            resolvedVariantId = fallbackVariant?.id || null
+          }
+        }
+
+        if (!resolvedVariantId) {
+          return {
+            data: null,
+            error: `Missing variant_id for product ${it.productId}`,
+          }
+        }
+
+        const itemDiscount = Number(it.discountAmount || 0)
+        const originalPrice = Number(it.originalUnitPrice ?? it.unitPrice)
+        const finalPrice = Number(it.finalUnitPrice ?? Math.max(0, it.unitPrice - itemDiscount))
+
+        orderItemsPayload.push({
+          order_id: newOrder.id,
+          product_id: it.productId,
+          variant_id: resolvedVariantId,
+          quantity: it.quantity,
+          unit_price: it.unitPrice,
+          original_unit_price: originalPrice,
+          discount_amount: itemDiscount,
+          final_unit_price: finalPrice,
+          promotion_id: it.promotionId ?? null,
+          hsn_code: it.hsnCode ?? undefined,
+          size: it.size || null,
+          is_kept: null,
+          try_on_decision: 'pending',
+        })
+      }
 
       const { error: itemsErr } = await supabase.from('order_items').insert(orderItemsPayload)
       if (itemsErr) {
@@ -1792,7 +1849,21 @@ export async function createOrderWithItems(
       // 3. Atomically decrement allocated variant inventory stock
       for (const it of items) {
         try {
-          if (it.size) {
+          if (it.variantId) {
+            const { data: variant } = await supabase
+              .from('product_variants')
+              .select('id, stock')
+              .eq('id', it.variantId)
+              .single()
+
+            if (variant && typeof variant.stock === 'number') {
+              const nextStock = Math.max(0, variant.stock - it.quantity)
+              await supabase
+                .from('product_variants')
+                .update({ stock: nextStock })
+                .eq('id', variant.id)
+            }
+          } else if (it.size) {
             const { data: variant } = await supabase
               .from('product_variants')
               .select('id, stock')
@@ -1968,9 +2039,9 @@ export async function reconcileTryOnOrder(
     .filter((item) => item.is_kept === true)
     .reduce((sum, item) => sum + Number(item.unit_price) * item.quantity, 0)
 
-  // White-glove try-on fitting concierge fee ($45) + tax
-  const shipping = keptSubtotal > 0 ? 45.0 : 0.0
-  const tax = keptSubtotal * 0.08
+  // Bolt doorstep hold fee (₹99) + 12% GST
+  const shipping = keptSubtotal > 0 ? BOLT_HOLD_FEE : 0.0
+  const tax = keptSubtotal * GST_RATE
   const finalTotal = keptSubtotal > 0 ? Number((keptSubtotal + shipping + tax).toFixed(2)) : 0.0
 
   // 3. Finalize order status & reconciled timestamp
@@ -2072,6 +2143,7 @@ export interface CreateApparelPayload {
   description: string
   price: number
   compare_at_price?: number | null
+  is_try_on_eligible?: boolean
   material: string
   edition: string
   image_url?: string
@@ -2109,6 +2181,7 @@ export async function createProductWithVariantsAndMedia(
       description: payload.description,
       price: payload.price,
       compare_at_price: payload.compare_at_price ?? null,
+      is_try_on_eligible: payload.is_try_on_eligible ?? true,
       stock: totalStock,
       material: payload.material,
       edition: payload.edition,
@@ -2125,10 +2198,11 @@ export async function createProductWithVariantsAndMedia(
       .select()
       .single()
 
-    // Graceful fallback if compare_at_price column does not exist in Supabase DB schema
+    // Graceful fallback if compare_at_price or is_try_on_eligible column does not exist in Supabase DB schema
     if (prodErr && prodErr.code === '42703') {
       const fallbackInsert = { ...productInsert }
       delete (fallbackInsert as any).compare_at_price
+      delete (fallbackInsert as any).is_try_on_eligible
       const retryRes = await supabase
         .from('products')
         .insert(fallbackInsert)
@@ -2241,18 +2315,23 @@ export async function getProductWithVariantsAndMedia(
 
     if (prodRes.error || !prodRes.data) {
       const fallbackProd = DEFAULT_PRODUCTS.find((p) => p.id === id) || null
-      const fallbackVars = DEFAULT_PRODUCT_VARIANTS.filter((v) => v.product_id === id)
+      const fallbackVars = sortVariantsBySize(DEFAULT_PRODUCT_VARIANTS.filter((v) => v.product_id === id))
       return { product: fallbackProd, variants: fallbackVars, media: [] }
     }
 
+    const resolvedVars =
+      varRes.data && varRes.data.length > 0
+        ? varRes.data
+        : DEFAULT_PRODUCT_VARIANTS.filter((v) => v.product_id === id)
+
     return {
       product: prodRes.data,
-      variants: varRes.data && varRes.data.length > 0 ? varRes.data : DEFAULT_PRODUCT_VARIANTS.filter((v) => v.product_id === id),
+      variants: sortVariantsBySize(resolvedVars),
       media: mediaRes.data || [],
     }
   } catch (err) {
     const fallbackProd = DEFAULT_PRODUCTS.find((p) => p.id === id) || null
-    const fallbackVars = DEFAULT_PRODUCT_VARIANTS.filter((v) => v.product_id === id)
+    const fallbackVars = sortVariantsBySize(DEFAULT_PRODUCT_VARIANTS.filter((v) => v.product_id === id))
     return { product: fallbackProd, variants: fallbackVars, media: [] }
   }
 }
@@ -2273,6 +2352,7 @@ export async function updateProductWithVariantsAndMedia(
     if (payload.description) updatePayload.description = payload.description
     if (payload.price !== undefined) updatePayload.price = payload.price
     if (payload.compare_at_price !== undefined) updatePayload.compare_at_price = payload.compare_at_price
+    if (payload.is_try_on_eligible !== undefined) updatePayload.is_try_on_eligible = payload.is_try_on_eligible
     if (payload.material) updatePayload.material = payload.material
     if (payload.edition) updatePayload.edition = payload.edition
     if (payload.image_url) updatePayload.image_url = payload.image_url
@@ -2284,10 +2364,11 @@ export async function updateProductWithVariantsAndMedia(
 
     let { error: updateErr } = await supabase.from('products').update(updatePayload).eq('id', productId)
 
-    // Graceful fallback if compare_at_price column does not exist
-    if (updateErr && updateErr.code === '42703' && 'compare_at_price' in updatePayload) {
+    // Graceful fallback if compare_at_price or is_try_on_eligible column does not exist
+    if (updateErr && updateErr.code === '42703' && ('compare_at_price' in updatePayload || 'is_try_on_eligible' in updatePayload)) {
       const fallbackPayload = { ...updatePayload }
       delete (fallbackPayload as any).compare_at_price
+      delete (fallbackPayload as any).is_try_on_eligible
       const retryRes = await supabase.from('products').update(fallbackPayload).eq('id', productId)
       updateErr = retryRes.error
     }
@@ -3211,11 +3292,18 @@ export interface AtomicOrderCreationParams {
     delivery_mode?: DeliveryMode
     try_on_status?: TryOnStatus
     order_type?: OrderType
+    bolt_pincode?: string | null
+    bolt_timeslot_id?: string | null
+    original_total?: number | null
     subtotal?: number
     discount?: number
+    shipping_fee?: number
     delivery_fee?: number
     tax_amount?: number
+    total?: number
     total_amount?: number
+    shipping_address?: string | null
+    delivery_notes?: string | null
     notes?: string | null
     shipping_address_json?: any
     billing_address_json?: any
@@ -4743,6 +4831,158 @@ export async function getAdminReviews(
   } catch (err) {
     console.error('Exception fetching admin reviews:', err)
     return { reviews: [], total: 0, pendingCount: 0 }
+  }
+}
+
+/**
+ * List delivered order items for a given user & product that have not yet been reviewed.
+ */
+export async function getUserEligibleReviewItemsForProduct(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  productId: string
+): Promise<EligibleReviewOrderItem[]> {
+  try {
+    const [{ data: orders, error: ordersErr }, { data: existingReviews }] = await Promise.all([
+      supabase
+        .from('orders')
+        .select('id, order_number, status, delivery_mode, delivered_at, created_at, order_items(id, order_id, product_id, size, is_kept, try_on_decision)')
+        .eq('user_id', userId)
+        .eq('status', 'delivered')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('product_reviews')
+        .select('order_item_id')
+        .eq('user_id', userId)
+        .eq('product_id', productId),
+    ])
+
+    if (ordersErr || !orders) {
+      return []
+    }
+
+    const reviewedOrderItemIds = new Set<string>(
+      (existingReviews || []).map((r) => r.order_item_id)
+    )
+
+    const eligible: EligibleReviewOrderItem[] = []
+    for (const order of orders as unknown as Array<{
+      id: string
+      order_number?: string | null
+      delivery_mode?: string | null
+      delivered_at?: string | null
+      created_at: string
+      order_items?: Array<{
+        id: string
+        order_id: string
+        product_id: string
+        size: string | null
+        is_kept?: boolean | null
+        try_on_decision?: string | null
+      }>
+    }>) {
+      const isBolt = order.delivery_mode === 'bolt' || order.delivery_mode === 'try_on'
+      for (const item of order.order_items || []) {
+        if (item.product_id !== productId) continue
+        if (reviewedOrderItemIds.has(item.id) || hasLocalReview(item.id)) continue
+        if (isBolt && (item.is_kept === false || item.try_on_decision === 'rejected')) continue
+
+        eligible.push({
+          orderId: order.id,
+          orderItemId: item.id,
+          orderNumber: order.order_number || order.id.slice(0, 8).toUpperCase(),
+          size: item.size ?? null,
+          isBolt,
+          deliveredAt: order.delivered_at ?? order.created_at ?? null,
+        })
+      }
+    }
+
+    return eligible
+  } catch (err) {
+    console.error('Exception checking product review eligibility:', err)
+    return []
+  }
+}
+
+/**
+ * Toggle a helpful vote for a review by voterKey (`user:<id>` or `anon:<id>`).
+ */
+export async function toggleReviewHelpfulVote(
+  supabase: SupabaseClient<Database>,
+  reviewId: string,
+  voterKey: string,
+  userId?: string | null
+): Promise<{ success: boolean; helpfulCount: number; voted: boolean; error?: string }> {
+  try {
+    if (reviewId.startsWith('rev-')) {
+      const localResult = toggleLocalReviewHelpfulVote(reviewId, voterKey)
+      return { success: true, ...localResult }
+    }
+
+    const { data: existingVote, error: lookupError } = await supabase
+      .from('review_helpful_votes')
+      .select('id')
+      .eq('review_id', reviewId)
+      .eq('voter_key', voterKey)
+      .maybeSingle()
+
+    if (lookupError) {
+      if (
+        lookupError.code === 'PGRST205' ||
+        lookupError.code === '42P01' ||
+        lookupError.message?.includes('schema cache')
+      ) {
+        const localResult = toggleLocalReviewHelpfulVote(reviewId, voterKey)
+        return { success: true, ...localResult }
+      }
+      return { success: false, helpfulCount: 0, voted: false, error: lookupError.message }
+    }
+
+    let voted = false
+    if (existingVote?.id) {
+      const { error: deleteErr } = await supabase
+        .from('review_helpful_votes')
+        .delete()
+        .eq('id', existingVote.id)
+      if (deleteErr) {
+        return { success: false, helpfulCount: 0, voted: true, error: deleteErr.message }
+      }
+      voted = false
+    } else {
+      const { error: insertErr } = await supabase
+        .from('review_helpful_votes')
+        .insert({
+          review_id: reviewId,
+          voter_key: voterKey,
+          user_id: userId || null,
+        })
+      if (insertErr) {
+        return { success: false, helpfulCount: 0, voted: false, error: insertErr.message }
+      }
+      voted = true
+    }
+
+    const { count } = await supabase
+      .from('review_helpful_votes')
+      .select('id', { count: 'exact', head: true })
+      .eq('review_id', reviewId)
+
+    const helpfulCount = count ?? (voted ? 1 : 0)
+
+    await supabase
+      .from('product_reviews')
+      .update({ helpful_count: helpfulCount })
+      .eq('id', reviewId)
+
+    return { success: true, helpfulCount, voted }
+  } catch (err: any) {
+    return {
+      success: false,
+      helpfulCount: 0,
+      voted: false,
+      error: err?.message || 'Failed to update helpful vote',
+    }
   }
 }
 

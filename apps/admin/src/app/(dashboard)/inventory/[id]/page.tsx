@@ -54,6 +54,7 @@ export default function GarmentEditStudioPage() {
   const [description, setDescription] = useState('')
   const [price, setPrice] = useState<number>(0)
   const [compareAtPrice, setCompareAtPrice] = useState<number | ''>('')
+  const [isTryOnEligible, setIsTryOnEligible] = useState<boolean>(true)
   const [material, setMaterial] = useState('')
   const [edition, setEdition] = useState('')
   const [primaryImageUrl, setPrimaryImageUrl] = useState('')
@@ -88,6 +89,7 @@ export default function GarmentEditStudioPage() {
           )
           setMaterial(dossier.product.material || '')
           setEdition(dossier.product.edition || '')
+          setIsTryOnEligible((dossier.product as any).is_try_on_eligible !== false)
           setPrimaryImageUrl(dossier.product.image_url || '')
         }
 
@@ -193,6 +195,7 @@ export default function GarmentEditStudioPage() {
         description,
         price,
         compare_at_price: compareAtPrice === '' ? null : Number(compareAtPrice),
+        is_try_on_eligible: isTryOnEligible,
         material,
         edition,
         image_url: primaryImageUrl || mediaList[0]?.url,
@@ -438,6 +441,35 @@ export default function GarmentEditStudioPage() {
                 </div>
               </div>
 
+              {/* Bolt 45-Min Doorstep Try-On Service Eligibility */}
+              <div className="flex items-center justify-between p-4 bg-chrome-950/80 border border-chrome-750 rounded">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 font-bold text-sm">
+                    ⚡
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <label htmlFor="edit_is_try_on_eligible" className="text-xs font-semibold text-white uppercase cursor-pointer">
+                        Enable Bolt 45-Min Doorstep Try-On
+                      </label>
+                      <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">
+                        Bolt Concierge
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-neutral-400 mt-0.5 font-sans">
+                      Allow shoppers in serviceable PIN codes to order up to 3 pieces for 45-minute at-home fitting before purchase settlement.
+                    </p>
+                  </div>
+                </div>
+                <input
+                  id="edit_is_try_on_eligible"
+                  type="checkbox"
+                  checked={isTryOnEligible}
+                  onChange={(e) => setIsTryOnEligible(e.target.checked)}
+                  className="w-4 h-4 rounded border-chrome-700 bg-chrome-900 text-[#166534] focus:ring-[#166534] cursor-pointer"
+                />
+              </div>
+
               <div>
                 <label className="block text-[10px] uppercase text-neutral-400 mb-1">Provenance Description</label>
                 <textarea
@@ -576,7 +608,7 @@ export default function GarmentEditStudioPage() {
                     </div>
 
                     {/* Rendered Code 128 Barcode & Print Action */}
-                    <div className="pt-2 border-t border-[#22222E] flex items-center justify-between gap-3">
+                    <div className="pt-2 border-t border-border flex items-center justify-between gap-3">
                       <div className="overflow-hidden bg-chrome-900 p-1.5 border border-chrome-750 rounded-none">
                         <Barcode value={barcodeValue} height={28} barWidth={1.3} theme="terminal" />
                       </div>
@@ -584,10 +616,10 @@ export default function GarmentEditStudioPage() {
                       <button
                         type="button"
                         onClick={() => handlePrintVariantLabel(v)}
-                        className="px-2.5 py-1.5 bg-chrome-850 hover:bg-[#2A2A38] border border-chrome-750 text-neutral-200 text-[10px] font-mono flex items-center gap-1.5 shrink-0 transition-colors"
+                        className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-chrome-850 dark:hover:bg-chrome-800 border border-slate-200 dark:border-chrome-750 text-foreground text-[10px] font-mono flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
                         title="Print 2x1 inch physical thermal tag"
                       >
-                        <Printer className="w-3 h-3 text-amber-400" />
+                        <Printer className="w-3 h-3 text-amber-500" />
                         <span>Print Tag</span>
                       </button>
                     </div>

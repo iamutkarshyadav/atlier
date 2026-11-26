@@ -143,7 +143,6 @@ export default function WishlistPage() {
                   product={product}
                   priority={idx < 4}
                   showTryOnBadge={true}
-                  showReassuranceLine={false}
                   onQuickAdd={(p, sz) => handleMoveToCart(p, sz)}
                 />
 

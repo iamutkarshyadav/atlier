@@ -1,14 +1,23 @@
 'use client'
 
-import React, { useState } from 'react'
-import Image from 'next/image'
+import React, { useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ProductImage } from '@/components/ui/ProductImage'
+import { SECONDARY_IMAGES } from '@/components/ProductCard'
+import { resolveColorHex } from '@/components/shop/ShopFilterPanel'
+import { StickyAddToCartBar } from '@/components/product/StickyAddToCartBar'
+import { sortVariantsBySize } from '@repo/supabase/utils'
 import {
-  ArrowLeft,
+  BOLT_HOLD_FEE,
+  FREE_SHIPPING_THRESHOLD,
+  type ProductPricingSummary,
+  type ApplicableOfferSummary,
+} from '@repo/supabase/pricing'
+import {
   ShoppingBag,
-  ShieldCheck,
   Check,
+  Copy,
   Ruler,
   Truck,
   AlertTriangle,
@@ -17,24 +26,32 @@ import {
   Zap,
   ChevronDown,
   ChevronUp,
-  ChevronRight,
   Layers,
-  Star,
   Heart,
-  Sparkles,
   Tag,
 } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { useCartStore } from '../../../store/useCartStore'
 import { useHydratedWishlist } from '../../../store/useWishlistStore'
+import { useHydratedBolt } from '../../../store/useBoltStore'
 import type { Product, ProductVariant, ProductMedia } from '@repo/supabase/utils'
-import type { ProductPricingSummary, ApplicableOfferSummary } from '@repo/supabase/pricing'
 
 interface ProductInteractiveIslandProps {
   product: Product
   variants: ProductVariant[]
   media: ProductMedia[]
   initialPricing?: ProductPricingSummary
+}
+
+function getModelSizingContext(product: Product): string {
+  const haystack = `${product.title} ${product.category || ''} ${product.description || ''}`.toLowerCase()
+  if (haystack.includes('kurta') || haystack.includes('tailored') || haystack.includes('shirt') || haystack.includes('blazer')) {
+    return 'Model is 6\'0" wearing size L — Tailored Regular Fit'
+  }
+  if (haystack.includes('denim') || haystack.includes('trouser') || haystack.includes('pant') || haystack.includes('chino')) {
+    return 'Model is 6\'0" (32" waist) wearing size 32 — Straight Fit'
+  }
+  return 'Model is 5\'11" wearing size L — Relaxed Fit'
 }
 
 export function ProductInteractiveIsland({
@@ -44,20 +61,65 @@ export function ProductInteractiveIsland({
   initialPricing,
 }: ProductInteractiveIslandProps) {
   const addItem = useCartStore((s) => s.addItem)
+  const setDeliveryMode = useCartStore((s) => s.setDeliveryMode)
   const { isWishlisted: checkWishlisted, toggleWishlist } = useHydratedWishlist()
   const isWishlisted = checkWishlisted(product.id)
 
-  // Gallery images: use product_media if available, fallback to product.image_url
-  const galleryImages =
-    media.length > 0
-      ? media.map((m) => m.url)
-      : [product.image_url || '/images/prod1-primary.jpg', 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=85']
+  const ctaBlockRef = useRef<HTMLDivElement | null>(null)
+  const sizeBlockRef = useRef<HTMLDivElement | null>(null)
+
+  // Gallery images: product_media first, otherwise product.image_url + known secondary perspective
+  const galleryImages = useMemo(() => {
+    if (media.length > 0) return media.map((m) => m.url)
+    const primary = product.image_url || '/images/placeholder-garment.svg'
+    const secondary = SECONDARY_IMAGES[product.id]
+    return secondary && secondary !== primary ? [primary, secondary] : [primary]
+  }, [media, product.id, product.image_url])
 
   const [activeImageIndex, setActiveImageIndex] = useState(0)
 
-  // Filter available variants in stock
-  const availableVariants = variants.filter((v) => v.stock > 0)
-  const hasVariants = variants.length > 0
+  // Deterministic size ordering across all variants
+  const sortedVariants = useMemo(() => sortVariantsBySize(variants), [variants])
+
+  // Extract distinct colorways cleanly
+  const colorOptions = useMemo(() => {
+    const map = new Map<string, { name: string; hex: string; hasStock: boolean }>()
+    for (const v of sortedVariants) {
+      const colorName = v.color?.trim()
+      if (!colorName) continue
+      const key = colorName.toLowerCase()
+      const existing = map.get(key)
+      if (existing) {
+        existing.hasStock = existing.hasStock || v.stock > 0
+      } else {
+        map.set(key, {
+          name: colorName,
+          hex: resolveColorHex(colorName),
+          hasStock: v.stock > 0,
+        })
+      }
+    }
+    return Array.from(map.values())
+  }, [sortedVariants])
+
+  const [selectedColor, setSelectedColor] = useState<string | null>(() => {
+    const firstInStock = colorOptions.find((c) => c.hasStock)
+    return firstInStock?.name ?? colorOptions[0]?.name ?? null
+  })
+
+  // Variants filtered by active colorway (with deterministic size sorting preserved)
+  const variantsForColor = useMemo(() => {
+    if (!selectedColor || colorOptions.length === 0) return sortedVariants
+    return sortedVariants.filter(
+      (v) => (v.color || '').trim().toLowerCase() === selectedColor.toLowerCase()
+    )
+  }, [sortedVariants, selectedColor, colorOptions.length])
+
+  const availableVariants = useMemo(
+    () => variantsForColor.filter((v) => v.stock > 0),
+    [variantsForColor]
+  )
+  const hasVariants = sortedVariants.length > 0
 
   const [selectedVariantId, setSelectedVariantId] = useState<string>(() => {
     if (availableVariants.length === 1) {
@@ -66,11 +128,12 @@ export function ProductInteractiveIsland({
     return ''
   })
 
-  const [quantity, setQuantity] = useState(1)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
   const [showAddedBanner, setShowAddedBanner] = useState(false)
+  const [addedViaBolt, setAddedViaBolt] = useState(false)
   const [isLightboxOpen, setIsLightboxOpen] = useState(false)
+  const [showPinChecker, setShowPinChecker] = useState(false)
 
   // Accordion state
   const [expandedAccordions, setExpandedAccordions] = useState<{
@@ -87,13 +150,33 @@ export function ProductInteractiveIsland({
     setExpandedAccordions((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
+  const handleSelectColor = (nextColor: string) => {
+    setSelectedColor(nextColor)
+    setValidationError(null)
+    const nextColorVariants = sortedVariants.filter(
+      (v) => (v.color || '').trim().toLowerCase() === nextColor.toLowerCase()
+    )
+    const currentSize = variantsForColor.find((v) => v.id === selectedVariantId)?.size
+    if (currentSize) {
+      const matchingSizeVariant = nextColorVariants.find(
+        (v) => v.size === currentSize && v.stock > 0
+      )
+      if (matchingSizeVariant) {
+        setSelectedVariantId(matchingSizeVariant.id)
+        return
+      }
+    }
+    const nextAvailable = nextColorVariants.filter((v) => v.stock > 0)
+    setSelectedVariantId(nextAvailable.length === 1 ? nextAvailable[0]!.id : '')
+  }
+
   // Selected variant derivation & live pricing resolution
   const selectedVariant = availableVariants.find((v) => v.id === selectedVariantId)
   const variantPrice = selectedVariant?.price_override ?? Number(product.price)
   const mrp =
     initialPricing?.mrp ??
-    (Number((product as any).compare_at_price) > variantPrice
-      ? Number((product as any).compare_at_price)
+    (Number((product as { compare_at_price?: number | null }).compare_at_price) > variantPrice
+      ? Number((product as { compare_at_price?: number | null }).compare_at_price)
       : variantPrice)
   const sellingPrice = initialPricing?.sellingPrice ?? variantPrice
   const discountPercentage =
@@ -106,6 +189,65 @@ export function ProductInteractiveIsland({
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [selectedOfferTerms, setSelectedOfferTerms] = useState<ApplicableOfferSummary | null>(null)
 
+  const appliedCouponCode = useCartStore((s) => s.appliedCouponCode)
+  const applyCouponCode = useCartStore((s) => s.applyCouponCode)
+  const removeCouponCode = useCartStore((s) => s.removeCouponCode)
+
+  const isBestCouponApplied = Boolean(
+    appliedCouponCode &&
+    bestCoupon &&
+    appliedCouponCode.toUpperCase() === bestCoupon.code.toUpperCase()
+  )
+
+  const handleToggleBestCoupon = async () => {
+    if (!bestCoupon) return
+    if (isBestCouponApplied) {
+      removeCouponCode()
+    } else {
+      await applyCouponCode(bestCoupon.code)
+    }
+  }
+
+  // Bolt Try-On Hydration-Safe PIN gating
+  const { pincode, city, isServiceable, isHydrated, setPincode, clearPincode } = useHydratedBolt()
+  const [pinInput, setPinInput] = useState('')
+  const [isVerifyingPin, setIsVerifyingPin] = useState(false)
+  const [pinFeedback, setPinFeedback] = useState<string | null>(null)
+
+  const handleVerifyPin = async () => {
+    const trimmed = pinInput.trim()
+    if (trimmed.length !== 6) return
+    setIsVerifyingPin(true)
+    setPinFeedback(null)
+    try {
+      const res = await fetch(`/api/bolt/check-pincode?pin=${encodeURIComponent(trimmed)}`)
+      const data = await res.json()
+      if (data.serviceable) {
+        setPincode(trimmed, true, data.city || null)
+        setPinFeedback(null)
+        setShowPinChecker(false)
+        if (typeof document !== 'undefined') {
+          document.cookie = `bolt_pincode=${encodeURIComponent(trimmed)}; path=/; max-age=31536000`
+          document.cookie = `bolt_serviceable=1; path=/; max-age=31536000`
+        }
+      } else {
+        setPincode(trimmed, false, null)
+        setPinFeedback(
+          data.message ||
+            `PIN ${trimmed} is outside our 45-minute rapid try-on radius. Standard express shipping applies.`
+        )
+        if (typeof document !== 'undefined') {
+          document.cookie = `bolt_pincode=${encodeURIComponent(trimmed)}; path=/; max-age=31536000`
+          document.cookie = `bolt_serviceable=0; path=/; max-age=31536000`
+        }
+      }
+    } catch {
+      setPinFeedback('Unable to verify postal code serviceability. Please try again.')
+    } finally {
+      setIsVerifyingPin(false)
+    }
+  }
+
   const handleCopyCode = (code: string) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(code)
@@ -114,7 +256,8 @@ export function ProductInteractiveIsland({
     setTimeout(() => setCopiedCode(null), 2500)
   }
 
-  const activePrice = sellingPrice
+  const isTryOnEligible = product.is_try_on_eligible !== false
+  const activePrice = isBestCouponApplied && bestCouponPrice < sellingPrice ? bestCouponPrice : sellingPrice
   const isOutOfStock = hasVariants
     ? availableVariants.length === 0 || (selectedVariantId ? !selectedVariant || selectedVariant.stock <= 0 : false)
     : product.stock <= 0
@@ -142,12 +285,10 @@ export function ProductInteractiveIsland({
       edition: product.edition || 'Collection',
       price: activePrice,
       originalPrice: mrp > activePrice ? mrp : undefined,
-      quantity,
-      image: galleryImages[0] || '/images/prod1-primary.jpg',
-      size: selectedVariant
-        ? `${selectedVariant.size}${selectedVariant.color ? ` (${selectedVariant.color})` : ''}`
-        : undefined,
-      color: selectedVariant?.color || undefined,
+      quantity: 1,
+      image: galleryImages[0] || '/images/placeholder-garment.svg',
+      size: selectedVariant?.size,
+      color: selectedVariant?.color || selectedColor || undefined,
     })
 
     if (!success) {
@@ -156,17 +297,28 @@ export function ProductInteractiveIsland({
       return
     }
 
+    if (isBoltTryOn && isTryOnEligible) {
+      setDeliveryMode('try_on')
+    }
+    setAddedViaBolt(isBoltTryOn && isTryOnEligible)
+
     setTimeout(() => {
       setIsAdding(false)
       setShowAddedBanner(true)
-    }, 300)
+      useCartStore.getState().openDrawer()
+    }, 200)
   }
+
+  const scrollToSizeSelector = () => {
+    setValidationError('Select your size below to add this piece to your bag.')
+    sizeBlockRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
+  const modelSizingText = useMemo(() => getModelSizingContext(product), [product])
 
   return (
     <div className="space-y-10 font-sans text-[#14293a]">
-      {/* ========================================================= */}
-      {/* 1. BREADCRUMBS                                            */}
-      {/* ========================================================= */}
+      {/* 1. BREADCRUMBS */}
       <nav className="text-xs text-[#6c7079] mb-4 font-sans border-b border-[#e5e7eb] pb-3" aria-label="Breadcrumb">
         <Link href="/" className="hover:text-[#14293a] transition-colors">Home</Link>
         <span> / </span>
@@ -183,80 +335,75 @@ export function ProductInteractiveIsland({
         <span className="text-[#14293a] font-semibold truncate max-w-xs">{product.title}</span>
       </nav>
 
-      {/* ========================================================= */}
-      {/* 2. MAIN 2-COLUMN PDP LAYOUT (Flipkart / Amazon Pattern)   */}
-      {/* ========================================================= */}
+      {/* 2. MAIN 2-COLUMN PDP LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-        {/* ========================================================= */}
-        {/* LEFT COLUMN: PRODUCT GALLERY & THUMBNAILS                 */}
-        {/* ========================================================= */}
-        <div className="lg:col-span-7 flex flex-col-reverse md:flex-row gap-3 lg:sticky lg:top-28">
-          {/* Gallery Thumbnail Column */}
+        {/* LEFT COLUMN: STICKY PORTRAIT GALLERY */}
+        <div className="lg:col-span-7 flex flex-col-reverse md:flex-row gap-3 lg:sticky lg:top-24">
           {galleryImages.length > 1 && (
-            <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-y-auto shrink-0 md:w-20 max-h-[580px] pb-1 md:pb-0">
+            <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-y-auto shrink-0 md:w-20 max-h-[680px] pb-1 md:pb-0">
               {galleryImages.map((imgUrl, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => setActiveImageIndex(idx)}
-                  className={`relative h-20 w-16 md:w-20 md:h-24 overflow-hidden bg-[#f8f8f8] shrink-0 border-2 transition-all cursor-pointer rounded-sm ${
+                  className={`relative h-24 w-18 md:w-20 md:h-28 overflow-hidden bg-[#f8f8f8] shrink-0 border transition-all cursor-pointer rounded-sm ${
                     activeImageIndex === idx
                       ? 'border-[#14293a] ring-1 ring-[#14293a] opacity-100'
                       : 'border-[#d3d6db] opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <Image
+                  <ProductImage
                     src={imgUrl}
-                    alt={`Perspective ${idx + 1}`}
+                    alt={`${product.title} view ${idx + 1}`}
                     fill
-                    className="object-cover object-center"
+                    sizes="80px"
                   />
                 </button>
               ))}
             </div>
           )}
 
-          {/* Main Primary Image Container */}
-          <div className="relative flex-1 aspect-[4/5] max-h-[580px] overflow-hidden bg-[#f8f8f8] border border-[#d3d6db] group shadow-sm rounded-sm flex items-center justify-center">
-            <Image
-              src={galleryImages[activeImageIndex] || galleryImages[0]!}
+          {/* Main Portrait 3:4 Image Container */}
+          <div className="relative flex-1 aspect-[3/4] max-h-[720px] overflow-hidden bg-[#f5f5f4] border border-[#d3d6db] group rounded-sm flex items-center justify-center">
+            <ProductImage
+              src={galleryImages[activeImageIndex] || galleryImages[0]}
               alt={product.title}
               fill
               priority
               sizes="(max-width: 1024px) 100vw, 55vw"
-              className="object-cover object-center transition-all duration-300"
+              className="transition-all duration-300"
             />
 
             <button
+              type="button"
               onClick={() => setIsLightboxOpen(true)}
-              className="absolute bottom-3 right-3 bg-white/90 hover:bg-white text-[#14293a] p-2 rounded-sm shadow transition-colors cursor-pointer"
+              className="absolute bottom-3 right-3 bg-white/90 hover:bg-white text-[#14293a] p-2 rounded-sm border border-[#d3d6db] transition-colors cursor-pointer"
               title="Expand high-resolution view"
               aria-label="Expand image"
             >
-              <Maximize2 className="w-4 h-4" />
+              <Maximize2 className="w-4 h-4" strokeWidth={1.75} />
             </button>
           </div>
         </div>
 
-        {/* ========================================================= */}
-        {/* RIGHT COLUMN: STICKY BUY-BOX & COMMERCE CONTROLS         */}
-        {/* ========================================================= */}
-        <div className="lg:col-span-5 space-y-6">
+        {/* RIGHT COLUMN: BUY-BOX & COMMERCE CONTROLS */}
+        <div className="lg:col-span-5 space-y-5">
+          {/* Category + Title + Price */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-semibold">
               <span className="text-[#b91c1c] font-bold uppercase tracking-wider text-[11px]">
                 {product.category || 'Atelier Silhouette'}
               </span>
               <span className="text-emerald-700 font-bold text-[11px] flex items-center gap-1 bg-emerald-50 px-2 py-0.5 border border-emerald-200 rounded-sm">
-                <Check className="w-3 h-3" /> In Stock
+                <Check className="w-3 h-3" strokeWidth={1.75} /> In Stock
               </span>
             </div>
 
-            <h1 className="font-sans text-2xl sm:text-3xl md:text-4xl font-bold text-[#14293a] leading-tight tracking-tight">
+            <h1 className="font-sans text-2xl sm:text-3xl font-bold text-[#14293a] leading-tight tracking-tight">
               {product.title}
             </h1>
 
-            {/* Price Tag with Strikethrough & % OFF Badge */}
+            {/* Price Tag with Strikethrough & % OFF */}
             <div className="flex flex-wrap items-baseline gap-2.5 pt-1">
               <span className="text-2xl sm:text-3xl font-bold tabular-nums text-[#14293a]">
                 ₹{Math.round(sellingPrice).toLocaleString('en-IN')}
@@ -272,188 +419,223 @@ export function ProductInteractiveIsland({
                 </span>
               )}
               <span className="text-xs text-[#6c7079] w-full sm:w-auto">
-                (Inclusive of all taxes &amp; duties)
+                Inclusive of all taxes
               </span>
             </div>
-          </div>
 
-          {/* Myntra / Flipkart Style "Best Price & Available Offers" Box */}
-          {(bestCouponPrice < mrp || sellingPrice < mrp || applicableOffers.length > 0) && (
-            <div className="p-4 bg-emerald-50/40 border border-emerald-200/90 rounded-sm space-y-3 font-sans">
-              {/* Best Price Header */}
-              {(bestCouponPrice < mrp || sellingPrice < mrp) && (
-                <div className="flex items-center justify-between pb-2.5 border-b border-emerald-200/60">
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-emerald-800 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                      Best Price Unlocked
-                    </span>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold font-mono text-emerald-900">
-                        ₹{Math.round(Math.min(bestCouponPrice, sellingPrice)).toLocaleString('en-IN')}
+            {/* Best Price with Coupon Callout directly below PDP Price */}
+            {bestCoupon && bestCouponPrice < sellingPrice && (
+              <div className="pt-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-emerald-50/50 border border-emerald-200 rounded-sm">
+                  <div className="flex items-center gap-2 text-xs">
+                    <Tag className="w-3.5 h-3.5 text-emerald-700 shrink-0" strokeWidth={1.75} />
+                    <span>
+                      <strong className="text-emerald-800 font-bold">
+                        Best Price ₹{Math.round(bestCouponPrice).toLocaleString('en-IN')}
+                      </strong>{' '}
+                      <span className="text-[#52565e]">
+                        with coupon{' '}
+                        <strong className="font-mono text-[#14293a]">{bestCoupon.code}</strong>
                       </span>
-                      {bestCoupon && bestCouponPrice < sellingPrice ? (
-                        <span className="text-2xs font-mono text-emerald-700 font-semibold">
-                          with coupon <strong className="underline">{bestCoupon.code}</strong>
-                        </span>
-                      ) : discountPercentage > 0 ? (
-                        <span className="text-2xs font-mono text-emerald-700 font-semibold">
-                          ({discountPercentage}% OFF applied)
-                        </span>
-                      ) : null}
-                    </div>
+                    </span>
                   </div>
 
-                  {bestCoupon && bestCouponPrice < sellingPrice && (
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => handleCopyCode(bestCoupon.code)}
-                      className={`px-3 py-1.5 text-xs font-mono font-bold rounded-xs border transition-all cursor-pointer ${
-                        copiedCode === bestCoupon.code
+                      className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-mono font-semibold border border-[#d3d6db] bg-white text-[#14293a] hover:border-[#14293a] rounded-sm transition-colors cursor-pointer"
+                    >
+                      {copiedCode === bestCoupon.code ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-700" strokeWidth={1.75} />
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" strokeWidth={1.75} />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleToggleBestCoupon}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-mono font-bold uppercase tracking-wider border rounded-sm transition-colors cursor-pointer ${
+                        isBestCouponApplied
                           ? 'bg-emerald-700 text-white border-emerald-700'
-                          : 'bg-white text-emerald-900 border-emerald-300 hover:bg-emerald-100/50'
+                          : 'bg-[#14293a] text-white border-[#14293a] hover:bg-[#b91c1c] hover:border-[#b91c1c]'
                       }`}
                     >
-                      {copiedCode === bestCoupon.code ? 'COPIED!' : `COPY '${bestCoupon.code}'`}
+                      {isBestCouponApplied ? (
+                        <>
+                          <Check className="w-3 h-3" strokeWidth={1.75} />
+                          <span>Applied</span>
+                        </>
+                      ) : (
+                        <span>Auto-Apply</span>
+                      )}
                     </button>
-                  )}
+                  </div>
                 </div>
-              )}
+              </div>
+            )}
+          </div>
 
-            {/* Applicable Offers List */}
-            <div className="space-y-2">
-              <span className="text-[11px] font-mono uppercase font-bold tracking-wider text-[#14293a] flex items-center gap-1">
-                <Tag className="w-3 h-3 text-[#b91c1c]" />
-                Available Offers ({applicableOffers.length > 0 ? applicableOffers.length : 1}):
+          {/* Applicable Offers List */}
+          {applicableOffers.length > 0 && (
+            <div className="p-3.5 bg-[#f8f8f8] border border-[#e5e7eb] rounded-sm space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#14293a] flex items-center gap-1.5">
+                <Tag className="w-3 h-3 text-[#b91c1c]" strokeWidth={1.75} />
+                Available Offers ({applicableOffers.length})
               </span>
-
               <div className="space-y-1.5 text-xs">
-                {applicableOffers.length > 0 ? (
-                  applicableOffers.map((offer, idx) => (
-                    <div key={idx} className="flex items-start justify-between gap-2 text-xs">
-                      <div className="flex items-start gap-1.5 min-w-0">
-                        <span className="text-[#b91c1c] font-bold shrink-0 mt-0.5">•</span>
-                        <p className="text-[#14293a] leading-tight text-xs">
-                          <strong className="font-semibold">{offer.name}:</strong>{' '}
-                          <span className="text-[#6c7079]">{offer.description || offer.badgeText}</span>
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        {offer.code && (
-                          <button
-                            type="button"
-                            onClick={() => handleCopyCode(offer.code!)}
-                            className="text-[10px] font-mono font-bold text-[#b91c1c] hover:underline cursor-pointer"
-                          >
-                            {copiedCode === offer.code ? 'Copied' : `Code: ${offer.code}`}
-                          </button>
-                        )}
+                {applicableOffers.map((offer, idx) => (
+                  <div key={idx} className="flex items-start justify-between gap-2">
+                    <p className="text-[#52565e] leading-snug text-xs min-w-0">
+                      <strong className="font-semibold text-[#14293a]">{offer.name}:</strong>{' '}
+                      {offer.description || offer.badgeText}
+                    </p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {offer.code && (
                         <button
                           type="button"
-                          onClick={() => setSelectedOfferTerms(offer)}
-                          className="text-[10px] font-sans text-[#6c7079] hover:text-[#14293a] underline cursor-pointer"
+                          onClick={() => handleCopyCode(offer.code!)}
+                          className="text-[10px] font-mono font-bold text-[#b91c1c] hover:underline cursor-pointer"
                         >
-                          T&amp;C
+                          {copiedCode === offer.code ? 'Copied' : offer.code}
                         </button>
-                      </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOfferTerms(offer)}
+                        className="text-[10px] text-[#6c7079] hover:text-[#14293a] underline cursor-pointer"
+                      >
+                        T&amp;C
+                      </button>
                     </div>
-                  ))
-                ) : (
-                  <div className="flex items-center justify-between text-xs text-[#6c7079]">
-                    <span>Standard Express Pan-India Delivery &amp; Doorstep Try-On Available</span>
                   </div>
-                )}
+                ))}
               </div>
             </div>
-          </div>
           )}
 
-          <p className="text-xs sm:text-sm text-[#6c7079] leading-relaxed">
+          {/* Editorial Description */}
+          <p className="text-xs sm:text-sm text-[#52565e] leading-relaxed">
             {product.description ||
               'Engineered with architectural proportions from single-origin combed organic cotton. Built for creators who value textile permanence.'}
           </p>
 
-          {/* Bolt Doorstep Try-On Feature Card */}
-          <div className="p-4 bg-[#f8f8f8] border border-[#d3d6db] space-y-2 rounded-sm shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1 bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca] rounded-sm">
-                  <Zap className="w-3.5 h-3.5 text-[#b91c1c]" />
-                </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
-                  Bolt 45-Min Try-On
+          {/* Color Selector directly above SELECT SIZE */}
+          {colorOptions.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="uppercase text-[#14293a] font-bold tracking-wider">
+                  Color:{' '}
+                  <span className="font-semibold normal-case text-[#52565e]">
+                    {selectedColor}
+                  </span>
                 </span>
               </div>
-              <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-white text-[#14293a] border border-[#d3d6db] rounded-sm">
-                ₹99 Booking Hold
-              </span>
-            </div>
-            <p className="text-xs text-[#6c7079] leading-relaxed">
-              Add this piece to your fitting bag for a <strong className="text-[#14293a]">₹99 hold</strong>. Try on in your home for 45 minutes with a dedicated courier. Keep what fits, return the rest on the spot.
-            </p>
-          </div>
-
-          {/* Fabric Weight Highlight */}
-          {product.material && (
-            <div className="p-3 bg-[#f8f8f8] border border-[#d3d6db] text-xs space-y-0.5 rounded-sm">
-              <span className="text-[10px] uppercase tracking-wider text-[#6c7079] block font-bold">
-                Fabric &amp; Material:
-              </span>
-              <p className="text-[#14293a] font-semibold">{product.material}</p>
+              <div className="flex flex-wrap items-center gap-2.5">
+                {colorOptions.map((col) => {
+                  const isActive =
+                    selectedColor?.toLowerCase() === col.name.toLowerCase()
+                  return (
+                    <button
+                      key={col.name}
+                      type="button"
+                      onClick={() => handleSelectColor(col.name)}
+                      title={col.hasStock ? col.name : `${col.name} (Out of stock)`}
+                      aria-label={`Select color ${col.name}`}
+                      aria-pressed={isActive}
+                      className={`relative w-7 h-7 rounded-full border border-neutral-300 transition-all cursor-pointer ${
+                        isActive ? 'ring-2 ring-offset-2 ring-[#14293a]' : 'hover:scale-105'
+                      } ${!col.hasStock ? 'opacity-45' : ''}`}
+                      style={{ backgroundColor: col.hex }}
+                    >
+                      {!col.hasStock && (
+                        <span
+                          aria-hidden="true"
+                          className="absolute inset-x-0 top-1/2 h-[1.5px] -rotate-45 bg-[#b91c1c]"
+                        />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           )}
 
-          {/* Available Sizes Matrix */}
-          <div className="space-y-2.5 pt-1">
+          {/* Size Selector Matrix */}
+          <div ref={sizeBlockRef} className="space-y-2.5 pt-1">
             <div className="flex justify-between items-center text-xs">
               <span className="uppercase text-[#14293a] font-bold tracking-wider flex items-center gap-1.5">
-                <span>Select Size:</span>
+                <span>Select Size</span>
                 {hasVariants && availableVariants.length > 0 && (
-                  <span className="text-[11px] text-[#6c7079] font-normal">
-                    ({availableVariants.length} sizes in stock)
+                  <span className="text-[11px] text-[#6c7079] font-normal normal-case">
+                    ({availableVariants.length} in stock)
                   </span>
                 )}
               </span>
               <button
                 type="button"
-                onClick={() => toggleAccordion('fit')}
+                onClick={() => {
+                  setExpandedAccordions((prev) => ({ ...prev, fit: true }))
+                }}
                 className="text-[#b91c1c] hover:underline flex items-center gap-1 font-semibold cursor-pointer text-xs"
               >
-                <Ruler className="w-3 h-3" />
+                <Ruler className="w-3 h-3" strokeWidth={1.75} />
                 <span>Size Guide</span>
               </button>
             </div>
 
+            {/* Model Sizing Context line directly above size pills */}
+            <p className="text-xs text-[#6c7079] flex items-center gap-1.5">
+              <span>{modelSizingText}</span>
+            </p>
+
             {hasVariants ? (
-              availableVariants.length > 0 ? (
+              variantsForColor.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {availableVariants.map((v) => {
+                  {variantsForColor.map((v) => {
                     const isSelected = selectedVariantId === v.id
-                    const isLow = v.stock <= 3
+                    const inStock = v.stock > 0
+                    const isLow = inStock && v.stock <= 3
 
                     return (
                       <button
                         key={v.id}
                         type="button"
+                        disabled={!inStock}
                         onClick={() => {
                           setSelectedVariantId(v.id)
                           setValidationError(null)
                         }}
-                        className={`px-4 py-2.5 min-w-[70px] text-center transition-all rounded-sm cursor-pointer flex flex-col items-center justify-center gap-0.5 border ${
-                          isSelected
-                            ? 'bg-[#14293a] text-white border-[#14293a] shadow-sm'
-                            : 'bg-white text-[#14293a] border-[#d3d6db] hover:border-[#14293a]'
+                        className={`px-4 py-2.5 min-w-[70px] text-center transition-all rounded-sm flex flex-col items-center justify-center gap-0.5 border ${
+                          !inStock
+                            ? 'bg-[#f5f5f4] text-[#9ca3af] border-[#e5e7eb] line-through cursor-not-allowed opacity-60'
+                            : isSelected
+                              ? 'bg-[#14293a] text-white border-[#14293a] cursor-pointer'
+                              : 'bg-white text-[#14293a] border-[#d3d6db] hover:border-[#14293a] cursor-pointer'
                         }`}
                       >
                         <div className="flex items-center gap-1">
-                          <span className="text-sm font-bold">
-                            {v.size}
-                          </span>
-                          {isSelected && <Check className="w-3 h-3 text-white" />}
+                          <span className="text-sm font-bold">{v.size}</span>
+                          {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={1.75} />}
                         </div>
-                        <span className={`text-[10px] uppercase ${isLow ? 'text-amber-500 font-bold' : isSelected ? 'text-neutral-300' : 'text-[#8a909a]'}`}>
-                          {isLow ? `${v.stock} left` : 'In Stock'}
+                        <span
+                          className={`text-[10px] uppercase ${
+                            !inStock
+                              ? 'text-[#9ca3af]'
+                              : isLow
+                                ? 'text-amber-500 font-bold'
+                                : isSelected
+                                  ? 'text-neutral-300'
+                                  : 'text-[#8a909a]'
+                          }`}
+                        >
+                          {!inStock ? 'Sold Out' : isLow ? `${v.stock} left` : 'In Stock'}
                         </span>
                       </button>
                     )
@@ -471,7 +653,7 @@ export function ProductInteractiveIsland({
                   type="button"
                   className="px-4 py-2 bg-[#14293a] text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 rounded-sm"
                 >
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <Check className="w-3.5 h-3.5 text-emerald-400" strokeWidth={1.75} />
                   <span>Standard Sizing</span>
                 </button>
                 <span className="text-xs text-[#6c7079]">
@@ -482,24 +664,23 @@ export function ProductInteractiveIsland({
 
             {validationError && (
               <p className="text-xs text-[#b91c1c] flex items-center gap-1.5 pt-0.5 font-semibold">
-                <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[#b91c1c]" />
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[#b91c1c]" strokeWidth={1.75} />
                 <span>{validationError}</span>
               </p>
             )}
           </div>
 
-          {/* Commerce Action Buttons */}
-          <div className="space-y-3 pt-2">
-            {/* Primary: Standard Add to Bag + Wishlist Outline Action */}
+          {/* Commerce Action Buttons (Observed for StickyAddToCartBar) */}
+          <div ref={ctaBlockRef} className="space-y-3 pt-1">
             <div className="flex items-center gap-2.5">
               <Button
                 onClick={() => handleAddToCart(false)}
                 size="lg"
                 disabled={isOutOfStock}
                 isLoading={isAdding}
-                className="flex-1 h-12 bg-[#14293a] hover:bg-[#b91c1c] text-white font-sans font-bold tracking-wider uppercase text-xs rounded-sm flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-40"
+                className="flex-1 h-12 bg-[#14293a] hover:bg-[#b91c1c] text-white font-sans font-bold tracking-wider uppercase text-xs rounded-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
               >
-                <ShoppingBag className="w-4 h-4 text-white" />
+                <ShoppingBag className="w-4 h-4 text-white" strokeWidth={1.75} />
                 <span>
                   ADD TO CART (₹{Math.round(activePrice).toLocaleString('en-IN')})
                 </span>
@@ -516,6 +697,7 @@ export function ProductInteractiveIsland({
                 aria-label={isWishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
               >
                 <Heart
+                  strokeWidth={1.75}
                   className={`w-4 h-4 ${
                     isWishlisted ? 'fill-[#b91c1c] text-[#b91c1c]' : 'text-[#14293a]'
                   }`}
@@ -526,19 +708,137 @@ export function ProductInteractiveIsland({
               </button>
             </div>
 
-            {/* Secondary: Bolt Try-On Button */}
-            <button
-              type="button"
-              onClick={() => handleAddToCart(true)}
-              disabled={isOutOfStock}
-              className="w-full py-3.5 bg-white hover:bg-[#f8f8f8] text-[#14293a] font-sans font-bold tracking-wider uppercase text-xs border-2 border-[#14293a] flex items-center justify-center gap-2 rounded-sm transition-all shadow-sm disabled:opacity-40"
-            >
-              <Zap className="w-4 h-4 fill-[#b91c1c] text-[#b91c1c]" />
-              <span>
-                {isOutOfStock ? 'CURRENTLY SOLD OUT' : 'TRY AT HOME WITH BOLT (₹99 HOLD)'}
-              </span>
-            </button>
+            {isTryOnEligible && (
+              <button
+                type="button"
+                onClick={() => handleAddToCart(true)}
+                disabled={isOutOfStock}
+                className="w-full py-3.5 bg-white hover:bg-[#f8f8f8] text-[#14293a] font-sans font-bold tracking-wider uppercase text-xs border border-[#14293a] flex items-center justify-center gap-2 rounded-sm transition-colors cursor-pointer disabled:opacity-40"
+              >
+                <Zap className="w-4 h-4 fill-[#b91c1c] text-[#b91c1c]" strokeWidth={1.75} />
+                <span>
+                  {isOutOfStock
+                    ? 'CURRENTLY SOLD OUT'
+                    : `TRY AT HOME WITH BOLT (₹${BOLT_HOLD_FEE} HOLD)`}
+                </span>
+              </button>
+            )}
+
+            {/* Sleek 1-Line Bolt & Delivery Trust Strip directly beneath CTAs */}
+            <div className="pt-2 border-t border-[#e5e7eb] space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#52565e]">
+                {!isTryOnEligible ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5 text-[#14293a] shrink-0" strokeWidth={1.75} />
+                    <span>
+                      Standard Express Delivery · Free above ₹{FREE_SHIPPING_THRESHOLD.toLocaleString('en-IN')}
+                    </span>
+                  </span>
+                ) : isHydrated && isServiceable && pincode ? (
+                  <>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-[#b91c1c] shrink-0" strokeWidth={1.75} />
+                      <span>
+                        45-min try-on active in{' '}
+                        <strong className="text-[#14293a]">{city || pincode}</strong> · ₹{BOLT_HOLD_FEE} hold credited if kept
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPinChecker((prev) => !prev)}
+                      className="text-[11px] font-semibold text-[#14293a] underline hover:text-[#b91c1c] cursor-pointer"
+                    >
+                      Change PIN
+                    </button>
+                  </>
+                ) : isHydrated && pincode && !isServiceable ? (
+                  <>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-[#14293a] shrink-0" strokeWidth={1.75} />
+                      <span>
+                        Standard Express to <strong className="text-[#14293a]">{pincode}</strong> · Free above ₹{FREE_SHIPPING_THRESHOLD.toLocaleString('en-IN')}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPinChecker((prev) => !prev)}
+                      className="text-[11px] font-semibold text-[#14293a] underline hover:text-[#b91c1c] cursor-pointer"
+                    >
+                      Change PIN
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-[#b91c1c] shrink-0" strokeWidth={1.75} />
+                      <span>
+                        45-min doorstep try-on (₹{BOLT_HOLD_FEE} hold) · Free shipping above ₹{FREE_SHIPPING_THRESHOLD.toLocaleString('en-IN')}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPinChecker((prev) => !prev)}
+                      className="text-[11px] font-semibold text-[#14293a] underline hover:text-[#b91c1c] cursor-pointer"
+                    >
+                      Check PIN
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {showPinChecker && isTryOnEligible && (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <input
+                    type="text"
+                    maxLength={6}
+                    inputMode="numeric"
+                    placeholder="Enter 6-digit PIN"
+                    value={pinInput}
+                    onChange={(e) => {
+                      setPinInput(e.target.value.replace(/\D/g, ''))
+                      setPinFeedback(null)
+                    }}
+                    className="h-8 px-2.5 text-xs border border-[#d3d6db] rounded-sm focus:border-[#14293a] focus:outline-none w-36 font-mono tracking-wider"
+                  />
+                  <button
+                    type="button"
+                    disabled={pinInput.trim().length !== 6 || isVerifyingPin}
+                    onClick={handleVerifyPin}
+                    className="h-8 px-3 bg-[#14293a] text-white text-[11px] font-bold uppercase tracking-wider rounded-sm hover:bg-[#b91c1c] transition-colors disabled:opacity-40 cursor-pointer"
+                  >
+                    {isVerifyingPin ? 'Checking...' : 'Verify'}
+                  </button>
+                  {pincode && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearPincode()
+                        setPinInput('')
+                        setPinFeedback(null)
+                        setShowPinChecker(false)
+                      }}
+                      className="text-[11px] text-[#6c7079] hover:text-[#14293a] underline cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  )}
+                  {pinFeedback && (
+                    <p className="text-[11px] text-amber-800 font-medium w-full">{pinFeedback}</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Fabric Weight Highlight */}
+          {product.material && (
+            <div className="p-3 bg-[#f8f8f8] border border-[#e5e7eb] text-xs space-y-0.5 rounded-sm">
+              <span className="text-[10px] uppercase tracking-wider text-[#6c7079] block font-bold">
+                Fabric &amp; Material
+              </span>
+              <p className="text-[#14293a] font-semibold">{product.material}</p>
+            </div>
+          )}
 
           {/* Added to Bag Feedback Notification */}
           <AnimatePresence>
@@ -547,18 +847,20 @@ export function ProductInteractiveIsland({
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="p-4 bg-[#ecfdf5] text-[#065f46] text-xs space-y-2 border border-[#a7f3d0] rounded-sm shadow-md"
+                className="p-4 bg-[#ecfdf5] text-[#065f46] text-xs space-y-2 border border-[#a7f3d0] rounded-sm"
               >
                 <div className="flex justify-between items-center">
                   <span className="uppercase tracking-wider font-bold text-[#065f46] flex items-center gap-1.5">
-                    <Check className="w-4 h-4 text-[#065f46]" />
-                    Garment Added to Bag
+                    <Check className="w-4 h-4 text-[#065f46]" strokeWidth={1.75} />
+                    {addedViaBolt ? 'Added for Bolt Try-On' : 'Garment Added to Bag'}
                   </span>
                   <button
+                    type="button"
                     onClick={() => setShowAddedBanner(false)}
-                    className="text-[#065f46] hover:text-[#064e3b] text-sm"
+                    className="text-[#065f46] hover:text-[#064e3b] cursor-pointer"
+                    aria-label="Dismiss added notice"
                   >
-                    ×
+                    <X className="w-4 h-4" strokeWidth={1.75} />
                   </button>
                 </div>
                 <p className="text-[#064e3b]">
@@ -724,11 +1026,12 @@ export function ProductInteractiveIsland({
             <X className="w-6 h-6" />
           </button>
           <div className="relative max-w-4xl max-h-[85vh] w-full h-[80vh]">
-            <Image
-              src={galleryImages[activeImageIndex] || galleryImages[0]!}
+            <ProductImage
+              src={galleryImages[activeImageIndex] || galleryImages[0]}
               alt="High resolution garment inspection"
               fill
-              className="object-contain"
+              portrait={false}
+              className="!object-contain"
             />
           </div>
         </div>
@@ -805,6 +1108,22 @@ export function ProductInteractiveIsland({
           </div>
         </div>
       )}
+
+      {/* Sticky Add-to-Cart Bar */}
+      <StickyAddToCartBar
+        targetRef={ctaBlockRef}
+        title={product.title}
+        imageUrl={galleryImages[0] || '/images/placeholder-garment.svg'}
+        activePrice={activePrice}
+        mrp={mrp}
+        selectedColor={selectedColor}
+        selectedSize={selectedVariant?.size}
+        isOutOfStock={isOutOfStock}
+        isTryOnEligible={isTryOnEligible}
+        isAdding={isAdding}
+        onAddToCart={handleAddToCart}
+        onSelectSizePrompt={scrollToSizeSelector}
+      />
     </div>
   )
 }

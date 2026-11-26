@@ -23,10 +23,13 @@ export interface CartItemPricingInput {
   variantId: string
   title?: string
   categoryId?: string
+  subcategoryId?: string
   collectionIds?: string[]
+  isTryOnEligible?: boolean
+  sku?: string
   quantity: number
   unitPrice: number
-  costPrice: number
+  costPrice?: number | null // Guardrail 1: Optional, strictly server-side
 }
 
 export interface PricingEvaluationContext {
@@ -49,7 +52,7 @@ export interface LineItemDiscount {
   unitDiscountAmount: number
   totalDiscountAmount: number
   finalUnitPrice: number
-  costPrice: number
+  costPrice?: number // Guardrail 1: Stripped before client serialization
   marginFloorHit: boolean
   appliedPromotionId?: string
 }

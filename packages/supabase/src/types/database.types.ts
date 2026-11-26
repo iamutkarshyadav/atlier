@@ -1137,6 +1137,7 @@ export interface Database {
           fit_runs_small_count?: number
           fit_true_to_size_count?: number
           fit_runs_large_count?: number
+          is_try_on_eligible?: boolean
           is_archived: boolean
           created_at: string
           updated_at: string
@@ -1147,6 +1148,7 @@ export interface Database {
           description?: string | null
           price: number
           cost_price?: number
+          is_try_on_eligible?: boolean
           average_rating?: number
           review_count?: number
           fit_runs_small_count?: number
@@ -1169,6 +1171,7 @@ export interface Database {
           description?: string | null
           price?: number
           cost_price?: number
+          is_try_on_eligible?: boolean
           average_rating?: number
           review_count?: number
           fit_runs_small_count?: number
@@ -1786,6 +1789,7 @@ export interface Database {
           admin_reply: string | null
           admin_replied_at: string | null
           admin_replied_by: string | null
+          helpful_count?: number
           created_at: string
           updated_at: string
         }
@@ -1809,6 +1813,7 @@ export interface Database {
           admin_reply?: string | null
           admin_replied_at?: string | null
           admin_replied_by?: string | null
+          helpful_count?: number
           created_at?: string
           updated_at?: string
         }
@@ -1832,6 +1837,7 @@ export interface Database {
           admin_reply?: string | null
           admin_replied_at?: string | null
           admin_replied_by?: string | null
+          helpful_count?: number
           created_at?: string
           updated_at?: string
         }
@@ -1893,6 +1899,92 @@ export interface Database {
           }
         ]
       }
+      review_helpful_votes: {
+        Row: {
+          id: string
+          review_id: string
+          voter_key: string
+          user_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          review_id: string
+          voter_key: string
+          user_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          review_id?: string
+          voter_key?: string
+          user_id?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_helpful_votes_review_id_fkey"
+            columns: ["review_id"]
+            referencedRelation: "product_reviews"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      return_requests: {
+        Row: {
+          id: string
+          order_id: string
+          order_item_id: string
+          user_id: string | null
+          request_type: 'exchange' | 'return'
+          replacement_size: string | null
+          reason: string
+          notes: string | null
+          status: 'requested' | 'approved' | 'pickup_scheduled' | 'completed' | 'rejected'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          order_item_id: string
+          user_id?: string | null
+          request_type: 'exchange' | 'return'
+          replacement_size?: string | null
+          reason: string
+          notes?: string | null
+          status?: 'requested' | 'approved' | 'pickup_scheduled' | 'completed' | 'rejected'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          order_item_id?: string
+          user_id?: string | null
+          request_type?: 'exchange' | 'return'
+          replacement_size?: string | null
+          reason?: string
+          notes?: string | null
+          status?: 'requested' | 'approved' | 'pickup_scheduled' | 'completed' | 'rejected'
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "return_requests_order_id_fkey"
+            columns: ["order_id"]
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_requests_order_item_id_fkey"
+            columns: ["order_item_id"]
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       promotions: {
         Row: {
           id: string
@@ -1907,6 +1999,7 @@ export interface Database {
           max_discount_amount: number | null
           is_stackable: boolean
           priority: number
+          tier?: 1 | 2 | 3
           enforce_margin_floor: boolean
           starts_at: string
           ends_at: string | null
@@ -1930,6 +2023,7 @@ export interface Database {
           max_discount_amount?: number | null
           is_stackable?: boolean
           priority?: number
+          tier?: 1 | 2 | 3
           enforce_margin_floor?: boolean
           starts_at?: string
           ends_at?: string | null
@@ -1953,6 +2047,7 @@ export interface Database {
           max_discount_amount?: number | null
           is_stackable?: boolean
           priority?: number
+          tier?: 1 | 2 | 3
           enforce_margin_floor?: boolean
           starts_at?: string
           ends_at?: string | null
@@ -1972,6 +2067,8 @@ export interface Database {
           target_type: RuleTargetType
           match_operator: string
           target_id: string | null
+          rule_group_id?: string | null
+          target_values?: string[]
           min_quantity: number | null
           created_at: string
         }
@@ -1981,6 +2078,8 @@ export interface Database {
           target_type?: RuleTargetType
           match_operator?: string
           target_id?: string | null
+          rule_group_id?: string | null
+          target_values?: string[]
           min_quantity?: number | null
           created_at?: string
         }
@@ -1990,6 +2089,8 @@ export interface Database {
           target_type?: RuleTargetType
           match_operator?: string
           target_id?: string | null
+          rule_group_id?: string | null
+          target_values?: string[]
           min_quantity?: number | null
           created_at?: string
         }
@@ -2011,6 +2112,7 @@ export interface Database {
           max_uses: number | null
           times_used: number
           assigned_customer_email: string | null
+          is_public?: boolean
           is_active: boolean
           created_at: string
         }
@@ -2022,6 +2124,7 @@ export interface Database {
           max_uses?: number | null
           times_used?: number
           assigned_customer_email?: string | null
+          is_public?: boolean
           is_active?: boolean
           created_at?: string
         }
@@ -2033,12 +2136,80 @@ export interface Database {
           max_uses?: number | null
           times_used?: number
           assigned_customer_email?: string | null
+          is_public?: boolean
           is_active?: boolean
           created_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "promotion_coupons_promotion_id_fkey"
+            columns: ["promotion_id"]
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      popup_campaigns: {
+        Row: {
+          id: string
+          promotion_id: string | null
+          title: string
+          surface_tier: 'top_bar' | 'bottom_sheet' | 'floating_pill' | 'center_modal'
+          target_routes: string[]
+          target_categories: string[]
+          target_products: string[]
+          trigger_type: 'immediate' | 'delay' | 'scroll' | 'exit_intent' | 'cart_threshold'
+          trigger_delay_seconds: number | null
+          trigger_scroll_percentage: number | null
+          priority_rank: number | null
+          max_impressions_per_session: number | null
+          cooldown_seconds: number | null
+          is_active: boolean
+          content: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          promotion_id?: string | null
+          title: string
+          surface_tier?: 'top_bar' | 'bottom_sheet' | 'floating_pill' | 'center_modal'
+          target_routes?: string[]
+          target_categories?: string[]
+          target_products?: string[]
+          trigger_type?: 'immediate' | 'delay' | 'scroll' | 'exit_intent' | 'cart_threshold'
+          trigger_delay_seconds?: number | null
+          trigger_scroll_percentage?: number | null
+          priority_rank?: number | null
+          max_impressions_per_session?: number | null
+          cooldown_seconds?: number | null
+          is_active?: boolean
+          content?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          promotion_id?: string | null
+          title?: string
+          surface_tier?: 'top_bar' | 'bottom_sheet' | 'floating_pill' | 'center_modal'
+          target_routes?: string[]
+          target_categories?: string[]
+          target_products?: string[]
+          trigger_type?: 'immediate' | 'delay' | 'scroll' | 'exit_intent' | 'cart_threshold'
+          trigger_delay_seconds?: number | null
+          trigger_scroll_percentage?: number | null
+          priority_rank?: number | null
+          max_impressions_per_session?: number | null
+          cooldown_seconds?: number | null
+          is_active?: boolean
+          content?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "popup_campaigns_promotion_id_fkey"
             columns: ["promotion_id"]
             referencedRelation: "promotions"
             referencedColumns: ["id"]
@@ -2509,7 +2680,17 @@ export interface CollectionWithRelations extends Collection {
 // Promotions & Pricing Engine Types
 export type PromotionType = 'coupon' | 'automatic_cart' | 'tiered_threshold' | 'buy_x_get_y' | 'shipping_waiver'
 export type DiscountType = 'percentage' | 'fixed_amount' | 'fixed_price' | 'free_shipping'
-export type RuleTargetType = 'entire_order' | 'category' | 'collection' | 'product' | 'variant' | 'delivery_mode' | 'customer_tier'
+export type RuleTargetType =
+  | 'entire_order'
+  | 'category'
+  | 'subcategory'
+  | 'collection'
+  | 'product'
+  | 'variant'
+  | 'try_on_eligible'
+  | 'specific_sku'
+  | 'delivery_mode'
+  | 'customer_tier'
 
 export type Promotion = Database['public']['Tables']['promotions']['Row']
 export type PromotionInsert = Database['public']['Tables']['promotions']['Insert']
@@ -2584,4 +2765,17 @@ export interface ProductRatingAggregate {
     5: number
   }
 }
+
+export interface EligibleReviewOrderItem {
+  orderId: string
+  orderItemId: string
+  orderNumber: string
+  size: string | null
+  isBolt: boolean
+  deliveredAt: string | null
+}
+
+export type ReturnRequest = Database['public']['Tables']['return_requests']['Row']
+export type ReturnRequestInsert = Database['public']['Tables']['return_requests']['Insert']
+export type ReturnRequestUpdate = Database['public']['Tables']['return_requests']['Update']
 

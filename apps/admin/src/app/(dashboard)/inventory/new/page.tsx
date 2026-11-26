@@ -43,6 +43,7 @@ const apparelFormSchema = z.object({
   description: z.string().min(10, 'A provenance description of the garment is required'),
   price: z.number().positive('Retail price must be greater than zero'),
   compare_at_price: z.number().optional().nullable(),
+  is_try_on_eligible: z.boolean(),
   material: z.string().min(2, 'Fabric & GSM specification required (e.g. 480 GSM French Terry)'),
   edition: z.string().min(2, 'Drop / Edition tag required (e.g. Drop 01 // Strict 150 Pieces)'),
   silhouette: z.string().optional(),
@@ -88,6 +89,7 @@ export default function CreatorApparelProductStudio() {
       description:
         'Custom-milled 480 GSM loopback organic French Terry. Engineered with an exaggerated dropped shoulder, double-layered architectural hood, and concealed side-seam pockets. Mineral washed for a vintage drape.',
       price: 165,
+      is_try_on_eligible: true,
       material: '480 GSM 100% Organic Cotton French Terry',
       edition: 'Drop 01 // Limited 150 Pieces',
       silhouette: 'Oversized Boxy Cut with Dropped Shoulders',
@@ -165,6 +167,7 @@ export default function CreatorApparelProductStudio() {
         description: data.description,
         price: data.price,
         compare_at_price: data.compare_at_price,
+        is_try_on_eligible: data.is_try_on_eligible,
         material: data.material,
         edition: data.edition,
         image_url: primaryImageUrl,
@@ -363,6 +366,34 @@ export default function CreatorApparelProductStudio() {
             </div>
           </div>
 
+          {/* Bolt 45-Min Doorstep Try-On Service Eligibility */}
+          <div className="flex items-center justify-between p-4 bg-chrome-950/80 border border-chrome-750 rounded">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 font-bold text-sm">
+                ⚡
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="is_try_on_eligible" className="text-xs font-semibold text-white uppercase cursor-pointer">
+                    Enable Bolt 45-Min Doorstep Try-On
+                  </label>
+                  <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">
+                    Bolt Concierge
+                  </span>
+                </div>
+                <p className="text-[11px] text-neutral-400 mt-0.5 font-sans">
+                  Allow shoppers in serviceable PIN codes to order up to 3 pieces for 45-minute at-home fitting before purchase settlement.
+                </p>
+              </div>
+            </div>
+            <input
+              id="is_try_on_eligible"
+              type="checkbox"
+              {...register('is_try_on_eligible')}
+              className="w-4 h-4 rounded border-chrome-700 bg-chrome-900 text-[#166534] focus:ring-[#166534] cursor-pointer"
+            />
+          </div>
+
           <div className="space-y-2">
             <label className="text-xs uppercase text-neutral-300 font-medium block">
               Provenance & Design Narrative <span className="text-[#166534]">*</span>
@@ -520,17 +551,17 @@ export default function CreatorApparelProductStudio() {
         </section>
 
         {/* Bottom Actions Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-chrome-850 border border-chrome-750">
-          <div className="text-xs text-neutral-400">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-slate-50 dark:bg-chrome-850 border border-slate-200 dark:border-chrome-750 rounded-sm">
+          <div className="text-xs text-muted-foreground">
             Total Batch Allocation:{' '}
-            <span className="font-bold text-white text-sm">
+            <span className="font-bold text-foreground text-sm">
               {totalBatchUnits} Units Across {variants.length} Sizes
             </span>
           </div>
 
           <div className="flex items-center gap-3">
             <Link href="/inventory">
-              <Button variant="outline" size="sm" className="bg-chrome-850 border-chrome-750 text-xs">
+              <Button variant="outline" size="sm" className="bg-white dark:bg-chrome-850 border-slate-200 dark:border-chrome-750 text-xs text-foreground">
                 Cancel
               </Button>
             </Link>

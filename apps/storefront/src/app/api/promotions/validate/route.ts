@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@repo/supabase/server'
-import { evaluateCartPromotions, type CartItemPricingInput } from '@repo/supabase'
+import {
+  evaluateCartPromotions,
+  resolveShippingFee,
+  roundCurrency,
+  type CartItemPricingInput,
+} from '@repo/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,7 +16,6 @@ export async function POST(req: NextRequest) {
       items = [],
       couponCode,
       deliveryMode = 'direct',
-      shippingFee = 150,
       customerEmail,
     } = body
 
@@ -98,11 +102,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Run Isomorphic Pricing Engine
+    // 4. Run Isomorphic Pricing Engine using authoritative pre-coupon subtotal for shipping
+    const authoritativeSubtotal = roundCurrency(
+      pricingInputs.reduce((sum, it) => sum + it.unitPrice * it.quantity, 0)
+    )
+    const normalizedMode = deliveryMode === 'try_on' ? 'try_on' : 'direct'
+    const authoritativeShippingFee = resolveShippingFee(authoritativeSubtotal, normalizedMode)
+
     const evalResult = evaluateCartPromotions({
       items: pricingInputs,
-      deliveryMode,
-      shippingFee: deliveryMode === 'try_on' ? 99 : Number(shippingFee) || 150,
+      deliveryMode: normalizedMode,
+      shippingFee: authoritativeShippingFee,
       customerEmail,
       couponCode,
       activePromotions: validPromotions,

@@ -87,11 +87,11 @@ export function ApplyCouponModal({ isOpen, onClose }: ApplyCouponModalProps) {
 
   const handleApply = async (codeToApply: string) => {
     setActionError(null)
-    const success = await applyCouponCode(codeToApply.trim().toUpperCase())
-    if (success) {
+    const result = await applyCouponCode(codeToApply.trim().toUpperCase())
+    if (result.success) {
       onClose()
     } else {
-      setActionError('This privilege could not be applied to your current selection.')
+      setActionError(result.error || 'This privilege could not be applied to your current selection.')
     }
   }
 

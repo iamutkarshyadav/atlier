@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" fill="none">
+  <rect width="600" height="800" fill="#f5f5f4" />
+  <rect x="24" y="24" width="552" height="752" stroke="#e7e5e4" stroke-width="1" />
+  <g stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M300 302c0-14 11-24 23-24s21 9 21 20c0 12-10 18-21 24l-23 12v14" />
+    <path d="M300 348L182 418c-8 5-5 18 5 18h226c10 0 13-13 5-18L300 348Z" />
+  </g>
+  <text x="300" y="492" text-anchor="middle" fill="#78716c" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="600" letter-spacing="4">
+    MAISON TG
+  </text>
+  <text x="300" y="516" text-anchor="middle" fill="#a8a29e" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="500" letter-spacing="2">
+    ARCHIVE GARMENT
+  </text>
+</svg>

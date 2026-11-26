@@ -8,6 +8,15 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const pathname = searchParams.get('pathname') || '/'
+    const categoryId = searchParams.get('categoryId') || undefined
+    const productId = searchParams.get('productId') || undefined
+
+    const queryParams: Record<string, string> = {}
+    searchParams.forEach((val, key) => {
+      if (key !== 'pathname' && key !== 'categoryId' && key !== 'productId') {
+        queryParams[key] = val
+      }
+    })
 
     let supabase
     try {
@@ -17,6 +26,9 @@ export async function GET(req: NextRequest) {
     const popups = await getStorefrontPopups(supabase, {
       activeOnly: true,
       pathname,
+      searchParams: queryParams,
+      categoryId,
+      productId,
     })
 
     return NextResponse.json({ success: true, popups })

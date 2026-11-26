@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@repo/supabase/server'
 import { updatePromotion, extractBannerImageUrl, cleanPromotionDescription } from '@repo/supabase/utils'
+import { saveStorefrontPopup } from '@repo/supabase'
 import { triggerStorefrontRevalidation } from '@/lib/revalidate'
 
 export const dynamic = 'force-dynamic'
@@ -60,7 +61,7 @@ export async function PATCH(
   try {
     const { id } = params
     const body = await req.json()
-    const { couponCode, ...promoUpdates } = body
+    const { couponCode, isPublicCoupon, rules, nudgeCampaign, ...promoUpdates } = body
     const supabase = createServiceRoleClient()
 
     const result = await updatePromotion(supabase, id, promoUpdates)
@@ -80,10 +81,15 @@ export async function PATCH(
           .eq('promotion_id', id)
           .limit(1)
 
+        const couponPayload: any = {
+          code: cleanCode,
+          is_public: isPublicCoupon !== undefined ? Boolean(isPublicCoupon) : false,
+        }
+
         if (existingCoupons && existingCoupons.length > 0) {
           await supabase
             .from('promotion_coupons')
-            .update({ code: cleanCode })
+            .update(couponPayload)
             .eq('id', existingCoupons[0].id)
         } else {
           await supabase
@@ -91,10 +97,43 @@ export async function PATCH(
             .insert({
               promotion_id: id,
               code: cleanCode,
+              is_public: isPublicCoupon !== undefined ? Boolean(isPublicCoupon) : false,
               is_single_use: false,
               is_active: true,
             })
         }
+      }
+    }
+
+    // If rules are provided, replace promotion_rules
+    if (Array.isArray(rules)) {
+      await supabase.from('promotion_rules').delete().eq('promotion_id', id)
+      if (rules.length > 0) {
+        const rulesPayload = rules.map((r: any) => ({
+          ...r,
+          promotion_id: id,
+          target_type: r.target_type || r.rule_target_type || 'entire_order',
+          rule_target_type: r.rule_target_type || r.target_type || 'entire_order',
+          match_operator: r.match_operator || 'include',
+          target_values: r.target_values || (r.target_id ? [r.target_id] : []),
+        }))
+        await supabase.from('promotion_rules').insert(rulesPayload as any)
+      }
+    }
+
+    // If nudgeCampaign is provided, save or update linked popup
+    if (nudgeCampaign) {
+      try {
+        await saveStorefrontPopup(supabase, {
+          ...nudgeCampaign,
+          promotion_id: id,
+          type: 'sale',
+          is_active: promoUpdates.is_active !== undefined ? promoUpdates.is_active : true,
+          start_at: promoUpdates.starts_at,
+          end_at: promoUpdates.ends_at,
+        })
+      } catch (nudgeErr) {
+        console.warn('Failed to save linked popup nudge:', nudgeErr)
       }
     }
 

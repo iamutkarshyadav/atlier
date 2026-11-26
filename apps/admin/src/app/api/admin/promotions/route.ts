@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@repo/supabase/server'
 import { createPromotionWithRules, getLocalPromotions, extractBannerImageUrl, cleanPromotionDescription } from '@repo/supabase/utils'
+import { saveStorefrontPopup } from '@repo/supabase'
 import { triggerStorefrontRevalidation } from '@/lib/revalidate'
 
 export const dynamic = 'force-dynamic'
@@ -85,6 +86,22 @@ export async function POST(req: NextRequest) {
         { error: result.error || 'Failed to create promotion' },
         { status: 400 }
       )
+    }
+
+    // Auto-generate linked Storefront Nudge if requested
+    if (body.nudgeCampaign) {
+      try {
+        await saveStorefrontPopup(supabase, {
+          ...body.nudgeCampaign,
+          promotion_id: result.promotion.id,
+          type: 'sale',
+          is_active: result.promotion.is_active ?? true,
+          start_at: result.promotion.starts_at,
+          end_at: result.promotion.ends_at,
+        })
+      } catch (nudgeErr) {
+        console.warn('Failed to auto-generate linked popup nudge:', nudgeErr)
+      }
     }
 
     // Trigger ISR revalidation on storefront so active banners/markdowns refresh

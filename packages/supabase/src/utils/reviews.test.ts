@@ -5,6 +5,8 @@ import {
   updateProductReviewModeration,
   updatePatronReview,
   getProductRatingSummary,
+  getUserEligibleReviewItemsForProduct,
+  toggleReviewHelpfulVote,
 } from './index'
 
 describe('Verified Purchase Reviews Engine', () => {
@@ -443,6 +445,150 @@ describe('Verified Purchase Reviews Engine', () => {
       expect(summary.distribution[5]).toBe(2)
       expect(summary.distribution[4]).toBe(1)
       expect(summary.distribution[1]).toBe(0)
+    })
+  })
+
+  describe('getUserEligibleReviewItemsForProduct', () => {
+    it('returns only unreviewed delivered non-rejected order items for the target product', async () => {
+      const mockSupabase = {
+        from: vi.fn((table: string) => {
+          if (table === 'orders') {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  eq: vi.fn().mockReturnValue({
+                    order: vi.fn().mockResolvedValue({
+                      data: [
+                        {
+                          id: 'ord-1',
+                          order_number: 'MTG-101',
+                          delivery_mode: 'bolt',
+                          delivered_at: '2026-11-20T10:00:00Z',
+                          created_at: '2026-11-20T09:00:00Z',
+                          order_items: [
+                            { id: 'oi-1', order_id: 'ord-1', product_id: 'prod-1', size: 'L', is_kept: true, try_on_decision: 'kept' },
+                            { id: 'oi-2', order_id: 'ord-1', product_id: 'prod-1', size: 'M', is_kept: false, try_on_decision: 'rejected' },
+                            { id: 'oi-3', order_id: 'ord-1', product_id: 'prod-1', size: 'S', is_kept: true, try_on_decision: 'kept' },
+                            { id: 'oi-4', order_id: 'ord-1', product_id: 'prod-other', size: 'M', is_kept: true, try_on_decision: 'kept' },
+                          ],
+                        },
+                      ],
+                      error: null,
+                    }),
+                  }),
+                }),
+              }),
+            }
+          }
+          if (table === 'product_reviews') {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  eq: vi.fn().mockResolvedValue({
+                    data: [{ order_item_id: 'oi-3' }],
+                    error: null,
+                  }),
+                }),
+              }),
+            }
+          }
+          return {}
+        }),
+      } as any
+
+      const eligible = await getUserEligibleReviewItemsForProduct(mockSupabase, 'user-1', 'prod-1')
+      expect(eligible).toHaveLength(1)
+      expect(eligible[0]?.orderItemId).toBe('oi-1')
+      expect(eligible[0]?.size).toBe('L')
+      expect(eligible[0]?.isBolt).toBe(true)
+    })
+  })
+
+  describe('toggleReviewHelpfulVote', () => {
+    it('adds a helpful vote when none exists and updates helpful_count', async () => {
+      const insertFn = vi.fn().mockResolvedValue({ error: null })
+      const updateEqFn = vi.fn().mockResolvedValue({ error: null })
+      const mockSupabase = {
+        from: vi.fn((table: string) => {
+          if (table === 'review_helpful_votes') {
+            return {
+              select: vi.fn((_cols: string, opts?: any) => {
+                if (opts?.head) {
+                  return {
+                    eq: vi.fn().mockResolvedValue({ count: 3, error: null }),
+                  }
+                }
+                return {
+                  eq: vi.fn().mockReturnValue({
+                    eq: vi.fn().mockReturnValue({
+                      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                    }),
+                  }),
+                }
+              }),
+              insert: insertFn,
+            }
+          }
+          if (table === 'product_reviews') {
+            return {
+              update: vi.fn().mockReturnValue({
+                eq: updateEqFn,
+              }),
+            }
+          }
+          return {}
+        }),
+      } as any
+
+      const res = await toggleReviewHelpfulVote(mockSupabase, 'review-uuid-1', 'user:u1', 'u1')
+      expect(res.success).toBe(true)
+      expect(res.voted).toBe(true)
+      expect(res.helpfulCount).toBe(3)
+      expect(insertFn).toHaveBeenCalledTimes(1)
+      expect(updateEqFn).toHaveBeenCalledWith('id', 'review-uuid-1')
+    })
+
+    it('removes an existing helpful vote on second click', async () => {
+      const deleteEqFn = vi.fn().mockResolvedValue({ error: null })
+      const mockSupabase = {
+        from: vi.fn((table: string) => {
+          if (table === 'review_helpful_votes') {
+            return {
+              select: vi.fn((_cols: string, opts?: any) => {
+                if (opts?.head) {
+                  return {
+                    eq: vi.fn().mockResolvedValue({ count: 2, error: null }),
+                  }
+                }
+                return {
+                  eq: vi.fn().mockReturnValue({
+                    eq: vi.fn().mockReturnValue({
+                      maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'vote-9' }, error: null }),
+                    }),
+                  }),
+                }
+              }),
+              delete: vi.fn().mockReturnValue({
+                eq: deleteEqFn,
+              }),
+            }
+          }
+          if (table === 'product_reviews') {
+            return {
+              update: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({ error: null }),
+              }),
+            }
+          }
+          return {}
+        }),
+      } as any
+
+      const res = await toggleReviewHelpfulVote(mockSupabase, 'review-uuid-1', 'user:u1', 'u1')
+      expect(res.success).toBe(true)
+      expect(res.voted).toBe(false)
+      expect(res.helpfulCount).toBe(2)
+      expect(deleteEqFn).toHaveBeenCalledWith('id', 'vote-9')
     })
   })
 })

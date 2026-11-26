@@ -72,7 +72,7 @@ export function PopupStudioEditor({ initialData, isEditing = false }: PopupStudi
   // CTA State
   const [primaryCtaText, setPrimaryCtaText] = useState(initialData?.primary_cta?.text || 'Explore Offer')
   const [primaryCtaAction, setPrimaryCtaAction] = useState<
-    'navigate' | 'copy_code' | 'open_review' | 'dismiss'
+    'navigate' | 'copy_code' | 'copy_and_apply' | 'open_review' | 'dismiss'
   >(initialData?.primary_cta?.action || 'navigate')
   const [primaryCtaLink, setPrimaryCtaLink] = useState(initialData?.primary_cta?.link || '/shop')
   const [primaryCtaCode, setPrimaryCtaCode] = useState(
@@ -286,7 +286,7 @@ export function PopupStudioEditor({ initialData, isEditing = false }: PopupStudi
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="px-5 py-1.5 bg-chrome-850 hover:bg-chrome-800 text-foreground border border-chrome-750 dark:bg-zinc-100 dark:text-zinc-900 dark:border-transparent dark:hover:bg-zinc-200 text-xs font-semibold rounded-xs transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+            className="px-5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-zinc-100 dark:text-zinc-900 dark:border-transparent dark:hover:bg-zinc-200 text-xs font-semibold rounded-xs transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
           >
             {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             <span>{isSaving ? 'Saving...' : 'Save & Publish'}</span>

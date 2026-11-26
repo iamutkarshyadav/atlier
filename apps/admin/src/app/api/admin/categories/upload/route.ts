@@ -31,35 +31,53 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const bucketName = 'product-media'
-
-    const { data: buckets } = await supabase.storage.listBuckets()
-    const hasBucket = buckets?.some((b) => b.name === bucketName)
-    if (!hasBucket) {
-      await supabase.storage.createBucket(bucketName, { public: true })
-    }
-
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
-    const filePath = `categories/${Date.now()}_${sanitizedName}`
+    const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    const filePath = `categories/${uniqueSuffix}_${sanitizedName}`
     const buffer = Buffer.from(await file.arrayBuffer())
 
-    const { error: uploadError } = await supabase.storage
-      .from(bucketName)
-      .upload(filePath, buffer, {
-        contentType: file.type || 'image/jpeg',
-        cacheControl: '3600',
-        upsert: true,
-      })
+    let uploadedUrl: string | null = null
+    const candidateBuckets = ['product-media', 'promotional-banners']
 
-    if (uploadError) {
-      return NextResponse.json({ success: false, error: uploadError.message }, { status: 500 })
+    for (const bName of candidateBuckets) {
+      try {
+        const { error: uploadError } = await supabase.storage
+          .from(bName)
+          .upload(filePath, buffer, {
+            contentType: file.type || 'image/jpeg',
+            cacheControl: '3600',
+            upsert: true,
+          })
+
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage
+            .from(bName)
+            .getPublicUrl(filePath)
+          if (publicUrl) {
+            uploadedUrl = publicUrl
+            break
+          }
+        }
+      } catch {}
     }
 
-    const { data: { publicUrl } } = supabase.storage
-      .from(bucketName)
-      .getPublicUrl(filePath)
+    if (!uploadedUrl) {
+      try {
+        const fs = await import('fs/promises')
+        const path = await import('path')
+        const adminUploadDir = path.join(process.cwd(), 'public', 'uploads', 'categories')
+        await fs.mkdir(adminUploadDir, { recursive: true })
+        const localFileName = `${uniqueSuffix}_${sanitizedName}`
+        await fs.writeFile(path.join(adminUploadDir, localFileName), buffer)
+        uploadedUrl = `/uploads/categories/${localFileName}`
+      } catch {}
+    }
 
-    return NextResponse.json({ success: true, publicUrl })
+    if (!uploadedUrl) {
+      return NextResponse.json({ success: false, error: 'Could not upload image' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, publicUrl: uploadedUrl })
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err?.message || 'File upload failed' }, { status: 500 })
   }

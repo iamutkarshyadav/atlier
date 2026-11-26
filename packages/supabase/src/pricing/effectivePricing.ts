@@ -1,6 +1,7 @@
 import type { Product } from '../types/database.types'
 import type { PromotionWithRules, PromotionCoupon, DiscountType, PromotionType } from './types'
 import { roundCurrency } from './currency'
+import { evaluatePromotionRules } from './ruleMatcher'
 
 export interface ApplicableOfferSummary {
   id: string
@@ -44,7 +45,8 @@ export interface DiscountBucketCounts {
 }
 
 /**
- * Checks whether a promotion's rules target a given product, its category, or its collections.
+ * Checks whether a promotion's rules target a given product, its category, subcategory, or its collections.
+ * Uses the Boolean Rule Matcher: AND across distinct rule types, OR within the same rule type, exclude overrides.
  */
 export function doesPromotionTargetProduct(
   promo: PromotionWithRules,
@@ -59,50 +61,23 @@ export function doesPromotionTargetProduct(
   const endsAt = promo.ends_at ?? (promo as any).endsAt
   if (endsAt && endsAt < now) return false
 
-  const rawRules = promo.rules || []
-  if (rawRules.length === 0) return true // No restrictive rules = storewide application
-
-  // Normalize rules so that both camelCase (from API endpoints) and snake_case (from DB) work seamlessly
-  const rules = rawRules.map((r: any) => ({
-    target_type: r.target_type ?? r.targetType,
-    target_id: r.target_id ?? r.targetId,
-    match_operator: r.match_operator ?? r.matchOperator,
-  }))
-
-  // Check if any rule targets the entire order
-  if (rules.some((r) => r.target_type === 'entire_order')) return true
-
-  // Check product-specific targeting
-  const productRule = rules.find(
-    (r) => r.target_type === 'product' && r.target_id === product.id
-  )
-  if (productRule) return productRule.match_operator !== 'exclude'
-
-  // Check category-specific targeting
-  if (product.category_id || product.category) {
-    const categoryRule = rules.find(
-      (r) =>
-        r.target_type === 'category' &&
-        (r.target_id === product.category_id ||
-          (product.category && r.target_id?.toLowerCase() === product.category.toLowerCase()))
-    )
-    if (categoryRule) return categoryRule.match_operator !== 'exclude'
-  }
-
-  // Check collection-specific targeting
-  if (collectionIds.length > 0) {
-    const collectionRule = rules.find(
-      (r) => r.target_type === 'collection' && r.target_id && collectionIds.includes(r.target_id)
-    )
-    if (collectionRule) return collectionRule.match_operator !== 'exclude'
-  }
-
-  return false
+  return evaluatePromotionRules(promo.rules, {
+    productId: product.id,
+    categoryId: product.category_id,
+    category: product.category,
+    subcategoryId: (product as any).subcategory_id,
+    collectionIds,
+    isTryOnEligible: product.is_try_on_eligible ?? (product as any).isTryOnEligible ?? true,
+    sku: (product as any).sku,
+  })
 }
 
 /**
- * Resolves each product's live effective price by evaluating active price schedules,
- * compare_at_price, automatic promotions, and public coupon codes.
+ * Resolves each product's live effective price using the 3-Tier Discount Waterfall:
+ * - Tier 1: Catalog Markdown on MRP (price schedule or direct catalog promo) -> establishes sellingPrice.
+ * - Tier 2: Public-Only Item/Category Coupon -> establishes bestCouponPrice.
+ * - Tier 3: Cart Threshold Offers -> surfaced in applicableOffers without lowering single-item price.
+ * Enforces server-side margin floor clamping (NetItemPrice >= cost_price) safely without exposing cost_price.
  */
 export function getEffectiveProductPricing(
   product: Product,
@@ -111,12 +86,13 @@ export function getEffectiveProductPricing(
   collectionIds: string[] = []
 ): ProductPricingSummary {
   const basePrice = Number(product.price) || 0
+  const costPrice = (product as any).cost_price != null ? Number((product as any).cost_price) : null
   const now = new Date().toISOString()
 
   let mrp = basePrice
   let sellingPrice = basePrice
 
-  // 1. Check for Active Price Schedule override
+  // 1. Check for Active Price Schedule override or compare_at_price
   const activeSchedule = priceSchedules.find(
     (ps) =>
       ps.product_id === product.id &&
@@ -133,35 +109,38 @@ export function getEffectiveProductPricing(
     sellingPrice = basePrice
   }
 
-  // 2. Filter applicable active promotions for this garment
+  // 2. Filter applicable active promotions matching this garment
   const matchingPromos = activePromotions.filter((promo) =>
     doesPromotionTargetProduct(promo, product, collectionIds)
   )
 
   const applicableOffers: ApplicableOfferSummary[] = []
 
-  // Check for catalog promotions that directly discount the unit price
-  const automaticPromos = matchingPromos.filter((p) => {
+  // ---------------------------------------------------------------------------
+  // Tier 1: Direct Catalog Markdowns
+  // ---------------------------------------------------------------------------
+  const tier1Promos = matchingPromos.filter((p) => {
     const pType = String(p.promotion_type ?? (p as any).promotionType)
-    return pType === 'automatic_cart' || pType === 'tiered_threshold' || pType === 'sale'
+    const tier = (p as any).tier ?? (pType === 'sale' ? 1 : undefined)
+    if (tier === 1) return true
+    if (tier === 2 || tier === 3) return false
+    // Fallback for legacy automatic markdowns without unfulfilled min_order_subtotal
+    const minSubtotal = p.min_order_subtotal ?? (p as any).minOrderSubtotal
+    const hasUnmetCartThreshold = minSubtotal !== null && minSubtotal !== undefined && Number(minSubtotal) > basePrice
+    return !hasUnmetCartThreshold && (pType === 'automatic_cart' || pType === 'sale' || pType === 'tiered_threshold')
   })
 
   let bestPromoDiscount = 0
-  let appliedPromo: PromotionWithRules | null = null
 
-  for (const promo of automaticPromos) {
+  for (const promo of tier1Promos) {
     const pType = promo.promotion_type ?? (promo as any).promotionType
     const dType = promo.discount_type ?? (promo as any).discountType
     const dValue = Number(promo.discount_value ?? (promo as any).discountValue ?? 0)
     const minSubtotal = promo.min_order_subtotal ?? (promo as any).minOrderSubtotal
     const maxDiscount = promo.max_discount_amount ?? (promo as any).maxDiscountAmount
 
-    // Check if there is an unfulfilled cart subtotal threshold
-    // If minSubtotal is null, 0, or <= basePrice, this product qualifies for the discount!
-    const hasUnmetCartThreshold = minSubtotal !== null && minSubtotal !== undefined && Number(minSubtotal) > basePrice
-
     const isDirectCatalogMarkdown =
-      !hasUnmetCartThreshold &&
+      (!minSubtotal || Number(minSubtotal) <= basePrice) &&
       (dType === 'percentage' || dType === 'fixed_amount')
 
     if (isDirectCatalogMarkdown && !activeSchedule) {
@@ -177,9 +156,14 @@ export function getEffectiveProductPricing(
         promoDiscount = Math.min(promoDiscount, Number(maxDiscount))
       }
 
+      // Enforce margin floor clamp if costPrice is set
+      if (costPrice != null && costPrice > 0 && promo.enforce_margin_floor !== false) {
+        const marginHeadroom = Math.max(0, basePrice - costPrice)
+        promoDiscount = Math.min(promoDiscount, marginHeadroom)
+      }
+
       if (promoDiscount > bestPromoDiscount) {
         bestPromoDiscount = promoDiscount
-        appliedPromo = promo
       }
     }
 
@@ -210,33 +194,38 @@ export function getEffectiveProductPricing(
     sellingPrice = roundCurrency(Math.max(1, basePrice - bestPromoDiscount))
   }
 
-  // 3. Evaluate Public Coupons to compute Best Coupon Price
+  // ---------------------------------------------------------------------------
+  // Tier 2: Public-Only Item / Category Coupon Auto-Discovery (Guardrail 2)
+  // ---------------------------------------------------------------------------
   let bestCouponPrice = sellingPrice
   let bestCoupon: BestCouponSummary | null = null
 
-  const couponPromos = matchingPromos.filter(
-    (p) =>
-      p.promotion_type === 'coupon' ||
-      (p as any).promotionType === 'coupon' ||
+  const tier2Promos = matchingPromos.filter((p) => {
+    const pType = String(p.promotion_type ?? (p as any).promotionType)
+    const tier = (p as any).tier
+    if (tier === 2) return true
+    if (tier === 1 || tier === 3) return false
+    return (
+      pType === 'coupon' ||
       (p.coupons && p.coupons.length > 0) ||
       ((p as any).publicCoupons && (p as any).publicCoupons.length > 0)
-  )
-
-  for (const promo of couponPromos) {
-    const rawCoupons = promo.coupons || (promo as any).publicCoupons || []
-    const publicCoupons = rawCoupons.filter(
-      (c: any) =>
-        (c.is_active ?? c.isActive ?? true) &&
-        !c.is_single_use &&
-        !c.assigned_customer_email
     )
+  })
+
+  for (const promo of tier2Promos) {
+    const rawCoupons = promo.coupons || (promo as any).publicCoupons || []
+    // Public-Only Auto-Discovery: strictly surface active, public, unassigned coupons
+    const publicCoupons = rawCoupons.filter((c: any) => {
+      const isActive = c.is_active ?? c.isActive ?? true
+      const isPublic = c.is_public ?? (c as any).isPublic ?? (!c.assigned_customer_email && !c.is_single_use)
+      return isActive && isPublic && !c.is_single_use && !c.assigned_customer_email
+    })
 
     const dType = promo.discount_type ?? (promo as any).discountType
     const dValue = Number(promo.discount_value ?? (promo as any).discountValue ?? 0)
     const maxDiscount = promo.max_discount_amount ?? (promo as any).maxDiscountAmount
     const minSubtotal = promo.min_order_subtotal ?? (promo as any).minOrderSubtotal
 
-    // Only consider coupon if cart subtotal threshold is met by this product
     if (minSubtotal && Number(minSubtotal) > sellingPrice) {
       continue
     }
@@ -253,6 +242,13 @@ export function getEffectiveProductPricing(
       }
 
       discountAmount = roundCurrency(discountAmount)
+
+      // Enforce margin floor clamp if costPrice is set
+      if (costPrice != null && costPrice > 0 && promo.enforce_margin_floor !== false) {
+        const headroom = Math.max(0, sellingPrice - costPrice)
+        discountAmount = Math.min(discountAmount, headroom)
+      }
+
       const potentialPrice = roundCurrency(Math.max(1, sellingPrice - discountAmount))
 
       if (discountAmount > 0) {
@@ -285,6 +281,49 @@ export function getEffectiveProductPricing(
           }
         }
       }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tier 3: Cart Threshold / Order-Level Offers
+  // Surface in applicableOffers without lowering single-item card price
+  // ---------------------------------------------------------------------------
+  const tier3Promos = matchingPromos.filter((p) => {
+    const pType = String(p.promotion_type ?? (p as any).promotionType)
+    const tier = (p as any).tier
+    if (tier === 3) return true
+    const minSubtotal = p.min_order_subtotal ?? (p as any).minOrderSubtotal
+    return (
+      (pType === 'tiered_threshold' || (minSubtotal && Number(minSubtotal) > sellingPrice)) &&
+      !tier1Promos.some((t1) => t1.id === p.id) &&
+      !tier2Promos.some((t2) => t2.id === p.id)
+    )
+  })
+
+  for (const promo of tier3Promos) {
+    if (!applicableOffers.some((ao) => ao.id === promo.id)) {
+      const pType = promo.promotion_type ?? (promo as any).promotionType
+      const dType = promo.discount_type ?? (promo as any).discountType
+      const dValue = Number(promo.discount_value ?? (promo as any).discountValue ?? 0)
+      const minSubtotal = promo.min_order_subtotal ?? (promo as any).minOrderSubtotal
+      const maxDiscount = promo.max_discount_amount ?? (promo as any).maxDiscountAmount
+
+      applicableOffers.push({
+        id: promo.id,
+        name: promo.name,
+        slug: promo.slug,
+        promotionType: pType,
+        discountType: dType,
+        discountValue: dValue,
+        description: promo.description,
+        minOrderSubtotal: minSubtotal ? Number(minSubtotal) : null,
+        maxDiscountAmount: maxDiscount ? Number(maxDiscount) : null,
+        endsAt: promo.ends_at ?? (promo as any).endsAt,
+        badgeText:
+          dType === 'percentage'
+            ? `${Math.round(dValue)}% OFF on orders over ₹${Number(minSubtotal || 0).toLocaleString('en-IN')}`
+            : `₹${Math.round(dValue)} OFF on orders over ₹${Number(minSubtotal || 0).toLocaleString('en-IN')}`,
+      })
     }
   }
 

@@ -8,13 +8,23 @@ import {
   calculateTax,
   calculateShippingFee,
   calculateEstimatedTotal,
+  isFreeStandardShipping,
+  BOLT_HOLD_FEE,
   BOLT_MAX_TRY_ON_ITEMS,
   BOLT_TRY_ON_FEE,
+  STANDARD_SHIPPING_FEE,
+  FREE_SHIPPING_THRESHOLD,
   type DeliveryMode,
 } from './cartSubtotal'
 
 export type { DeliveryMode }
-export { BOLT_MAX_TRY_ON_ITEMS, BOLT_TRY_ON_FEE }
+export {
+  BOLT_HOLD_FEE,
+  BOLT_MAX_TRY_ON_ITEMS,
+  BOLT_TRY_ON_FEE,
+  STANDARD_SHIPPING_FEE,
+  FREE_SHIPPING_THRESHOLD,
+}
 
 export interface CartItem {
   id: string
@@ -42,16 +52,20 @@ interface CartStoreState {
   deliveryMode: DeliveryMode
   tryOnWindow: TryOnWindow | null
   boltLimitWarning: string | null
+  isDrawerOpen: boolean
   appliedCouponCode: string | null
   pricingEvaluation: any | null
   isValidatingPromotion: boolean
   promotionError: string | null
 
   // Actions
+  openDrawer: () => void
+  closeDrawer: () => void
   addItem: (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => boolean
   removeItem: (id: string) => void
   updateQuantity: (id: string, delta: number) => void
   setQuantity: (id: string, quantity: number) => void
+  updateItemSize: (id: string, newSize: string) => void
   clearCart: () => void
   setDeliveryMode: (mode: DeliveryMode) => void
   setTryOnWindow: (window: TryOnWindow | null) => void
@@ -98,6 +112,7 @@ export const useCartStore = create<CartStoreState>()(
       items: [],
       deliveryMode: 'direct',
       boltLimitWarning: null,
+      isDrawerOpen: false,
       appliedCouponCode: null,
       pricingEvaluation: null,
       isValidatingPromotion: false,
@@ -111,6 +126,9 @@ export const useCartStore = create<CartStoreState>()(
         timeSlot: '14:30 – 15:15 (Doorstep Salon)',
       },
 
+      openDrawer: () => set({ isDrawerOpen: true }),
+      closeDrawer: () => set({ isDrawerOpen: false }),
+
       setBoltLimitWarning: (warning) => {
         set({ boltLimitWarning: warning })
       },
@@ -123,7 +141,7 @@ export const useCartStore = create<CartStoreState>()(
         // Bolt Try-On 5-item maximum enforcement
         if (get().deliveryMode === 'try_on' && currentCount + qtyToAdd > BOLT_MAX_TRY_ON_ITEMS) {
           set({
-            boltLimitWarning: `Bolt ⚡ Doorstep Try-On is limited to a maximum of ${BOLT_MAX_TRY_ON_ITEMS} pieces per fitting session. You currently have ${currentCount} item(s) in your salon tray.`,
+            boltLimitWarning: `Bolt Doorstep Try-On is limited to a maximum of ${BOLT_MAX_TRY_ON_ITEMS} pieces per fitting session. You currently have ${currentCount} item(s) in your salon tray.`,
           })
           return false
         }
@@ -154,6 +172,7 @@ export const useCartStore = create<CartStoreState>()(
             ],
           })
         }
+        get().recalculatePromotions()
         return true
       },
 
@@ -162,6 +181,7 @@ export const useCartStore = create<CartStoreState>()(
           items: get().items.filter((item) => item.id !== id),
           boltLimitWarning: null,
         })
+        get().recalculatePromotions()
       },
 
       updateQuantity: (id, delta) => {
@@ -170,7 +190,7 @@ export const useCartStore = create<CartStoreState>()(
         if (target && delta > 0 && get().deliveryMode === 'try_on') {
           if (get().getItemCount() + delta > BOLT_MAX_TRY_ON_ITEMS) {
             set({
-              boltLimitWarning: `Bolt ⚡ Try-On cannot exceed ${BOLT_MAX_TRY_ON_ITEMS} items per appointment.`,
+              boltLimitWarning: `Bolt Try-On cannot exceed ${BOLT_MAX_TRY_ON_ITEMS} items per appointment.`,
             })
             return
           }
@@ -187,6 +207,7 @@ export const useCartStore = create<CartStoreState>()(
           .filter((item): item is CartItem => item !== null)
 
         set({ items: updated, boltLimitWarning: null })
+        get().recalculatePromotions()
       },
 
       setQuantity: (id, quantity) => {
@@ -201,7 +222,7 @@ export const useCartStore = create<CartStoreState>()(
             .reduce((acc, curr) => acc + curr.quantity, 0)
           if (otherItemsCount + quantity > BOLT_MAX_TRY_ON_ITEMS) {
             set({
-              boltLimitWarning: `Bolt ⚡ Try-On cannot exceed ${BOLT_MAX_TRY_ON_ITEMS} items per appointment.`,
+              boltLimitWarning: `Bolt Try-On cannot exceed ${BOLT_MAX_TRY_ON_ITEMS} items per appointment.`,
             })
             return
           }
@@ -211,10 +232,56 @@ export const useCartStore = create<CartStoreState>()(
           items: get().items.map((item) => (item.id === id ? { ...item, quantity } : item)),
           boltLimitWarning: null,
         })
+        get().recalculatePromotions()
+      },
+
+      updateItemSize: (id, newSize) => {
+        const cleanSize = newSize.trim()
+        if (!cleanSize) return
+        const currentItems = get().items
+        const target = currentItems.find((item) => item.id === id)
+        if (!target || target.size === cleanSize) return
+
+        const duplicateTarget = currentItems.find(
+          (item) =>
+            item.id !== id &&
+            item.productId === target.productId &&
+            (item.size || '').toLowerCase() === cleanSize.toLowerCase()
+        )
+
+        if (duplicateTarget) {
+          const updated = currentItems
+            .filter((item) => item.id !== id)
+            .map((item) =>
+              item.id === duplicateTarget.id
+                ? { ...item, quantity: item.quantity + target.quantity }
+                : item
+            )
+          set({ items: updated })
+        } else {
+          const updated = currentItems.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  id: `${item.productId}-${cleanSize}`,
+                  size: cleanSize,
+                  variantId: undefined,
+                }
+              : item
+          )
+          set({ items: updated })
+        }
+        get().recalculatePromotions()
       },
 
       clearCart: () => {
-        set({ items: [], boltLimitWarning: null })
+        set({
+          items: [],
+          boltLimitWarning: null,
+          appliedCouponCode: null,
+          pricingEvaluation: null,
+          promotionError: null,
+        })
       },
 
       setDeliveryMode: (mode) => {
@@ -222,9 +289,10 @@ export const useCartStore = create<CartStoreState>()(
           deliveryMode: mode,
           boltLimitWarning:
             mode === 'try_on' && get().getItemCount() > BOLT_MAX_TRY_ON_ITEMS
-              ? `Bolt ⚡ Doorstep Try-On accommodates up to ${BOLT_MAX_TRY_ON_ITEMS} items. Please trim your selection to 5 items to proceed with Bolt.`
+              ? `Bolt Doorstep Try-On accommodates up to ${BOLT_MAX_TRY_ON_ITEMS} items. Please trim your selection to 5 items to proceed with Bolt.`
               : null,
         })
+        get().recalculatePromotions()
       },
 
       setTryOnWindow: (window) => {
@@ -345,6 +413,12 @@ export const useCartStore = create<CartStoreState>()(
     {
       name: 'atelier-cart-storage',
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        items: state.items,
+        deliveryMode: state.deliveryMode,
+        tryOnWindow: state.tryOnWindow,
+        appliedCouponCode: state.appliedCouponCode,
+      }),
     }
   )
 )
@@ -364,9 +438,18 @@ export function useHydratedCart() {
   const subtotal = isHydrated ? (evaluated?.subtotal ?? cart.getSubtotal()) : 0
   const discount = evaluated?.totalDiscount || 0
   const discountedSubtotal = evaluated?.discountedSubtotal ?? Math.max(0, subtotal - discount)
-  const tax = isHydrated ? (evaluated?.taxAmount ?? cart.getTax()) : 0
   const shippingFee = isHydrated ? (evaluated?.finalShippingFee ?? cart.getShippingFee()) : 0
-  const estimatedTotal = isHydrated ? (evaluated?.totalAmount ?? cart.getEstimatedTotal()) : 0
+  const tax = isHydrated
+    ? cart.deliveryMode === 'try_on'
+      ? 0
+      : (evaluated?.taxAmount ?? calculateTax(discountedSubtotal))
+    : 0
+  const estimatedTotal = isHydrated
+    ? cart.deliveryMode === 'try_on'
+      ? shippingFee
+      : (evaluated?.totalAmount ?? calculateEstimatedTotal(discountedSubtotal, shippingFee, tax))
+    : 0
+  const qualifiesForFreeShipping = isHydrated && cart.deliveryMode === 'direct' && isFreeStandardShipping(subtotal)
 
   return {
     ...cart,
@@ -379,6 +462,10 @@ export function useHydratedCart() {
     tax,
     shippingFee,
     estimatedTotal,
+    qualifiesForFreeShipping,
+    freeShippingThreshold: FREE_SHIPPING_THRESHOLD,
+    standardShippingFee: STANDARD_SHIPPING_FEE,
+    boltHoldFee: BOLT_HOLD_FEE,
     pricingEvaluation: evaluated,
     tierProgress: evaluated?.tierProgress,
     appliedPromotions: evaluated?.appliedPromotions || [],

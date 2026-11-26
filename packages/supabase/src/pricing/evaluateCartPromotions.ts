@@ -1,4 +1,5 @@
 import { roundCurrency, allocateProRataDiscounts, type AllocatableItem } from './currency'
+import { GST_RATE } from './constants'
 import type {
   CartItemPricingInput,
   PricingEvaluationContext,
@@ -9,41 +10,42 @@ import type {
   PromotionWithRules,
   PromotionRule,
 } from './types'
+import { evaluatePromotionRules } from './ruleMatcher'
 
 /**
  * Checks whether an individual cart item matches the targeting rules of a promotion.
+ * Uses the Boolean Rule Matcher (AND across rule types, OR within rule type, exclude overrides).
  */
-function isItemEligibleForRules(item: CartItemPricingInput, rules?: PromotionRule[]): boolean {
-  if (!rules || rules.length === 0) return true
+export function isItemEligibleForRules(item: CartItemPricingInput, rules?: PromotionRule[]): boolean {
+  return evaluatePromotionRules(rules, {
+    productId: item.productId,
+    variantId: item.variantId,
+    categoryId: item.categoryId,
+    subcategoryId: item.subcategoryId,
+    collectionIds: item.collectionIds,
+    isTryOnEligible: item.isTryOnEligible ?? true,
+    sku: item.sku,
+  })
+}
 
-  const includeRules = rules.filter((r) => r.match_operator !== 'exclude')
-  const excludeRules = rules.filter((r) => r.match_operator === 'exclude')
-
-  // 1. Check exclusions first
-  for (const ex of excludeRules) {
-    if (ex.target_type === 'product' && ex.target_id === item.productId) return false
-    if (ex.target_type === 'variant' && ex.target_id === item.variantId) return false
-    if (ex.target_type === 'category' && ex.target_id === item.categoryId) return false
-    if (ex.target_type === 'collection' && item.collectionIds?.includes(ex.target_id || '')) return false
-  }
-
-  // 2. If no include rules specified, entire order is included
-  if (includeRules.length === 0) return true
-
-  // 3. Check inclusions
-  for (const inc of includeRules) {
-    if (inc.target_type === 'entire_order') return true
-    if (inc.target_type === 'product' && inc.target_id === item.productId) return true
-    if (inc.target_type === 'variant' && inc.target_id === item.variantId) return true
-    if (inc.target_type === 'category' && inc.target_id === item.categoryId) return true
-    if (inc.target_type === 'collection' && item.collectionIds?.includes(inc.target_id || '')) return true
-  }
-
-  return false
+interface ItemWaterfallState {
+  item: CartItemPricingInput
+  mrp: number
+  tier1DiscountUnit: number
+  sellingUnitPrice: number
+  tier2DiscountUnit: number
+  tier3DiscountUnit: number
 }
 
 /**
- * Core Isomorphic Promotions & Pricing Engine
+ * Core Isomorphic 3-Tier Pricing Waterfall & Promotions Engine
+ *
+ * Tier 1 (Catalog Markdown): Direct markdowns against original MRP -> establishes sellingUnitPrice.
+ * Tier 2 (Item/Category Coupon): Coupon discounts applied against post-Tier 1 sellingUnitPrice.
+ * Tier 3 (Cart/Checkout Threshold): Order-level threshold discounts applied against post-Tier 2 subtotal.
+ *
+ * Guardrail 1: Enforces server-side margin floor clamping (NetItemPrice >= cost_price) safely without exposing cost_price.
+ * If cost_price is null or unset, floor clamping is safely skipped.
  */
 export function evaluateCartPromotions(context: PricingEvaluationContext): PromotionEvaluationResult {
   const {
@@ -68,10 +70,10 @@ export function evaluateCartPromotions(context: PricingEvaluationContext): Promo
     shippingFee: roundCurrency(shippingFee),
     shippingDiscount: 0,
     finalShippingFee: roundCurrency(shippingFee),
-    taxAmount: roundCurrency(subtotal * 0.12),
-    totalAmount: roundCurrency(subtotal + shippingFee + roundCurrency(subtotal * 0.12)),
-    payableImmediate: deliveryMode === 'try_on' ? roundCurrency(shippingFee) : roundCurrency(subtotal + shippingFee + roundCurrency(subtotal * 0.12)),
-    payablePostFitting: deliveryMode === 'try_on' ? roundCurrency(subtotal + roundCurrency(subtotal * 0.12)) : 0,
+    taxAmount: roundCurrency(subtotal * GST_RATE),
+    totalAmount: roundCurrency(subtotal + shippingFee + roundCurrency(subtotal * GST_RATE)),
+    payableImmediate: deliveryMode === 'try_on' ? roundCurrency(shippingFee) : roundCurrency(subtotal + shippingFee + roundCurrency(subtotal * GST_RATE)),
+    payablePostFitting: deliveryMode === 'try_on' ? roundCurrency(subtotal + roundCurrency(subtotal * GST_RATE)) : 0,
     appliedPromotions: [],
     lineItems: items.map((it) => ({
       variantId: it.variantId,
@@ -81,7 +83,6 @@ export function evaluateCartPromotions(context: PricingEvaluationContext): Promo
       unitDiscountAmount: 0,
       totalDiscountAmount: 0,
       finalUnitPrice: roundCurrency(it.unitPrice),
-      costPrice: roundCurrency(it.costPrice),
       marginFloorHit: false,
     })),
     marginProtected: false,
@@ -184,54 +185,307 @@ export function evaluateCartPromotions(context: PricingEvaluationContext): Promo
   }
 
   // ---------------------------------------------------------------------------
-  // 2. Resolve Promotions Pool & Stacking
+  // 2. Initialize Waterfall State per Item
   // ---------------------------------------------------------------------------
+  const waterfallStates: ItemWaterfallState[] = items.map((it) => ({
+    item: it,
+    mrp: roundCurrency(it.unitPrice),
+    tier1DiscountUnit: 0,
+    sellingUnitPrice: roundCurrency(it.unitPrice),
+    tier2DiscountUnit: 0,
+    tier3DiscountUnit: 0,
+  }))
+
   const appliedPromotions: AppliedPromotionSummary[] = []
-  let totalGarmentDiscount = 0
-  let shippingDiscount = 0
   let anyMarginClamped = false
 
-  // Candidate Automatic Rules
-  const autoRules = activePromotions
-    .filter((p) => p.promotion_type !== 'coupon' && p.is_active)
-    .filter((p) => !p.min_order_subtotal || subtotal >= p.min_order_subtotal)
-    .sort((a, b) => b.priority - a.priority)
+  // ---------------------------------------------------------------------------
+  // Tier 1: Direct Catalog Markdowns (MRP -> Selling Price)
+  // ---------------------------------------------------------------------------
+  const tier1Promos = activePromotions
+    .filter((p) => p.is_active && (p.tier === 1 || (p.promotion_type as any) === 'sale'))
+    .filter((p) => p.promotion_type !== 'coupon' && p.promotion_type !== 'shipping_waiver')
 
-  // Determine Garment Discount Promotion
-  // If coupon is entered and valid, coupon takes precedence unless auto rule is stackable
-  const garmentPromotionsToApply: PromotionWithRules[] = []
+  const appliedTier1PromoIds = new Set<string>()
 
-  if (targetCouponPromo) {
-    garmentPromotionsToApply.push(targetCouponPromo)
+  for (const state of waterfallStates) {
+    const matchingTier1 = tier1Promos.filter((p) => isItemEligibleForRules(state.item, p.rules))
+    let bestUnitDiscount = 0
+    let bestPromo: PromotionWithRules | null = null
 
-    if (targetCouponPromo.is_stackable) {
-      // Allow stackable auto rules
-      autoRules.forEach((ar) => {
-        if (ar.is_stackable && ar.promotion_type !== 'shipping_waiver') {
-          garmentPromotionsToApply.push(ar)
+    for (const promo of matchingTier1) {
+      let unitDiscount = 0
+      if (promo.discount_type === 'percentage') {
+        unitDiscount = (state.mrp * promo.discount_value) / 100
+        if (promo.max_discount_amount) {
+          unitDiscount = Math.min(unitDiscount, Number(promo.max_discount_amount))
         }
+      } else if (promo.discount_type === 'fixed_amount') {
+        unitDiscount = Math.min(state.mrp - 1, promo.discount_value)
+      }
+
+      unitDiscount = roundCurrency(unitDiscount)
+
+      // Margin floor clamp: NetItemPrice >= cost_price
+      if (state.item.costPrice != null && state.item.costPrice > 0 && promo.enforce_margin_floor !== false) {
+        const headroom = Math.max(0, state.mrp - state.item.costPrice)
+        if (unitDiscount > headroom) {
+          unitDiscount = headroom
+          anyMarginClamped = true
+        }
+      }
+
+      if (unitDiscount > bestUnitDiscount) {
+        bestUnitDiscount = unitDiscount
+        bestPromo = promo
+      }
+    }
+
+    if (bestUnitDiscount > 0 && bestPromo) {
+      state.tier1DiscountUnit = bestUnitDiscount
+      state.sellingUnitPrice = roundCurrency(state.mrp - bestUnitDiscount)
+      appliedTier1PromoIds.add(bestPromo.id)
+    }
+  }
+
+  // Record Tier 1 applied promotions summary
+  Array.from(appliedTier1PromoIds).forEach((promoId) => {
+    const promo = tier1Promos.find((p) => p.id === promoId)
+    if (promo) {
+      const promoTotal = waterfallStates
+        .filter((s) => isItemEligibleForRules(s.item, promo.rules))
+        .reduce((sum, s) => sum + s.tier1DiscountUnit * s.item.quantity, 0)
+
+      appliedPromotions.push({
+        id: promo.id,
+        name: promo.name,
+        slug: promo.slug,
+        discountAmount: roundCurrency(promoTotal),
+        promotionType: promo.promotion_type,
+        discountType: promo.discount_type,
+        isShippingWaiver: false,
       })
     }
-  } else if (autoRules.length > 0) {
-    // Select highest priority or stackable auto rules
-    const firstRule = autoRules.find((r) => r.promotion_type !== 'shipping_waiver')
-    if (firstRule) {
-      garmentPromotionsToApply.push(firstRule)
-      if (firstRule.is_stackable) {
-        autoRules.forEach((ar) => {
-          if (ar.id !== firstRule.id && ar.is_stackable && ar.promotion_type !== 'shipping_waiver') {
-            garmentPromotionsToApply.push(ar)
+  })
+
+  // ---------------------------------------------------------------------------
+  // Tier 2: Item/Category Coupon (Evaluated against Selling Price)
+  // ---------------------------------------------------------------------------
+  const postTier1Subtotal = roundCurrency(
+    waterfallStates.reduce((sum, s) => sum + s.sellingUnitPrice * s.item.quantity, 0)
+  )
+
+  const isTier2Coupon =
+    targetCouponPromo &&
+    (targetCouponPromo.tier === 2 ||
+      targetCouponPromo.promotion_type === 'coupon' ||
+      (!targetCouponPromo.tier && targetCouponPromo.promotion_type !== 'tiered_threshold'))
+
+  if (isTier2Coupon && targetCouponPromo) {
+    // Verify min order subtotal against post-Tier 1 subtotal
+    if (targetCouponPromo.min_order_subtotal && postTier1Subtotal < targetCouponPromo.min_order_subtotal) {
+      const diff = roundCurrency(targetCouponPromo.min_order_subtotal - postTier1Subtotal)
+      return {
+        ...emptyResult,
+        isValid: false,
+        error: `Add ₹${diff.toLocaleString('en-IN')} more to activate invitation code "${cleanCode}".`,
+        errorCode: 'MINIMUM_ORDER_NOT_MET',
+      }
+    }
+
+    const eligibleStates = waterfallStates.filter((s) => isItemEligibleForRules(s.item, targetCouponPromo!.rules))
+    const eligibleSellingSubtotal = eligibleStates.reduce((sum, s) => sum + s.sellingUnitPrice * s.item.quantity, 0)
+
+    if (eligibleSellingSubtotal > 0) {
+      if (targetCouponPromo.discount_type === 'percentage') {
+        let totalCouponSavings = 0
+        for (const s of eligibleStates) {
+          let unitDiscount = roundCurrency((s.sellingUnitPrice * targetCouponPromo.discount_value) / 100)
+          if (targetCouponPromo.max_discount_amount) {
+            unitDiscount = Math.min(unitDiscount, Number(targetCouponPromo.max_discount_amount))
           }
+
+          if (s.item.costPrice != null && s.item.costPrice > 0 && targetCouponPromo.enforce_margin_floor !== false) {
+            const headroom = Math.max(0, s.sellingUnitPrice - s.item.costPrice)
+            if (unitDiscount > headroom) {
+              unitDiscount = headroom
+              anyMarginClamped = true
+            }
+          }
+
+          s.tier2DiscountUnit = unitDiscount
+          totalCouponSavings = roundCurrency(totalCouponSavings + unitDiscount * s.item.quantity)
+        }
+
+        appliedPromotions.push({
+          id: targetCouponPromo.id,
+          name: targetCouponPromo.name,
+          slug: targetCouponPromo.slug,
+          code: cleanCode,
+          discountAmount: totalCouponSavings,
+          promotionType: targetCouponPromo.promotion_type,
+          discountType: targetCouponPromo.discount_type,
+          isShippingWaiver: false,
+        })
+      } else if (targetCouponPromo.discount_type === 'fixed_amount') {
+        const allocatableList: AllocatableItem[] = eligibleStates.map((s) => {
+          const lineTotal = roundCurrency(s.sellingUnitPrice * s.item.quantity)
+          const costTotal = s.item.costPrice != null && s.item.costPrice > 0
+            ? roundCurrency(s.item.costPrice * s.item.quantity)
+            : 0
+          const maxDiscount = targetCouponPromo!.enforce_margin_floor !== false && s.item.costPrice != null && s.item.costPrice > 0
+            ? Math.max(0, roundCurrency(lineTotal - costTotal))
+            : lineTotal
+
+          return {
+            key: s.item.variantId,
+            amount: lineTotal,
+            maxDiscount,
+          }
+        })
+
+        const couponVal = Math.min(roundCurrency(targetCouponPromo.discount_value), eligibleSellingSubtotal)
+        const totalHeadroom = allocatableList.reduce((acc, it) => acc + it.maxDiscount, 0)
+        let finalCouponVal = couponVal
+        if (targetCouponPromo.enforce_margin_floor !== false && couponVal > totalHeadroom) {
+          finalCouponVal = totalHeadroom
+          anyMarginClamped = true
+        }
+
+        const distributed = allocateProRataDiscounts(allocatableList, finalCouponVal)
+        let actualSum = 0
+
+        for (const s of eligibleStates) {
+          const lineDisc = distributed[s.item.variantId] || 0
+          s.tier2DiscountUnit = roundCurrency(lineDisc / s.item.quantity)
+          actualSum = roundCurrency(actualSum + lineDisc)
+        }
+
+        appliedPromotions.push({
+          id: targetCouponPromo.id,
+          name: targetCouponPromo.name,
+          slug: targetCouponPromo.slug,
+          code: cleanCode,
+          discountAmount: actualSum,
+          promotionType: targetCouponPromo.promotion_type,
+          discountType: targetCouponPromo.discount_type,
+          isShippingWaiver: false,
         })
       }
     }
   }
 
-  // Determine Shipping Waiver Promotion
+  // ---------------------------------------------------------------------------
+  // Tier 3: Cart / Checkout Threshold Offers (Applied to Post-Tier 2 Subtotal)
+  // ---------------------------------------------------------------------------
+  const postTier2Subtotal = roundCurrency(
+    waterfallStates.reduce(
+      (sum, s) => sum + (s.sellingUnitPrice - s.tier2DiscountUnit) * s.item.quantity,
+      0
+    )
+  )
+
+  const candidateTier3Promos = activePromotions
+    .filter((p) => p.is_active && p.promotion_type !== 'shipping_waiver')
+    .filter((p) => {
+      if (p.tier === 3) return true
+      if (p.promotion_type === 'tiered_threshold') return true
+      if (p.promotion_type === 'automatic_cart' && p.tier !== 1 && p.tier !== 2) return true
+      if (targetCouponPromo && targetCouponPromo.id === p.id && targetCouponPromo.tier === 3) return true
+      return false
+    })
+    .filter((p) => !p.min_order_subtotal || postTier2Subtotal >= p.min_order_subtotal || subtotal >= p.min_order_subtotal)
+    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+
+  // Pick winner Tier 3 promo (or stackable)
+  let winnerTier3: PromotionWithRules | null = null
+  let bestTier3Savings = 0
+
+  for (const promo of candidateTier3Promos) {
+    const eligibleStates = waterfallStates.filter((s) => isItemEligibleForRules(s.item, promo.rules))
+    const eligibleSub = eligibleStates.reduce(
+      (sum, s) => sum + (s.sellingUnitPrice - s.tier2DiscountUnit) * s.item.quantity,
+      0
+    )
+
+    if (eligibleSub <= 0) continue
+
+    let estimatedSavings = 0
+    if (promo.discount_type === 'percentage') {
+      estimatedSavings = roundCurrency((eligibleSub * promo.discount_value) / 100)
+      if (promo.max_discount_amount) {
+        estimatedSavings = Math.min(estimatedSavings, Number(promo.max_discount_amount))
+      }
+    } else if (promo.discount_type === 'fixed_amount') {
+      estimatedSavings = Math.min(roundCurrency(promo.discount_value), eligibleSub)
+    }
+
+    if (estimatedSavings > bestTier3Savings) {
+      bestTier3Savings = estimatedSavings
+      winnerTier3 = promo
+    }
+  }
+
+  if (winnerTier3 && bestTier3Savings > 0) {
+    const eligibleStates = waterfallStates.filter((s) => isItemEligibleForRules(s.item, winnerTier3!.rules))
+    const allocatableList: AllocatableItem[] = eligibleStates.map((s) => {
+      const lineBase = roundCurrency((s.sellingUnitPrice - s.tier2DiscountUnit) * s.item.quantity)
+      const costTotal = s.item.costPrice != null && s.item.costPrice > 0
+        ? roundCurrency(s.item.costPrice * s.item.quantity)
+        : 0
+      const currentNetLine = roundCurrency((s.mrp - s.tier1DiscountUnit - s.tier2DiscountUnit) * s.item.quantity)
+      const maxDiscount = winnerTier3!.enforce_margin_floor !== false && s.item.costPrice != null && s.item.costPrice > 0
+        ? Math.max(0, roundCurrency(currentNetLine - costTotal))
+        : lineBase
+
+      return {
+        key: s.item.variantId,
+        amount: lineBase,
+        maxDiscount,
+      }
+    })
+
+    const totalHeadroom = allocatableList.reduce((acc, it) => acc + it.maxDiscount, 0)
+    let actualDiscountToDistribute = bestTier3Savings
+    if (winnerTier3.enforce_margin_floor !== false && bestTier3Savings > totalHeadroom) {
+      actualDiscountToDistribute = totalHeadroom
+      anyMarginClamped = true
+    }
+
+    const distributed = allocateProRataDiscounts(allocatableList, actualDiscountToDistribute)
+    let actualSum = 0
+
+    for (const s of eligibleStates) {
+      const lineDisc = distributed[s.item.variantId] || 0
+      s.tier3DiscountUnit = roundCurrency(lineDisc / s.item.quantity)
+      actualSum = roundCurrency(actualSum + lineDisc)
+    }
+
+    appliedPromotions.push({
+      id: winnerTier3.id,
+      name: winnerTier3.name,
+      slug: winnerTier3.slug,
+      code: targetCouponPromo?.id === winnerTier3.id ? cleanCode : undefined,
+      discountAmount: actualSum,
+      promotionType: winnerTier3.promotion_type,
+      discountType: winnerTier3.discount_type,
+      isShippingWaiver: false,
+    })
+  }
+
+  // ---------------------------------------------------------------------------
+  // Shipping Waiver Privilege
+  // ---------------------------------------------------------------------------
+  let shippingDiscount = 0
   const shippingPromo =
-    targetCouponPromo?.promotion_type === 'shipping_waiver'
+    targetCouponPromo?.promotion_type === 'shipping_waiver' || targetCouponPromo?.discount_type === 'free_shipping'
       ? targetCouponPromo
-      : autoRules.find((r) => r.promotion_type === 'shipping_waiver')
+      : activePromotions.find(
+          (r) =>
+            r.is_active &&
+            (r.promotion_type === 'shipping_waiver' || r.discount_type === 'free_shipping') &&
+            (!r.min_order_subtotal || subtotal >= r.min_order_subtotal)
+        )
 
   if (shippingPromo) {
     shippingDiscount = roundCurrency(shippingFee)
@@ -248,124 +502,34 @@ export function evaluateCartPromotions(context: PricingEvaluationContext): Promo
   }
 
   // ---------------------------------------------------------------------------
-  // 3. Compute Garment Discounts & Margin Floors
+  // Construct Final Line Items with Unit Pricing (Guardrail 1: Zero cost_price client exposure)
   // ---------------------------------------------------------------------------
-  // Prepare allocatable items with individual margin limits
-  const allocatableItems: AllocatableItem[] = items.map((it) => {
-    const lineTotal = roundCurrency(it.unitPrice * it.quantity)
-    const costTotal = roundCurrency(it.costPrice * it.quantity)
-    const marginHeadroom = Math.max(0, roundCurrency(lineTotal - costTotal))
+  const lineItems: LineItemDiscount[] = waterfallStates.map((s) => {
+    const totalUnitDiscount = roundCurrency(s.tier1DiscountUnit + s.tier2DiscountUnit + s.tier3DiscountUnit)
+    const totalLineDiscount = roundCurrency(totalUnitDiscount * s.item.quantity)
+    const finalUnitPrice = roundCurrency(s.mrp - totalUnitDiscount)
+    const marginFloorHit = Boolean(
+      s.item.costPrice != null &&
+        s.item.costPrice > 0 &&
+        roundCurrency(finalUnitPrice) <= roundCurrency(s.item.costPrice) &&
+        totalUnitDiscount > 0
+    )
 
     return {
-      key: it.variantId,
-      amount: lineTotal,
-      maxDiscount: marginHeadroom, // Maximum allowable discount before hitting cost_price
-    }
-  })
-
-  // Map to hold aggregated discounts per variant
-  const variantDiscounts: Record<string, number> = {}
-  items.forEach((it) => {
-    variantDiscounts[it.variantId] = 0
-  })
-
-  for (const promo of garmentPromotionsToApply) {
-    // Filter items matching rules
-    const eligibleAllocatables = allocatableItems.filter((it) => {
-      const originalItem = items.find((orig) => orig.variantId === it.key)!
-      return isItemEligibleForRules(originalItem, promo.rules)
-    })
-
-    const eligibleSubtotal = eligibleAllocatables.reduce((acc, it) => acc + it.amount, 0)
-    if (eligibleSubtotal <= 0) continue
-
-    let calculatedDiscount = 0
-
-    if (promo.discount_type === 'percentage') {
-      const rawPct = (eligibleSubtotal * promo.discount_value) / 100
-      calculatedDiscount = roundCurrency(rawPct)
-      if (promo.max_discount_amount && calculatedDiscount > promo.max_discount_amount) {
-        calculatedDiscount = roundCurrency(promo.max_discount_amount)
-      }
-    } else if (promo.discount_type === 'fixed_amount') {
-      calculatedDiscount = Math.min(roundCurrency(promo.discount_value), eligibleSubtotal)
-    } else if (promo.promotion_type === 'buy_x_get_y') {
-      // Find eligible items for BXGY
-      const totalEligibleQty = items
-        .filter((it) => isItemEligibleForRules(it, promo.rules))
-        .reduce((sum, it) => sum + it.quantity, 0)
-
-      const ruleMinQty = promo.rules?.find((r) => r.min_quantity)?.min_quantity || 2
-      if (totalEligibleQty >= ruleMinQty) {
-        // Discount the lowest-priced eligible single item
-        const eligibleSorted = [...items]
-          .filter((it) => isItemEligibleForRules(it, promo.rules))
-          .sort((a, b) => a.unitPrice - b.unitPrice)
-
-        const lowest = eligibleSorted[0]
-        if (lowest) {
-          calculatedDiscount = roundCurrency((lowest.unitPrice * promo.discount_value) / 100)
-        }
-      }
-    }
-
-    if (calculatedDiscount > 0) {
-      // Check margin floor cap across eligible items
-      const totalMarginHeadroom = eligibleAllocatables.reduce((acc, it) => acc + it.maxDiscount, 0)
-      if (promo.enforce_margin_floor && calculatedDiscount > totalMarginHeadroom) {
-        calculatedDiscount = totalMarginHeadroom
-        anyMarginClamped = true
-      }
-
-      // Pro-rata allocate across eligible items with 1-paise exact precision
-      const distributed = allocateProRataDiscounts(eligibleAllocatables, calculatedDiscount)
-      let actualDistributedSum = 0
-
-      for (const [vId, disc] of Object.entries(distributed)) {
-        variantDiscounts[vId] = roundCurrency((variantDiscounts[vId] || 0) + disc)
-        actualDistributedSum = roundCurrency(actualDistributedSum + disc)
-      }
-
-      totalGarmentDiscount = roundCurrency(totalGarmentDiscount + actualDistributedSum)
-
-      appliedPromotions.push({
-        id: promo.id,
-        name: promo.name,
-        slug: promo.slug,
-        code: targetCouponPromo?.id === promo.id ? cleanCode : undefined,
-        discountAmount: actualDistributedSum,
-        promotionType: promo.promotion_type,
-        discountType: promo.discount_type,
-        isShippingWaiver: false,
-      })
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // 4. Construct Final Line Items with Unit Pricing
-  // ---------------------------------------------------------------------------
-  const lineItems: LineItemDiscount[] = items.map((it) => {
-    const totalLineDiscount = variantDiscounts[it.variantId] || 0
-    const unitDiscount = roundCurrency(totalLineDiscount / it.quantity)
-    const finalUnitPrice = roundCurrency(it.unitPrice - unitDiscount)
-    const marginFloorHit = roundCurrency(finalUnitPrice) <= roundCurrency(it.costPrice) && totalLineDiscount > 0
-
-    return {
-      variantId: it.variantId,
-      productId: it.productId,
-      quantity: it.quantity,
-      originalUnitPrice: roundCurrency(it.unitPrice),
-      unitDiscountAmount: unitDiscount,
+      variantId: s.item.variantId,
+      productId: s.item.productId,
+      quantity: s.item.quantity,
+      originalUnitPrice: s.mrp,
+      unitDiscountAmount: totalUnitDiscount,
       totalDiscountAmount: totalLineDiscount,
       finalUnitPrice,
-      costPrice: roundCurrency(it.costPrice),
       marginFloorHit,
       appliedPromotionId: appliedPromotions.find((ap) => !ap.isShippingWaiver)?.id,
     }
   })
 
   // ---------------------------------------------------------------------------
-  // 5. Tiered Threshold Progress Calculation (For Luxury Progress Bar)
+  // Tiered Threshold Progress Calculation (For Luxury Progress Bar)
   // ---------------------------------------------------------------------------
   let tierProgress: TierProgress | undefined = undefined
 
@@ -389,17 +553,14 @@ export function evaluateCartPromotions(context: PricingEvaluationContext): Promo
   }
 
   // ---------------------------------------------------------------------------
-  // 6. Final Financial Balances
+  // Final Financial Balances
   // ---------------------------------------------------------------------------
+  const totalGarmentDiscount = roundCurrency(lineItems.reduce((acc, it) => acc + it.totalDiscountAmount, 0))
   const discountedSubtotal = roundCurrency(subtotal - totalGarmentDiscount)
   const finalShippingFee = roundCurrency(shippingFee - shippingDiscount)
-  // Indian GST 12% computed strictly on discounted apparel subtotal
-  const taxAmount = roundCurrency(discountedSubtotal * 0.12)
+  const taxAmount = roundCurrency(discountedSubtotal * GST_RATE)
   const totalAmount = roundCurrency(discountedSubtotal + finalShippingFee + taxAmount)
 
-  // Bolt Doorstep Try-On Splits:
-  // Immediate payable is only the delivery/hold fee (e.g. ₹99 or ₹0 if waived)
-  // Garment balance settles after in-home trial
   const payableImmediate = deliveryMode === 'try_on' ? finalShippingFee : totalAmount
   const payablePostFitting = deliveryMode === 'try_on' ? roundCurrency(discountedSubtotal + taxAmount) : 0
 

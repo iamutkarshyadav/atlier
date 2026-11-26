@@ -31,8 +31,13 @@ export const useBoltStore = create<BoltState>()(
       hasAttemptedDetection: false,
 
       setPincode: (pin: string, valid: boolean, city: string | null = null) => {
+        const trimmed = pin.trim()
+        if (typeof document !== 'undefined') {
+          document.cookie = `bolt_pincode=${encodeURIComponent(trimmed)}; path=/; max-age=31536000`
+          document.cookie = `bolt_serviceable=${valid ? '1' : '0'}; path=/; max-age=31536000`
+        }
         set({
-          pincode: pin.trim(),
+          pincode: trimmed,
           isServiceable: valid,
           city: city,
         })
@@ -51,6 +56,10 @@ export const useBoltStore = create<BoltState>()(
       },
 
       clearPincode: () => {
+        if (typeof document !== 'undefined') {
+          document.cookie = 'bolt_pincode=; path=/; max-age=0'
+          document.cookie = 'bolt_serviceable=; path=/; max-age=0'
+        }
         set({
           pincode: null,
           city: null,

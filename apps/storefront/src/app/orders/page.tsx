@@ -21,12 +21,12 @@ import {
   MapPin,
   ExternalLink,
   Star,
-  Sparkles,
 } from 'lucide-react'
 import { Button } from '@repo/ui'
 import { createBrowserClient } from '@repo/supabase/browser'
 import type { OrderWithItems, OrderStatus } from '@repo/supabase/types'
 import { ReviewGarmentModal } from '@/components/reviews/ReviewGarmentModal'
+import { ProductImage } from '@/components/ui/ProductImage'
 
 export default function CustomerOrdersPage() {
   const router = useRouter()
@@ -116,8 +116,10 @@ export default function CustomerOrdersPage() {
             try {
               const guestRes = await fetch(`/api/orders?search=${encodeURIComponent(ref)}`)
               const guestData = await guestRes.json()
-              if (guestData.success && guestData.order) {
-                fetchedOrders.push(guestData.order)
+              const matchedOrder =
+                (Array.isArray(guestData.orders) && guestData.orders[0]) || guestData.order
+              if (guestData.success && matchedOrder) {
+                fetchedOrders.push(matchedOrder)
               }
             } catch {}
           }
@@ -238,8 +240,10 @@ export default function CustomerOrdersPage() {
       const res = await fetch(`/api/orders?search=${encodeURIComponent(code)}`)
       const data = await res.json()
 
-      if (data.success && data.order) {
-        setTrackResult(data.order)
+      const matchedOrder =
+        (Array.isArray(data.orders) && data.orders[0]) || data.order
+      if (data.success && matchedOrder) {
+        setTrackResult(matchedOrder)
 
         try {
           if (typeof window !== 'undefined') {
@@ -498,20 +502,13 @@ export default function CustomerOrdersPage() {
               return (
                 <div key={item.id || idx} className="py-2.5 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-14 bg-[#f8f8f8] relative overflow-hidden shrink-0 border border-[#d3d6db] rounded-sm">
-                      {prod?.image_url ? (
-                        <Image
-                          src={prod.image_url}
-                          alt={prod.title || 'Piece'}
-                          fill
-                          className="object-cover"
-                          sizes="48px"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[#8a909a]">
-                          <Package className="w-4 h-4" />
-                        </div>
-                      )}
+                    <div className="w-12 h-14 bg-[#f5f5f4] relative overflow-hidden shrink-0 border border-[#d3d6db] rounded-sm">
+                      <ProductImage
+                        src={prod?.image_url}
+                        alt={prod?.title || 'Piece'}
+                        fill
+                        sizes="48px"
+                      />
                     </div>
                     <div>
                       <h5 className="text-xs font-bold text-[#14293a]">
@@ -560,7 +557,7 @@ export default function CustomerOrdersPage() {
                                   className="text-xs font-sans font-medium text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-xs flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
                                 >
                                   <Star className="w-3 h-3 fill-emerald-600 text-emerald-600" />
-                                  <span>Review Submitted ({existingReview.rating}★)</span>
+                                  <span>Review Submitted ({existingReview.rating}/5)</span>
                                 </button>
                               )
                             }
@@ -634,13 +631,23 @@ export default function CustomerOrdersPage() {
         </div>
 
         {/* Order Financial Footer */}
-        <div className="flex justify-between items-center pt-2 border-t border-[#e5e7eb] text-xs">
-          <span className="uppercase text-[#6c7079] font-bold tracking-wider">
-            TOTAL REALIZED
-          </span>
-          <span className="text-sm font-bold text-[#14293a]">
-            ₹{Number(ord.total || ord.original_total || 0).toLocaleString('en-IN')}
-          </span>
+        <div className="flex flex-wrap justify-between items-center gap-3 pt-2 border-t border-[#e5e7eb] text-xs">
+          <div>
+            <span className="uppercase text-[#6c7079] font-bold tracking-wider mr-2">
+              Total Realized
+            </span>
+            <span className="text-sm font-bold text-[#14293a] tabular-nums">
+              ₹{Number(ord.total || ord.original_total || 0).toLocaleString('en-IN')}
+            </span>
+          </div>
+
+          <Link
+            href={`/orders/${encodeURIComponent(ord.order_number || ord.id)}`}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#14293a] hover:bg-[#b91c1c] text-white text-[11px] font-bold uppercase tracking-wider rounded-sm transition-colors"
+          >
+            <span>View Live Tracking</span>
+            <ArrowRight className="w-3.5 h-3.5" strokeWidth={1.75} />
+          </Link>
         </div>
       </div>
     )

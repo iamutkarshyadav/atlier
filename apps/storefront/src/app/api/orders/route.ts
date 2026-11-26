@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceRoleClient } from '@repo/supabase/server'
-import { atomicCreateOrderAndReserve, createOrderWithItems } from '@repo/supabase/utils'
-import { evaluateCartPromotions, type CartItemPricingInput } from '@repo/supabase'
+import {
+  atomicCreateOrderAndReserve,
+  createOrderWithItems,
+  buildOrderReferenceOrFilter,
+} from '@repo/supabase/utils'
+import {
+  evaluateCartPromotions,
+  resolveShippingFee,
+  BOLT_HOLD_FEE,
+  type CartItemPricingInput,
+} from '@repo/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,7 +18,9 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient()
     const url = new URL(req.url)
-    const reference = url.searchParams.get('reference')?.trim()
+    const reference = (
+      url.searchParams.get('reference') || url.searchParams.get('search')
+    )?.trim()
     const emailParam = url.searchParams.get('email')?.trim().toLowerCase()
     const queryAll = url.searchParams.get('all') === 'true'
 
@@ -33,18 +44,28 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 2. Direct reference tracking (Order Number, Tracking Barcode, or ID)
+    // 2. Direct reference tracking (Order Number, Tracking Barcode, or UUID)
     if (reference) {
       const adminClient = createServiceRoleClient()
       const { data: refOrders, error: refErr } = await adminClient
         .from('orders')
         .select('*, order_items(*, product:products(id, title, image_url, price, material))')
-        .or(`order_number.eq.${reference},tracking_barcode.eq.${reference},id.eq.${reference}`)
+        .or(buildOrderReferenceOrFilter(reference))
         .order('created_at', { ascending: false })
 
       if (!refErr && refOrders && refOrders.length > 0) {
-        return NextResponse.json({ success: true, orders: refOrders })
+        return NextResponse.json({
+          success: true,
+          orders: refOrders,
+          order: refOrders[0],
+        })
       }
+
+      return NextResponse.json({
+        success: true,
+        orders: [],
+        order: null,
+      })
     }
 
     // 3. Authenticated customer or administrator session
@@ -420,7 +441,7 @@ export async function POST(req: NextRequest) {
     })
 
     const isBolt = orderData.order_type === 'bolt_try_on' || orderData.delivery_mode === 'try_on'
-    const baseShippingFee = isBolt ? 99.0 : 150.0
+    const baseShippingFee = resolveShippingFee(calculatedSubtotal, isBolt ? 'try_on' : 'direct')
 
     const evalResult = evaluateCartPromotions({
       items: pricingInputs,
@@ -452,7 +473,11 @@ export async function POST(req: NextRequest) {
 
     const finalSubtotal = evalResult.subtotal
     const totalDiscountAmount = evalResult.totalDiscount
-    const finalShippingFee = isBolt ? (evalResult.shippingDiscount > 0 ? 0.0 : 99.0) : evalResult.finalShippingFee
+    const finalShippingFee = isBolt
+      ? evalResult.shippingDiscount > 0
+        ? 0.0
+        : BOLT_HOLD_FEE
+      : evalResult.finalShippingFee
     const finalTaxAmount = isBolt ? 0.0 : evalResult.taxAmount
     const finalTotalAmount = isBolt ? finalShippingFee : evalResult.totalAmount
     const appliedPromotionId = evalResult.promotionId || null
@@ -464,6 +489,18 @@ export async function POST(req: NextRequest) {
       finalShippingAddress = `${finalShippingAddress} [Patron: ${customerEmail}]`
     }
 
+    const shippingAddressJsonPayload = {
+      address: finalShippingAddress,
+      email: customerEmail,
+      phone: orderData.phone || null,
+      bolt_pincode: isBolt ? (orderData.bolt_pincode || null) : null,
+      bolt_timeslot_id: isBolt ? (orderData.bolt_timeslot_id || null) : null,
+      delivery_notes: orderData.delivery_notes || null,
+    }
+    const billingAddressJsonPayload = {
+      address: finalShippingAddress,
+    }
+
     const result = await atomicCreateOrderAndReserve(adminClient, {
       orderData: {
         order_number: orderData.order_number,
@@ -473,28 +510,24 @@ export async function POST(req: NextRequest) {
         delivery_mode: isBolt ? 'try_on' : 'direct',
         try_on_status: isBolt ? 'pending' : undefined,
         order_type: isBolt ? 'bolt_try_on' : 'standard',
+        bolt_pincode: isBolt ? (orderData.bolt_pincode || null) : null,
+        bolt_timeslot_id: isBolt ? (orderData.bolt_timeslot_id || null) : null,
+        original_total: finalSubtotal,
         subtotal: finalSubtotal,
         discount: totalDiscountAmount,
+        shipping_fee: finalShippingFee,
         delivery_fee: finalShippingFee,
         tax_amount: finalTaxAmount,
+        total: finalTotalAmount,
         total_amount: finalTotalAmount,
         promotion_id: appliedPromotionId,
         coupon_code: appliedCouponCode,
-        applied_promotion_id: appliedPromotionId,
-        applied_coupon_code: appliedCouponCode,
-        applied_discount_amount: totalDiscountAmount,
+        discount_breakdown: evalResult.appliedPromotions || [],
+        shipping_address: finalShippingAddress,
+        delivery_notes: orderData.delivery_notes || null,
         notes: orderData.delivery_notes || null,
-        shipping_address_json: {
-          address: finalShippingAddress,
-          email: customerEmail,
-          phone: orderData.phone || null,
-          bolt_pincode: isBolt ? (orderData.bolt_pincode || null) : null,
-          bolt_timeslot_id: isBolt ? (orderData.bolt_timeslot_id || null) : null,
-          delivery_notes: orderData.delivery_notes || null,
-        },
-        billing_address_json: {
-          address: finalShippingAddress,
-        },
+        shipping_address_json: shippingAddressJsonPayload,
+        billing_address_json: billingAddressJsonPayload,
       },
       items: verifiedItemsWithDiscounts,
       sourceLocationId: null,
@@ -507,13 +540,15 @@ export async function POST(req: NextRequest) {
       const isOutOfStock =
         !isMissingInventoryRecord &&
         (errorMsg.includes('INSUFFICIENT_STOCK') ||
-          errorLower.includes('insufficient') ||
+          errorLower.includes('insufficient available stock') ||
+          errorLower.includes('insufficient stock') ||
           errorLower.includes('out of stock'))
 
       if (isOutOfStock) {
         return NextResponse.json(
           {
-            error: 'One or more items in your cart are currently out of stock.',
+            error:
+              'One or more items in your bag are currently out of stock. Please adjust quantities or remove unavailable sizes.',
             code: 'INSUFFICIENT_STOCK',
             details: errorMsg,
           },
@@ -521,58 +556,66 @@ export async function POST(req: NextRequest) {
         )
       }
 
-      // If atomic RPC encountered missing inventory, unregistered function, or schema error, fall back to direct DB insertion via createOrderWithItems
+      // Fall back to direct DB insertion via createOrderWithItems on missing inventory row,
+      // unregistered RPC, or PL/pgSQL schema/record errors using only verified public.orders columns.
       console.warn('[POST /api/orders] RPC failed, falling back to direct createOrderWithItems:', errorMsg)
-        const randSeq = Math.floor(1000 + Math.random() * 9000)
-        const fallbackOrderNumber = orderData.order_number || `ORD-${Date.now().toString().slice(-6)}-${randSeq}`
-        const directResult = await createOrderWithItems(
-          adminClient,
-          {
-            order_number: fallbackOrderNumber,
-            user_id: customerUserId,
-            status: 'pending',
-            order_type: isBolt ? 'bolt_try_on' : 'standard',
-            delivery_mode: isBolt ? 'try_on' : 'direct',
-            try_on_status: isBolt ? 'pending' : null,
-            bolt_pincode: isBolt ? (orderData.bolt_pincode || null) : null,
-            bolt_timeslot_id: isBolt ? (orderData.bolt_timeslot_id || null) : null,
-            subtotal: finalSubtotal,
-            discount: totalDiscountAmount,
-            tax_amount: finalTaxAmount,
-            shipping_fee: finalShippingFee,
-            total: finalTotalAmount,
-            original_total: finalSubtotal,
-            applied_promotion_id: appliedPromotionId,
-            applied_coupon_code: appliedCouponCode,
-            applied_discount_amount: totalDiscountAmount,
-            shipping_address: finalShippingAddress,
-            delivery_notes: orderData.delivery_notes || null,
-            invoice_number: `INV-2026-${randSeq}`,
-            tracking_barcode: `ATL-TRK-${randSeq}`,
-          } as any,
-          verifiedItemsWithDiscounts.map((it) => ({
-            productId: it.product_id,
-            variantId: it.variant_id,
-            quantity: it.quantity,
-            unitPrice: it.unit_price,
-            discountAmount: it.discount_amount,
-            size: it.size || undefined,
-          }))
-        )
+      const randSeq = Math.floor(1000 + Math.random() * 9000)
+      const fallbackOrderNumber =
+        orderData.order_number || `ORD-${Date.now().toString().slice(-6)}-${randSeq}`
+      const directResult = await createOrderWithItems(
+        adminClient,
+        {
+          order_number: fallbackOrderNumber,
+          user_id: customerUserId,
+          status: 'pending',
+          order_type: isBolt ? 'bolt_try_on' : 'standard',
+          delivery_mode: isBolt ? 'try_on' : 'direct',
+          try_on_status: isBolt ? 'pending' : null,
+          bolt_pincode: isBolt ? (orderData.bolt_pincode || null) : null,
+          bolt_timeslot_id: isBolt ? (orderData.bolt_timeslot_id || null) : null,
+          bolt_session_status: isBolt ? 'scheduled' : null,
+          original_total: finalSubtotal,
+          tax_amount: finalTaxAmount,
+          shipping_fee: finalShippingFee,
+          total: finalTotalAmount,
+          promotion_id: appliedPromotionId,
+          coupon_code: appliedCouponCode,
+          discount_breakdown: (evalResult.appliedPromotions || []) as any,
+          margin_protected: Boolean(evalResult.marginProtected),
+          shipping_address: finalShippingAddress,
+          shipping_address_json: shippingAddressJsonPayload as any,
+          billing_address_json: billingAddressJsonPayload as any,
+          delivery_notes: orderData.delivery_notes || null,
+          invoice_number: `INV-2026-${randSeq}`,
+          tracking_barcode: `ATL-TRK-${randSeq}`,
+        } as any,
+        verifiedItemsWithDiscounts.map((it) => ({
+          productId: it.product_id,
+          variantId: it.variant_id,
+          quantity: it.quantity,
+          unitPrice: it.unit_price,
+          discountAmount: it.discount_amount,
+          originalUnitPrice: it.unit_price,
+          finalUnitPrice: Math.max(0, it.unit_price - (it.discount_amount || 0)),
+          promotionId: appliedPromotionId,
+          size: it.size || undefined,
+        }))
+      )
 
-        if (directResult.data) {
-          return NextResponse.json({
-            success: true,
-            order: directResult.data,
-            orderNumber: directResult.data.order_number,
-            invoiceNumber: directResult.data.invoice_number,
-            trackingBarcode: directResult.data.tracking_barcode,
-            total: directResult.data.total,
-          })
-        }
+      if (directResult.data) {
+        return NextResponse.json({
+          success: true,
+          order: directResult.data,
+          orderNumber: directResult.data.order_number,
+          invoiceNumber: directResult.data.invoice_number,
+          trackingBarcode: directResult.data.tracking_barcode,
+          total: directResult.data.total,
+        })
+      }
 
+      console.error('[POST /api/orders] Direct fallback also failed:', directResult.error)
       return NextResponse.json(
-        { error: errorMsg },
+        { error: directResult.error || errorMsg },
         { status: 422 }
       )
     }
@@ -584,7 +627,7 @@ export async function POST(req: NextRequest) {
       orderNumber: orderDataResult.order_number,
       invoiceNumber: orderDataResult.invoice_number || `INV-${orderDataResult.order_number}`,
       trackingBarcode: orderDataResult.tracking_barcode || `ATL-TRK-${orderDataResult.order_number}`,
-      total: orderDataResult.total_amount || finalTotalAmount,
+      total: orderDataResult.total ?? orderDataResult.total_amount ?? finalTotalAmount,
     })
   } catch (err: any) {
     return NextResponse.json(

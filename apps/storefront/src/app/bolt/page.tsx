@@ -1,67 +1,117 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, Suspense } from 'react'
+import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import {
-  Zap,
   Filter,
   X,
-  ChevronDown,
-  ChevronUp,
-  ShoppingBag,
-  ArrowRight,
   Check,
   RotateCcw,
-  Heart,
-  ChevronRight,
-  Search,
   MapPin,
   Loader2,
   AlertCircle,
-  CheckCircle2,
 } from 'lucide-react'
 import { createBrowserClient } from '@repo/supabase/browser'
 import {
   getCategories,
   DEFAULT_PRODUCTS,
+  DEFAULT_PRODUCT_VARIANTS,
   type Product,
   type Category,
   type ProductVariant,
 } from '@repo/supabase/utils'
+import {
+  getEffectiveProductPricing,
+  type ProductPricingSummary,
+  type PromotionWithRules,
+} from '@repo/supabase/pricing'
 import { useCartStore } from '../../store/useCartStore'
 import { useHydratedBolt } from '../../store/useBoltStore'
 import { ProductCard } from '../../components/ProductCard'
+import ShopFilterPanel, {
+  extractVariantColorFacets,
+  extractVariantSizeFacets,
+  formatPriceRangeLabel,
+} from '../../components/shop/ShopFilterPanel'
 
-const AVAILABLE_SIZES = ['S', 'M', 'L', 'XL', '30', '32', '34']
-const AVAILABLE_COLORS = [
-  { name: 'Vintage Black', hex: '#1C1C1C' },
-  { name: 'Natural Ecru', hex: '#F0EAE1' },
-  { name: 'Washed Ink', hex: '#2A303C' },
-  { name: 'Raw Indigo', hex: '#1B2A4A' },
-]
+type BoltSortOption = 'recommended' | 'price-asc' | 'price-desc' | 'newest' | 'discount-desc'
+
+function parseSortParam(val: string | null): BoltSortOption {
+  if (val === 'newest' || val === 'price-asc' || val === 'price-desc' || val === 'discount-desc') {
+    return val
+  }
+  return 'recommended'
+}
+
+function parsePriceParam(val: string | null): number | null {
+  if (!val) return null
+  const num = Number(val)
+  return Number.isFinite(num) && num >= 0 ? num : null
+}
+
+function buildBoltQueryString(state: {
+  selectedCategory: string
+  searchQuery: string
+  selectedSize: string | null
+  selectedColor: string | null
+  minPrice: number | null
+  maxPrice: number | null
+  onSaleOnly: boolean
+  minDiscount: number | null
+  sortBy: BoltSortOption
+}): string {
+  const params = new URLSearchParams()
+  if (state.selectedCategory !== 'All') params.set('category', state.selectedCategory)
+  if (state.searchQuery.trim()) params.set('q', state.searchQuery.trim())
+  if (state.selectedSize) params.set('size', state.selectedSize)
+  if (state.selectedColor) params.set('color', state.selectedColor)
+  if (state.minPrice !== null) params.set('minPrice', String(state.minPrice))
+  if (state.maxPrice !== null) params.set('maxPrice', String(state.maxPrice))
+  if (state.onSaleOnly) params.set('onSale', 'true')
+  if (state.minDiscount !== null) params.set('minDiscount', String(state.minDiscount))
+  if (state.sortBy !== 'recommended') params.set('sort', state.sortBy)
+  return params.toString()
+}
 
 function BoltContent() {
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
+
   const initialCategoryParam = searchParams.get('category') || 'All'
   const queryParam = searchParams.get('q') || searchParams.get('search') || ''
+  const sizeParam = searchParams.get('size')
+  const colorParam = searchParams.get('color')
+  const minPriceParam = parsePriceParam(searchParams.get('minPrice'))
+  const maxPriceParam = parsePriceParam(searchParams.get('maxPrice'))
+  const minDiscountParam = searchParams.get('minDiscount')
+  const onSaleParam = searchParams.get('onSale') === 'true'
+  const initialSort = parseSortParam(searchParams.get('sort'))
 
   const [categories, setCategories] = useState<Category[]>([])
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [variantsMap, setVariantsMap] = useState<Record<string, ProductVariant[]>>({})
+  const [pricingMap, setPricingMap] = useState<Record<string, ProductPricingSummary>>({})
   const [isLoading, setIsLoading] = useState(true)
 
   // Filter States
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategoryParam)
   const [searchQuery, setSearchQuery] = useState<string>(queryParam)
-  const [selectedSize, setSelectedSize] = useState<string | null>(null)
-  const [selectedColor, setSelectedColor] = useState<string | null>(null)
-  const [priceTier, setPriceTier] = useState<'all' | 'under-5000' | '5000-12000' | 'above-12000'>('all')
-  const [sortBy, setSortBy] = useState<'recommended' | 'price-asc' | 'price-desc' | 'newest'>('recommended')
+  const [selectedSize, setSelectedSize] = useState<string | null>(sizeParam || null)
+  const [selectedColor, setSelectedColor] = useState<string | null>(colorParam || null)
+  const [minPrice, setMinPrice] = useState<number | null>(minPriceParam)
+  const [maxPrice, setMaxPrice] = useState<number | null>(maxPriceParam)
+  const [minDiscount, setMinDiscount] = useState<number | null>(
+    minDiscountParam ? parseInt(minDiscountParam, 10) || null : null
+  )
+  const [onSaleOnly, setOnSaleOnly] = useState<boolean>(onSaleParam)
+  const [sortBy, setSortBy] = useState<BoltSortOption>(initialSort)
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
   const [showSidebar, setShowSidebar] = useState(true)
+
+  const lastSyncedQueryRef = useRef<string>(searchParams.toString())
+  const skipNextUrlWriteRef = useRef<boolean>(false)
 
   // Bolt Postal Code Checker State
   const {
@@ -113,32 +163,64 @@ function BoltContent() {
     )
   }, [isHydrated, pincode, hasAttemptedDetection, setPincode, setHasAttemptedDetection])
 
-  // Collapsible section toggles
-  const [openSections, setOpenSections] = useState({
-    categories: true,
-    sizes: true,
-    colors: true,
-    price: true,
-  })
-
-  const toggleSection = (section: keyof typeof openSections) => {
-    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }))
-  }
-
   // Cart action
   const addItem = useCartStore((s) => s.addItem)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
-  // Sync state with URL params
+  // Hydrate filter state when URL changes externally
   useEffect(() => {
-    if (initialCategoryParam) {
-      setSelectedCategory(initialCategoryParam)
-    }
-  }, [initialCategoryParam])
+    const qs = searchParams.toString()
+    if (lastSyncedQueryRef.current === qs) return
+    lastSyncedQueryRef.current = qs
+    skipNextUrlWriteRef.current = true
 
+    setSelectedCategory(searchParams.get('category') || 'All')
+    setSearchQuery(searchParams.get('q') || searchParams.get('search') || '')
+    setSelectedSize(searchParams.get('size') || null)
+    setSelectedColor(searchParams.get('color') || null)
+    setMinPrice(parsePriceParam(searchParams.get('minPrice')))
+    setMaxPrice(parsePriceParam(searchParams.get('maxPrice')))
+    setOnSaleOnly(searchParams.get('onSale') === 'true')
+    const rawMinDisc = searchParams.get('minDiscount')
+    setMinDiscount(rawMinDisc ? parseInt(rawMinDisc, 10) || null : null)
+    setSortBy(parseSortParam(searchParams.get('sort')))
+  }, [searchParams])
+
+  // Sync active filter state back to URL cleanly
   useEffect(() => {
-    setSearchQuery(queryParam)
-  }, [queryParam])
+    if (skipNextUrlWriteRef.current) {
+      skipNextUrlWriteRef.current = false
+      return
+    }
+    const nextQuery = buildBoltQueryString({
+      selectedCategory,
+      searchQuery,
+      selectedSize,
+      selectedColor,
+      minPrice,
+      maxPrice,
+      onSaleOnly,
+      minDiscount,
+      sortBy,
+    })
+
+    if (nextQuery !== lastSyncedQueryRef.current) {
+      lastSyncedQueryRef.current = nextQuery
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false })
+    }
+  }, [
+    selectedCategory,
+    searchQuery,
+    selectedSize,
+    selectedColor,
+    minPrice,
+    maxPrice,
+    onSaleOnly,
+    minDiscount,
+    sortBy,
+    pathname,
+    router,
+  ])
 
   // Fetch initial data
   useEffect(() => {
@@ -161,43 +243,117 @@ function BoltContent() {
 
         setCategories(catData || [])
 
+        const usingFallback = !prodRes.data || prodRes.data.length === 0
         const vMap: Record<string, ProductVariant[]> = {}
-        if (variantsRes.data) {
-          variantsRes.data.forEach((v: ProductVariant) => {
+        const sourceVariants =
+          !usingFallback && variantsRes.data && variantsRes.data.length > 0
+            ? (variantsRes.data as Array<ProductVariant & { is_archived?: boolean }>)
+            : (DEFAULT_PRODUCT_VARIANTS as Array<ProductVariant & { is_archived?: boolean }>)
+
+        sourceVariants.forEach((v) => {
+          if (!v.is_archived) {
             if (!vMap[v.product_id]) vMap[v.product_id] = []
             vMap[v.product_id]!.push(v)
-          })
-        }
-
-        const rawProds = prodRes.data && prodRes.data.length > 0 ? prodRes.data : DEFAULT_PRODUCTS
-        const prods: Product[] = rawProds.map((row: any) => {
-          const categoryObj = row.categories
-          return {
-            id: row.id,
-            title: row.title,
-            description: row.description,
-            price: Number(row.price),
-            compare_at_price: row.compare_at_price ? Number(row.compare_at_price) : null,
-            stock: row.stock,
-            image_url: row.image_url,
-            category_id: row.category_id,
-            category: row.category || categoryObj?.name || 'Apparel',
-            material: row.material,
-            edition: row.edition,
-            is_archived: row.is_archived,
-            created_at: row.created_at,
-            updated_at: row.updated_at,
           }
         })
 
+        const rawProds = usingFallback ? DEFAULT_PRODUCTS : prodRes.data
+        const prods: Product[] = rawProds
+          .map((row: any) => {
+            const categoryObj = row.categories
+            return {
+              id: row.id,
+              title: row.title,
+              description: row.description,
+              price: Number(row.price),
+              compare_at_price: row.compare_at_price ? Number(row.compare_at_price) : null,
+              stock: row.stock,
+              image_url: row.image_url,
+              category_id: row.category_id,
+              category: row.category || categoryObj?.name || 'Apparel',
+              material: row.material,
+              edition: row.edition,
+              is_archived: row.is_archived,
+              is_try_on_eligible: row.is_try_on_eligible ?? true,
+              average_rating: row.average_rating ?? 0,
+              review_count: row.review_count ?? 0,
+              created_at: row.created_at,
+              updated_at: row.updated_at,
+            }
+          })
+          .filter((p) => p.is_try_on_eligible !== false)
+
         setAllProducts(prods)
         setVariantsMap(vMap)
+
+        let activePromos: PromotionWithRules[] = []
+        let serverPricingMap: Record<string, ProductPricingSummary> = {}
+        try {
+          const offersRes = await fetch('/api/offers')
+          if (offersRes.ok) {
+            const offersData = await offersRes.json()
+            if (offersData.success) {
+              if (offersData.pricingMap) {
+                serverPricingMap = offersData.pricingMap
+              }
+              if (Array.isArray(offersData.campaigns)) {
+                activePromos = offersData.campaigns
+              }
+            }
+          }
+        } catch {}
+
+        const pMap: Record<string, ProductPricingSummary> = {}
+        prods.forEach((p) => {
+          pMap[p.id] = serverPricingMap[p.id] || getEffectiveProductPricing(p, activePromos)
+        })
+        setPricingMap(pMap)
       } finally {
         setIsLoading(false)
       }
     }
     loadBoltData()
   }, [])
+
+  const categoryProductCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    const subMap: Record<string, Category[]> = {}
+    categories.forEach((c) => {
+      if (c.parent_id) {
+        if (!subMap[c.parent_id]) subMap[c.parent_id] = []
+        subMap[c.parent_id]!.push(c)
+      }
+    })
+    categories.forEach((cat) => {
+      const ids = new Set<string>([cat.id])
+      const names = new Set<string>([cat.name.toLowerCase()])
+      if (!cat.parent_id) {
+        ;(subMap[cat.id] || []).forEach((sub) => {
+          ids.add(sub.id)
+          names.add(sub.name.toLowerCase())
+        })
+      }
+      counts[cat.name] = allProducts.filter(
+        (p) => (p.category_id && ids.has(p.category_id)) || names.has((p.category || '').toLowerCase())
+      ).length
+    })
+    return counts
+  }, [categories, allProducts])
+
+  const availableSizes = useMemo(
+    () => extractVariantSizeFacets(allProducts, variantsMap),
+    [allProducts, variantsMap]
+  )
+
+  const availableColors = useMemo(
+    () => extractVariantColorFacets(allProducts, variantsMap),
+    [allProducts, variantsMap]
+  )
+
+  const onSaleCount = useMemo(
+    () => allProducts.filter((p) => (pricingMap[p.id]?.discountPercentage || 0) > 0).length,
+    [allProducts, pricingMap]
+  )
 
   // Filter products
   const filteredProducts = useMemo(() => {
@@ -214,18 +370,37 @@ function BoltContent() {
         if (!matchesQuery) return false
       }
 
-      // 2. Category Filter
+      // 2. Category Filter (Hierarchical)
       if (selectedCategory !== 'All') {
         const sel = selectedCategory.toLowerCase()
         const catName = (product.category || '').toLowerCase()
         const matchCat = categories.find(
           (c) => c.slug.toLowerCase() === sel || c.name.toLowerCase() === sel
         )
-        const matchesCategory =
-          catName === sel ||
-          (matchCat && catName === matchCat.name.toLowerCase()) ||
-          (matchCat && product.category_id === matchCat.id)
-        if (!matchesCategory) return false
+        if (matchCat) {
+          if (!matchCat.parent_id) {
+            const matchedIds = new Set<string>([matchCat.id])
+            const matchedNames = new Set<string>([matchCat.name.toLowerCase()])
+            categories.forEach((c) => {
+              if (c.parent_id === matchCat.id) {
+                matchedIds.add(c.id)
+                matchedNames.add(c.name.toLowerCase())
+              }
+            })
+            const matchesCategory =
+              (product.category_id && matchedIds.has(product.category_id)) ||
+              matchedNames.has(catName)
+            if (!matchesCategory) return false
+          } else {
+            const matchesCategory =
+              (product.category_id && product.category_id === matchCat.id) ||
+              catName === matchCat.name.toLowerCase() ||
+              catName === matchCat.slug.toLowerCase()
+            if (!matchesCategory) return false
+          }
+        } else if (catName !== sel) {
+          return false
+        }
       }
 
       // 3. Size Filter
@@ -247,25 +422,49 @@ function BoltContent() {
         if (!hasColor && !titleMatch) return false
       }
 
-      // 5. Price Tier Filter
-      const price = Number(product.price)
-      if (priceTier === 'under-5000' && price >= 5000) return false
-      if (priceTier === '5000-12000' && (price < 5000 || price > 12000)) return false
-      if (priceTier === 'above-12000' && price <= 12000) return false
+      // 5. Price Range Filter (against effective selling price)
+      const sellingPrice = pricingMap[product.id]?.sellingPrice ?? Number(product.price)
+      if (minPrice !== null && sellingPrice < minPrice) return false
+      if (maxPrice !== null && sellingPrice > maxPrice) return false
+
+      // 6. Discount & Sale Filters
+      const discountPct = pricingMap[product.id]?.discountPercentage || 0
+      if (onSaleOnly && discountPct <= 0) return false
+      if (minDiscount !== null && discountPct < minDiscount) return false
 
       return true
     })
-  }, [allProducts, searchQuery, selectedCategory, selectedSize, selectedColor, priceTier, categories, variantsMap])
+  }, [
+    allProducts,
+    searchQuery,
+    selectedCategory,
+    selectedSize,
+    selectedColor,
+    minPrice,
+    maxPrice,
+    onSaleOnly,
+    minDiscount,
+    categories,
+    variantsMap,
+    pricingMap,
+  ])
 
   // Sorting
   const sortedProducts = useMemo(() => {
     return [...filteredProducts].sort((a, b) => {
-      if (sortBy === 'price-asc') return a.price - b.price
-      if (sortBy === 'price-desc') return b.price - a.price
+      const priceA = pricingMap[a.id]?.sellingPrice ?? Number(a.price)
+      const priceB = pricingMap[b.id]?.sellingPrice ?? Number(b.price)
+      if (sortBy === 'price-asc') return priceA - priceB
+      if (sortBy === 'price-desc') return priceB - priceA
+      if (sortBy === 'discount-desc') {
+        const discA = pricingMap[a.id]?.discountPercentage || 0
+        const discB = pricingMap[b.id]?.discountPercentage || 0
+        return discB - discA
+      }
       if (sortBy === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       return 0
     })
-  }, [filteredProducts, sortBy])
+  }, [filteredProducts, sortBy, pricingMap])
 
   // Active filter count
   const activeFilterCount = useMemo(() => {
@@ -274,16 +473,21 @@ function BoltContent() {
     if (searchQuery.trim()) count++
     if (selectedSize) count++
     if (selectedColor) count++
-    if (priceTier !== 'all') count++
+    if (minPrice !== null || maxPrice !== null) count++
+    if (minDiscount !== null) count++
+    if (onSaleOnly) count++
     return count
-  }, [selectedCategory, searchQuery, selectedSize, selectedColor, priceTier])
+  }, [selectedCategory, searchQuery, selectedSize, selectedColor, minPrice, maxPrice, minDiscount, onSaleOnly])
 
   const clearAllFilters = () => {
     setSelectedCategory('All')
     setSearchQuery('')
     setSelectedSize(null)
     setSelectedColor(null)
-    setPriceTier('all')
+    setMinPrice(null)
+    setMaxPrice(null)
+    setMinDiscount(null)
+    setOnSaleOnly(false)
     setSortBy('recommended')
   }
 
@@ -341,7 +545,7 @@ function BoltContent() {
         ? Number((product as any).compare_at_price)
         : undefined
 
-    addItem({
+    const added = addItem({
       id: `${product.id}-${size}`,
       productId: product.id,
       title: product.title,
@@ -353,8 +557,12 @@ function BoltContent() {
       image: product.image_url || '',
       size,
     })
-    setToastMessage(`Added ${product.title} (${size}) to doorstep tote`)
-    setTimeout(() => setToastMessage(null), 3000)
+    if (added) {
+      useCartStore.getState().openDrawer()
+    } else {
+      setToastMessage('Bolt limit: maximum 5 garments per fitting session.')
+      setTimeout(() => setToastMessage(null), 3500)
+    }
   }
 
   const isBoltActive = isHydrated && isServiceable && Boolean(pincode)
@@ -524,10 +732,11 @@ function BoltContent() {
               <select
                 id="bolt-sort"
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'recommended' | 'price-asc' | 'price-desc' | 'newest')}
+                onChange={(e) => setSortBy(e.target.value as BoltSortOption)}
                 className="bg-white border border-[#d3d6db] px-3 py-1.5 text-xs text-[#14293a] focus:outline-none focus:border-[#14293a] rounded-sm cursor-pointer shadow-xs font-sans"
               >
                 <option value="recommended">Recommended</option>
+                <option value="discount-desc">Discount: High to Low</option>
                 <option value="price-asc">Price: Low to High</option>
                 <option value="price-desc">Price: High to Low</option>
                 <option value="newest">Newest</option>
@@ -536,56 +745,113 @@ function BoltContent() {
           </div>
         </div>
 
-        {/* Active Filter Pills Strip */}
+        {/* Active Filter Chips Strip */}
         {activeFilterCount > 0 && (
           <div className="flex flex-wrap items-center gap-2 mb-6 text-xs">
-            <span className="text-[#6c7079] font-medium text-[11px] uppercase tracking-wider">Active:</span>
-            {selectedCategory !== 'All' && (
-              <span className="inline-flex items-center gap-1 bg-[#f8f8f8] border border-[#d3d6db] px-2.5 py-1 rounded-sm text-xs font-medium text-[#14293a]">
-                Category: {selectedCategory}
-                <button onClick={() => setSelectedCategory('All')} className="text-[#8a909a] hover:text-[#b91c1c]">
-                  <X className="w-3 h-3" />
+            <span className="text-[#6c7079] font-semibold text-[11px] uppercase tracking-wider">
+              Filters:
+            </span>
+            {onSaleOnly && (
+              <span className="inline-flex items-center gap-1.5 bg-red-50 border border-red-200 px-2.5 py-1 rounded-sm text-xs font-semibold text-[#b91c1c]">
+                <span>On Sale</span>
+                <button
+                  type="button"
+                  aria-label="Remove On Sale filter"
+                  onClick={() => setOnSaleOnly(false)}
+                  className="text-[#b91c1c] hover:text-[#14293a] cursor-pointer"
+                >
+                  <X className="w-3 h-3" strokeWidth={1.75} />
                 </button>
               </span>
             )}
-            {searchQuery && (
-              <span className="inline-flex items-center gap-1 bg-[#f8f8f8] border border-[#d3d6db] px-2.5 py-1 rounded-sm text-xs font-medium text-[#14293a]">
-                Query: {searchQuery}
-                <button onClick={() => setSearchQuery('')} className="text-[#8a909a] hover:text-[#b91c1c]">
-                  <X className="w-3 h-3" />
+            {minDiscount !== null && (
+              <span className="inline-flex items-center gap-1.5 bg-[#f8f8f8] border border-[#d3d6db] px-2.5 py-1 rounded-sm text-xs font-medium text-[#14293a]">
+                <span>Min. {minDiscount}% Off</span>
+                <button
+                  type="button"
+                  aria-label="Remove discount filter"
+                  onClick={() => setMinDiscount(null)}
+                  className="text-[#6c7079] hover:text-[#b91c1c] cursor-pointer"
+                >
+                  <X className="w-3 h-3" strokeWidth={1.75} />
+                </button>
+              </span>
+            )}
+            {selectedCategory !== 'All' && (
+              <span className="inline-flex items-center gap-1.5 bg-[#f8f8f8] border border-[#d3d6db] px-2.5 py-1 rounded-sm text-xs font-medium text-[#14293a]">
+                <span>{selectedCategory}</span>
+                <button
+                  type="button"
+                  aria-label="Remove category filter"
+                  onClick={() => setSelectedCategory('All')}
+                  className="text-[#6c7079] hover:text-[#b91c1c] cursor-pointer"
+                >
+                  <X className="w-3 h-3" strokeWidth={1.75} />
+                </button>
+              </span>
+            )}
+            {searchQuery.trim() && (
+              <span className="inline-flex items-center gap-1.5 bg-[#f8f8f8] border border-[#d3d6db] px-2.5 py-1 rounded-sm text-xs font-medium text-[#14293a]">
+                <span>Search: &ldquo;{searchQuery}&rdquo;</span>
+                <button
+                  type="button"
+                  aria-label="Remove search filter"
+                  onClick={() => setSearchQuery('')}
+                  className="text-[#6c7079] hover:text-[#b91c1c] cursor-pointer"
+                >
+                  <X className="w-3 h-3" strokeWidth={1.75} />
                 </button>
               </span>
             )}
             {selectedSize && (
-              <span className="inline-flex items-center gap-1 bg-[#f8f8f8] border border-[#d3d6db] px-2.5 py-1 rounded-sm text-xs font-medium text-[#14293a]">
-                Size: {selectedSize}
-                <button onClick={() => setSelectedSize(null)} className="text-[#8a909a] hover:text-[#b91c1c]">
-                  <X className="w-3 h-3" />
+              <span className="inline-flex items-center gap-1.5 bg-[#f8f8f8] border border-[#d3d6db] px-2.5 py-1 rounded-sm text-xs font-medium text-[#14293a]">
+                <span>Size: {selectedSize}</span>
+                <button
+                  type="button"
+                  aria-label="Remove size filter"
+                  onClick={() => setSelectedSize(null)}
+                  className="text-[#6c7079] hover:text-[#b91c1c] cursor-pointer"
+                >
+                  <X className="w-3 h-3" strokeWidth={1.75} />
                 </button>
               </span>
             )}
             {selectedColor && (
-              <span className="inline-flex items-center gap-1 bg-[#f8f8f8] border border-[#d3d6db] px-2.5 py-1 rounded-sm text-xs font-medium text-[#14293a]">
-                Color: {selectedColor}
-                <button onClick={() => setSelectedColor(null)} className="text-[#8a909a] hover:text-[#b91c1c]">
-                  <X className="w-3 h-3" />
+              <span className="inline-flex items-center gap-1.5 bg-[#f8f8f8] border border-[#d3d6db] px-2.5 py-1 rounded-sm text-xs font-medium text-[#14293a]">
+                <span>Color: {selectedColor}</span>
+                <button
+                  type="button"
+                  aria-label="Remove color filter"
+                  onClick={() => setSelectedColor(null)}
+                  className="text-[#6c7079] hover:text-[#b91c1c] cursor-pointer"
+                >
+                  <X className="w-3 h-3" strokeWidth={1.75} />
                 </button>
               </span>
             )}
-            {priceTier !== 'all' && (
-              <span className="inline-flex items-center gap-1 bg-[#f8f8f8] border border-[#d3d6db] px-2.5 py-1 rounded-sm text-xs font-medium text-[#14293a]">
-                Price: {priceTier}
-                <button onClick={() => setPriceTier('all')} className="text-[#8a909a] hover:text-[#b91c1c]">
-                  <X className="w-3 h-3" />
+            {formatPriceRangeLabel(minPrice, maxPrice) && (
+              <span className="inline-flex items-center gap-1.5 bg-[#f8f8f8] border border-[#d3d6db] px-2.5 py-1 rounded-sm text-xs font-medium text-[#14293a]">
+                <span>{formatPriceRangeLabel(minPrice, maxPrice)}</span>
+                <button
+                  type="button"
+                  aria-label="Remove price filter"
+                  onClick={() => {
+                    setMinPrice(null)
+                    setMaxPrice(null)
+                  }}
+                  className="text-[#6c7079] hover:text-[#b91c1c] cursor-pointer"
+                >
+                  <X className="w-3 h-3" strokeWidth={1.75} />
                 </button>
               </span>
             )}
             <button
+              type="button"
               onClick={clearAllFilters}
-              className="text-xs text-[#b91c1c] hover:underline font-semibold ml-2 flex items-center gap-1 cursor-pointer"
+              className="inline-flex items-center gap-1 text-xs text-[#b91c1c] hover:text-[#14293a] font-semibold ml-1 cursor-pointer transition-colors"
             >
-              <RotateCcw className="w-3 h-3" />
-              <span>Reset All</span>
+              <RotateCcw className="w-3 h-3" strokeWidth={1.75} />
+              <span>Clear All</span>
             </button>
           </div>
         )}
@@ -597,170 +863,37 @@ function BoltContent() {
       <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         <div className="flex items-start gap-8">
           {/* Desktop Filter Sidebar */}
-          <aside className={`${showSidebar ? 'hidden lg:block' : 'hidden'} w-64 shrink-0 bg-[#f8f8f8] border border-[#d3d6db] p-5 rounded-sm shadow-sm sticky top-28 self-start`}>
-            <div className="flex items-center justify-between pb-3 border-b border-[#d3d6db]">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
-                Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
-              </span>
-              {activeFilterCount > 0 && (
-                <button
-                  onClick={clearAllFilters}
-                  className="text-[11px] text-[#b91c1c] hover:text-[#14293a] uppercase tracking-wider flex items-center gap-1 cursor-pointer font-semibold"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  <span>Clear</span>
-                </button>
-              )}
-            </div>
-
-            {/* 1. Category Facet */}
-            <div className="py-4 border-b border-[#e5e7eb] space-y-2">
-              <button
-                onClick={() => toggleSection('categories')}
-                className="w-full flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#14293a] cursor-pointer"
-              >
-                <span>Category</span>
-                {openSections.categories ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-
-              {openSections.categories && (
-                <div className="pt-2 space-y-1.5">
-                  <button
-                    onClick={() => setSelectedCategory('All')}
-                    className={`w-full text-left text-xs py-1 px-2 rounded transition-colors flex items-center justify-between cursor-pointer ${
-                      selectedCategory === 'All'
-                        ? 'font-bold text-[#b91c1c] bg-white shadow-xs'
-                        : 'text-[#6c7079] hover:text-[#14293a]'
-                    }`}
-                  >
-                    <span>All Collections</span>
-                    <span className="text-[11px] text-[#8a909a]">{allProducts.length}</span>
-                  </button>
-
-                  {categories.map((cat) => {
-                    const isSel = selectedCategory.toLowerCase() === cat.slug.toLowerCase() || selectedCategory.toLowerCase() === cat.name.toLowerCase()
-                    const count = allProducts.filter(
-                      (p) => p.category_id === cat.id || p.category?.toLowerCase() === cat.name.toLowerCase()
-                    ).length
-
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => setSelectedCategory(cat.name)}
-                        className={`w-full text-left text-xs py-1 px-2 rounded transition-colors flex items-center justify-between cursor-pointer ${
-                          isSel
-                            ? 'font-bold text-[#b91c1c] bg-white shadow-xs'
-                            : 'text-[#6c7079] hover:text-[#14293a]'
-                        }`}
-                      >
-                        <span className="truncate">{cat.name}</span>
-                        <span className="text-[11px] text-[#8a909a]">{count}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* 2. Sizes Facet */}
-            <div className="py-4 border-b border-[#e5e7eb] space-y-2">
-              <button
-                onClick={() => toggleSection('sizes')}
-                className="w-full flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#14293a] cursor-pointer"
-              >
-                <span>Size</span>
-                {openSections.sizes ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-
-              {openSections.sizes && (
-                <div className="pt-2 grid grid-cols-4 gap-1.5">
-                  {AVAILABLE_SIZES.map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => setSelectedSize(selectedSize === size ? null : size)}
-                      className={`py-1.5 text-xs font-mono font-medium rounded-xs border text-center transition-all cursor-pointer ${
-                        selectedSize === size
-                          ? 'border-[#14293a] bg-[#14293a] text-white'
-                          : 'border-[#d3d6db] bg-white text-[#14293a] hover:border-[#14293a]'
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 3. Colorways Facet */}
-            <div className="py-4 border-b border-[#e5e7eb] space-y-2">
-              <button
-                onClick={() => toggleSection('colors')}
-                className="w-full flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#14293a] cursor-pointer"
-              >
-                <span>Color</span>
-                {openSections.colors ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-
-              {openSections.colors && (
-                <div className="pt-2 space-y-1.5">
-                  {AVAILABLE_COLORS.map((col) => (
-                    <button
-                      key={col.name}
-                      onClick={() => setSelectedColor(selectedColor === col.name ? null : col.name)}
-                      className={`w-full flex items-center justify-between py-1 px-1.5 rounded text-xs transition-colors cursor-pointer ${
-                        selectedColor === col.name
-                          ? 'font-bold text-[#14293a] bg-white shadow-xs'
-                          : 'text-[#6c7079] hover:text-[#14293a]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="w-3 h-3 rounded-full border border-black/20"
-                          style={{ backgroundColor: col.hex }}
-                        />
-                        <span>{col.name}</span>
-                      </div>
-                      {selectedColor === col.name && <Check className="w-3 h-3 text-[#b91c1c]" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 4. Price Facet */}
-            <div className="py-4 space-y-2">
-              <button
-                onClick={() => toggleSection('price')}
-                className="w-full flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#14293a] cursor-pointer"
-              >
-                <span>Price</span>
-                {openSections.price ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-
-              {openSections.price && (
-                <div className="pt-2 space-y-1.5">
-                  {[
-                    { label: 'All Price Tiers', val: 'all' },
-                    { label: 'Under ₹5,000', val: 'under-5000' },
-                    { label: '₹5,000 – ₹12,000', val: '5000-12000' },
-                    { label: 'Above ₹12,000', val: 'above-12000' },
-                  ].map((tier) => (
-                    <button
-                      key={tier.val}
-                      onClick={() => setPriceTier(tier.val as any)}
-                      className={`w-full text-left text-xs py-1 px-1.5 rounded transition-colors flex items-center justify-between cursor-pointer ${
-                        priceTier === tier.val
-                          ? 'font-bold text-[#b91c1c] bg-white shadow-xs'
-                          : 'text-[#6c7079] hover:text-[#14293a]'
-                      }`}
-                    >
-                      <span>{tier.label}</span>
-                      {priceTier === tier.val && <Check className="w-3 h-3 text-[#b91c1c]" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+          <aside className={`${showSidebar ? 'hidden lg:block' : 'hidden'} w-64 shrink-0 bg-white border border-[#e5e7eb] p-5 rounded-sm sticky top-28 self-start`}>
+            <ShopFilterPanel
+              categories={categories}
+              categoryProductCounts={categoryProductCounts}
+              totalProductCount={allProducts.length}
+              selectedCategory={selectedCategory}
+              onSelectCategory={setSelectedCategory}
+              availableSizes={availableSizes}
+              selectedSize={selectedSize}
+              onSelectSize={setSelectedSize}
+              availableColors={availableColors}
+              selectedColor={selectedColor}
+              onSelectColor={setSelectedColor}
+              minPrice={minPrice}
+              maxPrice={maxPrice}
+              onPriceRangeChange={(min, max) => {
+                setMinPrice(min)
+                setMaxPrice(max)
+              }}
+              tryOnOnly={true}
+              onToggleTryOn={() => {}}
+              hideBoltToggle
+              onSaleOnly={onSaleOnly}
+              onToggleOnSale={() => setOnSaleOnly((prev) => !prev)}
+              onSaleCount={onSaleCount}
+              minDiscount={minDiscount}
+              onSelectMinDiscount={setMinDiscount}
+              activeFilterCount={activeFilterCount}
+              onClearAll={clearAllFilters}
+              variant="desktop"
+            />
           </aside>
 
           {/* Product Grid Area */}
@@ -786,93 +919,106 @@ function BoltContent() {
               </div>
             ) : (
               <div className={`grid grid-cols-2 md:grid-cols-2 ${showSidebar ? 'lg:grid-cols-3 2xl:grid-cols-4' : 'lg:grid-cols-4'} gap-4 sm:gap-6`}>
-                {sortedProducts.map((prod, idx) => (
-                  <ProductCard
-                    key={prod.id}
-                    product={prod}
-                    priority={idx < 4}
-                    showTryOnBadge={true}
-                    showReassuranceLine={false}
-                    onQuickAdd={(p, sz) => handleQuickAdd(p, sz)}
-                  />
-                ))}
+                {sortedProducts.map((prod, idx) => {
+                  const pricing = pricingMap[prod.id]
+                  return (
+                    <ProductCard
+                      key={prod.id}
+                      product={prod}
+                      variants={variantsMap[prod.id]}
+                      pricing={pricing}
+                      mrp={pricing?.mrp}
+                      sellingPrice={pricing?.sellingPrice}
+                      discountPercentage={pricing?.discountPercentage}
+                      bestCouponCode={pricing?.bestCoupon?.code}
+                      bestCouponPrice={pricing?.bestCouponPrice}
+                      priority={idx < 4}
+                      showTryOnBadge={true}
+                      onQuickAdd={(p, sz) => handleQuickAdd(p, sz)}
+                    />
+                  )
+                })}
               </div>
             )}
           </main>
         </div>
       </div>
 
-      {/* Mobile Filter Modal */}
+      {/* Mobile Filter Sheet / Drawer */}
       {mobileFilterOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 lg:hidden flex justify-end">
-          <div className="w-4/5 max-w-sm h-full bg-white shadow-2xl flex flex-col p-5 overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-[#d3d6db]">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
-                Filters ({activeFilterCount})
+        <div
+          className="fixed inset-0 bg-black/50 z-50 lg:hidden flex items-end sm:items-stretch sm:justify-end"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Filter Bolt products"
+        >
+          <div className="w-full sm:max-w-sm max-h-[90dvh] sm:h-full sm:max-h-full bg-white flex flex-col border-t sm:border-t-0 sm:border-l border-[#d3d6db] rounded-t-sm sm:rounded-none">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e7eb] shrink-0">
+              <span className="text-xs font-bold uppercase tracking-[0.14em] text-[#14293a]">
+                Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
               </span>
-              <button
-                onClick={() => setMobileFilterOpen(false)}
-                className="p-1 text-[#6c7079] hover:text-[#14293a]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="py-4 space-y-4 flex-1">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-[#14293a] mb-2">Category</p>
-                <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                {activeFilterCount > 0 && (
                   <button
-                    onClick={() => setSelectedCategory('All')}
-                    className={`w-full text-left text-xs py-1.5 px-2 rounded ${selectedCategory === 'All' ? 'bg-[#14293a] text-white' : 'text-[#6c7079]'}`}
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="text-[11px] font-semibold uppercase tracking-wider text-[#b91c1c] hover:underline"
                   >
-                    All Collections
+                    Clear All
                   </button>
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setSelectedCategory(cat.name)}
-                      className={`w-full text-left text-xs py-1.5 px-2 rounded ${selectedCategory === cat.name ? 'bg-[#14293a] text-white' : 'text-[#6c7079]'}`}
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-[#14293a] mb-2">Size</p>
-                <div className="grid grid-cols-4 gap-2">
-                  {AVAILABLE_SIZES.map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => setSelectedSize(selectedSize === size ? null : size)}
-                      className={`py-1.5 text-xs font-mono rounded-xs border text-center ${
-                        selectedSize === size ? 'bg-[#14293a] text-white border-[#14293a]' : 'bg-white text-[#14293a] border-[#d3d6db]'
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
+                )}
+                <button
+                  type="button"
+                  aria-label="Close filters"
+                  onClick={() => setMobileFilterOpen(false)}
+                  className="p-1 text-[#6c7079] hover:text-[#14293a]"
+                >
+                  <X className="w-5 h-5" strokeWidth={1.75} />
+                </button>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-[#d3d6db] space-y-2">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-5">
+              <ShopFilterPanel
+                categories={categories}
+                categoryProductCounts={categoryProductCounts}
+                totalProductCount={allProducts.length}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                availableSizes={availableSizes}
+                selectedSize={selectedSize}
+                onSelectSize={setSelectedSize}
+                availableColors={availableColors}
+                selectedColor={selectedColor}
+                onSelectColor={setSelectedColor}
+                minPrice={minPrice}
+                maxPrice={maxPrice}
+                onPriceRangeChange={(min, max) => {
+                  setMinPrice(min)
+                  setMaxPrice(max)
+                }}
+                tryOnOnly={true}
+                onToggleTryOn={() => {}}
+                hideBoltToggle
+                onSaleOnly={onSaleOnly}
+                onToggleOnSale={() => setOnSaleOnly((prev) => !prev)}
+                onSaleCount={onSaleCount}
+                minDiscount={minDiscount}
+                onSelectMinDiscount={setMinDiscount}
+                activeFilterCount={activeFilterCount}
+                onClearAll={clearAllFilters}
+                variant="mobile"
+              />
+            </div>
+
+            <div className="p-4 border-t border-[#e5e7eb] bg-white shrink-0">
               <button
+                type="button"
                 onClick={() => setMobileFilterOpen(false)}
                 className="w-full py-3 bg-[#14293a] text-white font-sans text-xs font-bold uppercase tracking-wider rounded-sm hover:bg-[#b91c1c] transition-colors"
               >
-                Apply Filters ({sortedProducts.length} Results)
+                Show {sortedProducts.length} {sortedProducts.length === 1 ? 'Result' : 'Results'}
               </button>
-              {activeFilterCount > 0 && (
-                <button
-                  onClick={clearAllFilters}
-                  className="w-full py-2 text-xs text-[#b91c1c] font-semibold hover:underline"
-                >
-                  Clear All Filters
-                </button>
-              )}
             </div>
           </div>
         </div>

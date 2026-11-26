@@ -10,8 +10,11 @@ import type {
  * Reconciles doorstep Bolt 45-Min Doorstep Try-On settlements when a patron
  * keeps a subset of garments and returns the rest.
  *
- * Verifies if minimum order thresholds are maintained and computes exact
- * post-fitting apparel settlement with pro-rata discounts and 12% GST.
+ * Guardrail 3 (Bolt Try-On Partial-Keep Settlement Rule):
+ * Re-evaluates Tier 3 cart-threshold discounts strictly against kept items during
+ * post-fitting settlement so rejected try-on items do not subsidize kept items.
+ * If kept items fall below min_order_subtotal, the Tier 3 cart-threshold discount is voided,
+ * while item-level Tier 1 & Tier 2 discounts for kept items remain valid.
  */
 export function recalculateTryOnSettlement(
   params: TryOnReconciliationParams
@@ -57,7 +60,6 @@ export function recalculateTryOnSettlement(
       unitDiscountAmount: 0,
       totalDiscountAmount: 0,
       finalUnitPrice: roundCurrency(it.unitPrice),
-      costPrice: roundCurrency(it.costPrice),
       marginFloorHit: false,
     }))
 
@@ -74,12 +76,12 @@ export function recalculateTryOnSettlement(
     }
   }
 
-  // 3. Minimum Order Threshold Verification
+  // 3. Minimum Order Threshold Verification (Guardrail 3)
   const minThreshold = originalAppliedPromotion.min_order_subtotal || 0
   const thresholdMaintained = keptSubtotal >= minThreshold
 
   if (!thresholdMaintained && minThreshold > 0) {
-    // Retained subtotal dropped below minimum campaign threshold -> discount forfeited
+    // Retained subtotal dropped below minimum campaign threshold -> Tier 3 cart threshold discount forfeited
     const tax = roundCurrency(keptSubtotal * 0.12)
     const lineItems: LineItemDiscount[] = keptItems.map((it) => ({
       variantId: it.variantId,
@@ -89,7 +91,6 @@ export function recalculateTryOnSettlement(
       unitDiscountAmount: 0,
       totalDiscountAmount: 0,
       finalUnitPrice: roundCurrency(it.unitPrice),
-      costPrice: roundCurrency(it.costPrice),
       marginFloorHit: false,
     }))
 
@@ -122,6 +123,7 @@ export function recalculateTryOnSettlement(
           max_uses: null,
           times_used: 0,
           assigned_customer_email: null,
+          is_public: true,
           is_active: true,
           created_at: new Date().toISOString(),
         }

@@ -1,7 +1,27 @@
-export type DeliveryMode = 'direct' | 'try_on'
+import {
+  BOLT_HOLD_FEE,
+  BOLT_MAX_TRY_ON_ITEMS,
+  STANDARD_SHIPPING_FEE,
+  FREE_SHIPPING_THRESHOLD,
+  GST_RATE,
+  isFreeStandardShipping,
+  resolveShippingFee,
+  type PricingDeliveryMode,
+} from '@repo/supabase/pricing'
 
-export const BOLT_TRY_ON_FEE = 99.0 // ₹99 nominal doorstep try-on booking/convenience fee
-export const BOLT_MAX_TRY_ON_ITEMS = 5 // Maximum 5 items per Bolt Doorstep Salon session
+export type DeliveryMode = PricingDeliveryMode
+
+export {
+  BOLT_HOLD_FEE,
+  BOLT_MAX_TRY_ON_ITEMS,
+  STANDARD_SHIPPING_FEE,
+  FREE_SHIPPING_THRESHOLD,
+  GST_RATE,
+  isFreeStandardShipping,
+  resolveShippingFee,
+}
+
+export const BOLT_TRY_ON_FEE = BOLT_HOLD_FEE
 
 export interface ItemForCalculation {
   price: number
@@ -16,20 +36,24 @@ export function calculateSubtotal(items: ItemForCalculation[]): number {
 }
 
 /**
- * Calculates tax at 8% of the subtotal, rounded to 2 decimal places.
+ * Calculates GST at 12% of the taxable subtotal, rounded to 2 decimal places.
  */
 export function calculateTax(subtotal: number): number {
-  return Number((subtotal * 0.08).toFixed(2))
+  if (subtotal <= 0) return 0.0
+  return Number((subtotal * GST_RATE).toFixed(2))
 }
 
 /**
- * Calculates shipping fee:
- * - ₹0 if subtotal is 0
- * - Flat delivery fee based on selected mode
+ * Calculates shipping / Bolt hold fee using the shared pricing source of truth:
+ * - ₹0 if subtotal <= 0
+ * - ₹99 hold for Bolt Doorstep Try-On ('try_on')
+ * - ₹0 for Standard Delivery ('direct') when pre-coupon subtotal >= ₹1,999, else ₹150
  */
-export function calculateShippingFee(subtotal: number, deliveryMode: DeliveryMode = 'direct'): number {
-  if (subtotal === 0) return 0.0
-  return deliveryMode === 'try_on' ? 45.0 : 25.0
+export function calculateShippingFee(
+  subtotal: number,
+  deliveryMode: DeliveryMode = 'direct'
+): number {
+  return resolveShippingFee(subtotal, deliveryMode)
 }
 
 /**
@@ -41,17 +65,17 @@ export function calculateEstimatedTotal(
   shippingFee: number,
   tax: number
 ): number {
-  if (subtotal === 0) return 0.0
+  if (subtotal <= 0) return 0.0
   return Number((subtotal + shippingFee + tax).toFixed(2))
 }
 
 /**
  * Calculates Bolt Try-On checkout figures:
- * Immediate charge is the flat ₹99 booking fee.
+ * Immediate charge is the flat ₹99 hold (credited toward kept items).
  * Cart subtotal is deferred as "Payable after Try-On".
  */
 export function calculateBoltCheckoutFigures(subtotal: number) {
-  if (subtotal === 0) {
+  if (subtotal <= 0) {
     return {
       immediateDue: 0.0,
       payableAfterTryOn: 0.0,
@@ -59,9 +83,9 @@ export function calculateBoltCheckoutFigures(subtotal: number) {
     }
   }
   return {
-    immediateDue: BOLT_TRY_ON_FEE,
+    immediateDue: BOLT_HOLD_FEE,
     payableAfterTryOn: subtotal,
-    bookingFee: BOLT_TRY_ON_FEE,
+    bookingFee: BOLT_HOLD_FEE,
   }
 }
 
@@ -86,4 +110,3 @@ export function calculateCartTotals(
     estimatedTotal,
   }
 }
-

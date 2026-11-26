@@ -3,20 +3,26 @@
 import React from 'react'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import type { Product, Category } from '@repo/supabase/utils'
+import type { Product, Category, ProductVariant } from '@repo/supabase/utils'
 import type { ProductPricingSummary } from '@repo/supabase/pricing'
-import { CategoryStrip } from './CategoryStrip'
+import { CategoryStrip, type CategoryMetric } from './CategoryStrip'
 import { ProductCard } from './ProductCard'
 
 export interface HomepageProductShowcaseProps {
   products: Product[]
   categories?: Category[]
+  categoryMetrics?: Record<string, CategoryMetric>
+  variantsMap?: Record<string, ProductVariant[]>
+  secondaryImagesMap?: Record<string, string>
   pricingMap?: Record<string, ProductPricingSummary>
 }
 
 export function HomepageProductShowcase({
   products,
   categories,
+  categoryMetrics = {},
+  variantsMap = {},
+  secondaryImagesMap = {},
   pricingMap = {},
 }: HomepageProductShowcaseProps) {
   const displayProducts = products.slice(0, 8)
@@ -24,31 +30,33 @@ export function HomepageProductShowcase({
   return (
     <div className="bg-white font-sans">
       {/* 1. Shop By Category Strip */}
-      <CategoryStrip categories={categories} />
+      <CategoryStrip categories={categories} categoryMetrics={categoryMetrics} />
 
       {/* 2. New Arrivals & Core Releases Showcase */}
       <section className="py-14 sm:py-16 border-t border-[#e5e7eb]">
         <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header Row matching reference styling */}
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 mb-8 border-b border-[#d3d6db]">
             <div>
               <span className="text-xs font-bold uppercase tracking-widest text-[#b91c1c] block mb-1">
-                FEATURED PRODUCTS
+                Featured Products
               </span>
               <h2 className="font-sans text-2xl sm:text-3xl font-bold tracking-tight text-[#14293a]">
-                New Arrivals & Core Releases
+                New Arrivals &amp; Core Releases
               </h2>
               <p className="text-xs text-[#6c7079] mt-0.5">
-                Complimentary express delivery across India on orders over ₹1,999
+                Free Express Delivery across India on orders above ₹1,999
               </p>
             </div>
 
             <Link
               href="/shop?sort=newest"
-              className="text-xs font-sans font-bold uppercase tracking-wider text-[#14293a] hover:text-[#b91c1c] transition-colors flex items-center gap-1.5 self-start sm:self-auto shrink-0"
+              className="text-xs font-sans font-bold uppercase tracking-wider text-[#14293a] hover:text-[#b91c1c] transition-colors flex items-center gap-1.5 self-start sm:self-auto shrink-0 group"
             >
               <span>View All New Arrivals</span>
-              <ArrowRight className="w-3.5 h-3.5 text-[#b91c1c]" />
+              <ArrowRight
+                className="w-3.5 h-3.5 text-[#b91c1c] group-hover:translate-x-1 transition-transform"
+                strokeWidth={1.75}
+              />
             </Link>
           </div>
 
@@ -56,40 +64,34 @@ export function HomepageProductShowcase({
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {displayProducts.map((prod, idx) => {
               const pricing = pricingMap[prod.id]
-              const hasPriceDrop = pricing?.mrp && pricing.sellingPrice && pricing.mrp > pricing.sellingPrice
               return (
                 <ProductCard
                   key={prod.id}
-                  product={{
-                    ...prod,
-                    price: pricing?.sellingPrice ?? prod.price,
-                    ...(hasPriceDrop ? { compare_at_price: pricing!.mrp } : {}),
-                    extra_offer_tag: pricing?.bestCoupon ? `Extra ${pricing.bestCoupon.label}` : undefined,
-                  } as any}
+                  product={prod}
+                  variants={variantsMap[prod.id]}
+                  secondaryImage={secondaryImagesMap[prod.id]}
+                  pricing={pricing}
                   mrp={pricing?.mrp}
                   sellingPrice={pricing?.sellingPrice}
                   discountPercentage={pricing?.discountPercentage}
-                  extraOfferTag={pricing?.bestCoupon?.label}
+                  bestCouponCode={pricing?.bestCoupon?.code}
+                  bestCouponPrice={pricing?.bestCouponPrice}
                   priority={idx < 4}
-                  showTryOnBadge={false}
-                  badgeLabel={
-                    pricing?.discountPercentage && pricing.discountPercentage > 0
-                      ? `${pricing.discountPercentage}% OFF`
-                      : undefined
-                  }
                 />
               )
             })}
           </div>
 
-          {/* Bottom Explore Button */}
           <div className="mt-12 text-center">
             <Link
               href="/shop?sort=newest"
-              className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#14293a] text-white text-xs font-sans font-bold uppercase tracking-wider rounded-sm hover:bg-[#b91c1c] transition-all shadow-sm group"
+              className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#14293a] text-white text-xs font-sans font-bold uppercase tracking-wider rounded-sm hover:bg-[#b91c1c] transition-colors group"
             >
               <span>Explore All New Arrivals</span>
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              <ArrowRight
+                className="w-4 h-4 transition-transform group-hover:translate-x-1"
+                strokeWidth={1.75}
+              />
             </Link>
           </div>
         </div>

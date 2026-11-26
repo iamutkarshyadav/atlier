@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@repo/supabase/server'
 import {
   getPromotions,
   evaluateCartPromotions,
+  resolveShippingFee,
   roundCurrency,
   type PromotionWithRules,
 } from '@repo/supabase'
@@ -31,19 +32,16 @@ async function handleEligibleCoupons(req: NextRequest) {
     let subtotal = 0
     let items: CouponItemInput[] = []
     let deliveryMode: 'direct' | 'try_on' = 'direct'
-    let shippingFee = 99
 
     if (req.method === 'POST') {
       const body = await req.json().catch(() => ({}))
       subtotal = Number(body.subtotal) || 0
       items = Array.isArray(body.items) ? body.items : []
       deliveryMode = body.deliveryMode === 'try_on' ? 'try_on' : 'direct'
-      shippingFee = Number(body.shippingFee) || (deliveryMode === 'try_on' ? 99 : 0)
     } else {
       const { searchParams } = new URL(req.url)
       subtotal = Number(searchParams.get('subtotal')) || 0
       deliveryMode = searchParams.get('deliveryMode') === 'try_on' ? 'try_on' : 'direct'
-      shippingFee = Number(searchParams.get('shippingFee')) || (deliveryMode === 'try_on' ? 99 : 0)
 
       const itemsParam = searchParams.get('items')
       if (itemsParam) {
@@ -52,6 +50,12 @@ async function handleEligibleCoupons(req: NextRequest) {
         } catch {}
       }
     }
+
+    const effectiveSubtotal =
+      items.length > 0
+        ? items.reduce((sum, itm) => sum + (Number(itm.unitPrice) || 0) * (Number(itm.quantity) || 1), 0)
+        : subtotal
+    const shippingFee = resolveShippingFee(effectiveSubtotal, deliveryMode)
 
     const supabase = await createServerSupabaseClient()
     const activePromotions: PromotionWithRules[] = await getPromotions(supabase, {

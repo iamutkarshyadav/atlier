@@ -76,14 +76,25 @@ export async function GET(req: NextRequest) {
         endsAt: p.ends_at,
         ends_at: p.ends_at,
         publicCoupons: (p.coupons || [])
-          .filter((c) => c.is_active && !c.is_single_use && !c.assigned_customer_email)
-          .map((c) => ({
+          .filter(
+            (c: any) =>
+              c.is_active &&
+              !c.is_single_use &&
+              !c.assigned_customer_email &&
+              (c.is_public === true || (c.is_public === undefined && !c.assigned_customer_email))
+          )
+          .map((c: any) => ({
             id: c.id,
             code: c.code,
             maxUses: c.max_uses,
           })),
-        coupons: (p.coupons || [])
-          .filter((c) => c.is_active && !c.is_single_use && !c.assigned_customer_email),
+        coupons: (p.coupons || []).filter(
+          (c: any) =>
+            c.is_active &&
+            !c.is_single_use &&
+            !c.assigned_customer_email &&
+            (c.is_public === true || (c.is_public === undefined && !c.assigned_customer_email))
+        ),
         rules: (p.rules || []).map((r) => ({
           target_type: r.target_type,
           targetType: r.target_type,

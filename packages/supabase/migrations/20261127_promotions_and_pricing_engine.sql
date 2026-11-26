@@ -335,6 +335,7 @@ DECLARE
   v_customer_email VARCHAR(255) := NULL;
   v_promo RECORD;
   v_coupon RECORD;
+  v_enforce_margin_floor BOOLEAN := false;
   v_customer_redemptions_count INT := 0;
   v_item_cost NUMERIC(10, 2);
   v_item_unit_price NUMERIC(10, 2);
@@ -395,7 +396,7 @@ BEGIN
     v_coupon_id := v_coupon.id;
     v_promo_id := v_coupon.promotion_id;
   ELSIF (p_order_data->>'promotion_id') IS NOT NULL THEN
-    v_promo_id := (p_order_data->>'promotion_id')::UUID;
+    v_promo_id := NULLIF(trim(COALESCE(p_order_data->>'promotion_id', '')), '')::UUID;
   END IF;
 
   -- Lock and validate master promotion if present
@@ -431,6 +432,8 @@ BEGIN
         RAISE EXCEPTION 'USAGE_LIMIT_EXCEEDED: You have already redeemed this privilege the maximum allowable times';
       END IF;
     END IF;
+
+    v_enforce_margin_floor := COALESCE(v_promo.enforce_margin_floor, false);
   END IF;
 
   -- 4. Inventory Row Locking and Margin-Floor Validation per Item
@@ -481,8 +484,8 @@ BEGIN
     v_item_final_price := COALESCE(v_item.final_unit_price, (v_item_unit_price - v_item_discount));
 
     -- Protect margin floor: final selling price must never drop below garment cost price
-    IF v_promo_id IS NOT NULL AND v_promo.enforce_margin_floor = true THEN
-      IF (v_item_unit_price - v_item_discount) < v_item_cost THEN
+    IF v_enforce_margin_floor THEN
+      IF (v_item_unit_price - v_item_discount) < COALESCE(v_item_cost, 0.00) THEN
         v_margin_protected := true;
       END IF;
     END IF;
@@ -516,49 +519,53 @@ BEGIN
 
   -- 5. Prepare Order fields
   v_order_number := COALESCE(
-    p_order_data->>'order_number',
+    NULLIF(p_order_data->>'order_number', ''),
     'ORD-' || to_char(now(), 'YYYYMMDD') || '-' || upper(substr(gen_random_uuid()::text, 1, 6))
   );
-  v_user_id := (p_order_data->>'user_id')::UUID;
-  v_status := COALESCE((p_order_data->>'status')::public.order_status, 'pending'::public.order_status);
-  v_payment_status := COALESCE(p_order_data->>'payment_status', 'pending');
-  v_delivery_mode := COALESCE((p_order_data->>'delivery_mode')::public.delivery_mode, 'direct'::public.delivery_mode);
+  v_user_id := NULLIF(trim(COALESCE(p_order_data->>'user_id', '')), '')::UUID;
+  v_status := COALESCE((NULLIF(p_order_data->>'status', ''))::public.order_status, 'pending'::public.order_status);
+  v_delivery_mode := COALESCE((NULLIF(p_order_data->>'delivery_mode', ''))::public.delivery_mode, 'direct'::public.delivery_mode);
   v_try_on_status := CASE 
-    WHEN v_delivery_mode = 'try_on' THEN 'active_timer'::public.try_on_status 
-    ELSE 'pending'::public.try_on_status 
+    WHEN v_delivery_mode = 'try_on' THEN COALESCE((NULLIF(p_order_data->>'try_on_status', ''))::public.try_on_status, 'pending'::public.try_on_status)
+    ELSE NULL
   END;
   v_order_type := CASE 
     WHEN v_delivery_mode = 'try_on' THEN 'bolt_try_on'::public.order_type 
     ELSE 'standard'::public.order_type 
   END;
-  v_subtotal := COALESCE((p_order_data->>'subtotal')::NUMERIC, 0);
+  v_subtotal := COALESCE((p_order_data->>'original_total')::NUMERIC, (p_order_data->>'subtotal')::NUMERIC, 0);
   v_discount := COALESCE((p_order_data->>'discount')::NUMERIC, 0);
-  v_delivery_fee := COALESCE((p_order_data->>'delivery_fee')::NUMERIC, 0);
+  v_delivery_fee := COALESCE((p_order_data->>'shipping_fee')::NUMERIC, (p_order_data->>'delivery_fee')::NUMERIC, 0);
   v_tax_amount := COALESCE((p_order_data->>'tax_amount')::NUMERIC, 0);
-  v_total_amount := COALESCE((p_order_data->>'total_amount')::NUMERIC, (v_subtotal - v_discount + v_delivery_fee + v_tax_amount));
-  v_notes := p_order_data->>'notes';
+  v_total_amount := COALESCE((p_order_data->>'total')::NUMERIC, (p_order_data->>'total_amount')::NUMERIC, GREATEST(0, v_subtotal - v_discount + v_delivery_fee + v_tax_amount));
+  v_notes := COALESCE(NULLIF(p_order_data->>'delivery_notes', ''), NULLIF(p_order_data->>'notes', ''));
   v_shipping_addr := p_order_data->'shipping_address_json';
   v_billing_addr := p_order_data->'billing_address_json';
   v_discount_breakdown := COALESCE(p_order_data->'discount_breakdown', '[]'::jsonb);
 
-  -- 6. Insert into public.orders
+  -- 6. Insert into public.orders (only verified schema columns)
   INSERT INTO public.orders (
     order_number,
+    invoice_number,
+    tracking_barcode,
     user_id,
     status,
-    payment_status,
     delivery_mode,
     try_on_status,
     order_type,
-    subtotal,
-    discount,
-    delivery_fee,
+    bolt_pincode,
+    bolt_timeslot_id,
+    bolt_session_status,
+    original_total,
+    total,
     tax_amount,
-    total_amount,
+    shipping_fee,
+    source_location_id,
     fulfillment_location_id,
+    shipping_address,
     shipping_address_json,
     billing_address_json,
-    notes,
+    delivery_notes,
     promotion_id,
     coupon_code,
     discount_breakdown,
@@ -568,23 +575,28 @@ BEGIN
   )
   VALUES (
     v_order_number,
+    COALESCE(NULLIF(p_order_data->>'invoice_number', ''), 'INV-' || v_order_number),
+    COALESCE(NULLIF(p_order_data->>'tracking_barcode', ''), 'ATL-TRK-' || v_order_number),
     v_user_id,
     v_status,
-    v_payment_status,
     v_delivery_mode,
     v_try_on_status,
     v_order_type,
+    COALESCE(NULLIF(p_order_data->>'bolt_pincode', ''), NULLIF(v_shipping_addr->>'bolt_pincode', '')),
+    NULLIF(trim(COALESCE(p_order_data->>'bolt_timeslot_id', v_shipping_addr->>'bolt_timeslot_id', '')), '')::UUID,
+    CASE WHEN v_delivery_mode = 'try_on' THEN 'scheduled'::public.bolt_session_status ELSE NULL END,
     v_subtotal,
-    v_discount,
-    v_delivery_fee,
-    v_tax_amount,
     v_total_amount,
+    v_tax_amount,
+    v_delivery_fee,
     v_loc_id,
+    v_loc_id,
+    COALESCE(NULLIF(p_order_data->>'shipping_address', ''), NULLIF(v_shipping_addr->>'address', '')),
     v_shipping_addr,
     v_billing_addr,
     v_notes,
     v_promo_id,
-    v_coupon_code,
+    NULLIF(v_coupon_code, ''),
     v_discount_breakdown,
     v_margin_protected,
     timezone('utc'::text, now()),

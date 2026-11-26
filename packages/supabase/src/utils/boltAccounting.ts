@@ -1,4 +1,5 @@
 import type { TryOnDecision } from '../types/database.types'
+import { BOLT_HOLD_FEE } from '../pricing/constants'
 
 export interface TryOnItemRecord {
   id: string
@@ -7,7 +8,7 @@ export interface TryOnItemRecord {
   try_on_decision: TryOnDecision
 }
 
-export const BOLT_TRY_ON_DEPOSIT = 99.0
+export const BOLT_TRY_ON_DEPOSIT = BOLT_HOLD_FEE
 
 export interface BoltReconciliationResult {
   keptSubtotal: number

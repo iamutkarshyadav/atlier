@@ -10,7 +10,9 @@ import type {
 } from '../types/database.types'
 
 const REVIEWS_FILE = path.join(__dirname, '.local_reviews.json')
+const REVIEW_VOTES_FILE = path.join(__dirname, '.local_review_votes.json')
 const PROMOTIONS_FILE = path.join(__dirname, '.local_promotions.json')
+const RETURNS_FILE = path.join(__dirname, '.local_return_requests.json')
 
 function readJsonFile<T>(filePath: string, fallback: T): T {
   try {
@@ -79,6 +81,7 @@ export function saveLocalReview(params: {
     admin_reply: null,
     admin_replied_at: null,
     admin_replied_by: null,
+    helpful_count: 0,
     created_at: now,
     updated_at: now,
     media: (params.mediaUrls || []).map((url, idx) => ({
@@ -144,6 +147,84 @@ export function updateLocalReview(
   return reviews[idx]!
 }
 
+export function toggleLocalReviewHelpfulVote(
+  reviewId: string,
+  voterKey: string
+): { helpfulCount: number; voted: boolean } {
+  const votesMap = readJsonFile<Record<string, string[]>>(REVIEW_VOTES_FILE, {})
+  const voters = new Set(votesMap[reviewId] || [])
+  let voted = false
+
+  if (voters.has(voterKey)) {
+    voters.delete(voterKey)
+    voted = false
+  } else {
+    voters.add(voterKey)
+    voted = true
+  }
+
+  votesMap[reviewId] = Array.from(voters)
+  writeJsonFile(REVIEW_VOTES_FILE, votesMap)
+
+  const helpfulCount = voters.size
+  updateLocalReview(reviewId, { helpful_count: helpfulCount })
+
+  return { helpfulCount, voted }
+}
+
+// =============================================================================
+// Local Return / Exchange Requests Fallback Store
+// =============================================================================
+
+export interface LocalReturnRequestRecord {
+  id: string
+  order_id: string
+  order_item_id: string
+  user_id: string | null
+  request_type: 'exchange' | 'return'
+  replacement_size: string | null
+  reason: string
+  notes: string | null
+  status: 'requested' | 'approved' | 'pickup_scheduled' | 'completed' | 'rejected'
+  created_at: string
+  updated_at: string
+}
+
+export function saveLocalReturnRequest(params: {
+  orderId: string
+  orderItemId: string
+  userId?: string | null
+  requestType: 'exchange' | 'return'
+  replacementSize?: string | null
+  reason: string
+  notes?: string | null
+}): LocalReturnRequestRecord {
+  const existing = readJsonFile<LocalReturnRequestRecord[]>(RETURNS_FILE, [])
+  const now = new Date().toISOString()
+  const record: LocalReturnRequestRecord = {
+    id: `ret-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    order_id: params.orderId,
+    order_item_id: params.orderItemId,
+    user_id: params.userId ?? null,
+    request_type: params.requestType,
+    replacement_size: params.replacementSize ?? null,
+    reason: params.reason,
+    notes: params.notes ?? null,
+    status: 'requested',
+    created_at: now,
+    updated_at: now,
+  }
+  const filtered = existing.filter((r) => r.order_item_id !== params.orderItemId)
+  filtered.unshift(record)
+  writeJsonFile(RETURNS_FILE, filtered)
+  return record
+}
+
+export function getLocalReturnRequests(orderId: string): LocalReturnRequestRecord[] {
+  const existing = readJsonFile<LocalReturnRequestRecord[]>(RETURNS_FILE, [])
+  return existing.filter((r) => r.order_id === orderId)
+}
+
 // =============================================================================
 // Local Promotions Fallback Store
 // =============================================================================
@@ -198,6 +279,7 @@ export function saveLocalPromotion(params: {
       max_uses: c.max_uses ?? null,
       times_used: 0,
       assigned_customer_email: c.assigned_customer_email || null,
+      is_public: c.is_public ?? false,
       is_active: true,
       created_at: now,
     })),

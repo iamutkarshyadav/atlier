@@ -6,6 +6,7 @@ import {
   recalculateTryOnSettlement,
   getEffectiveProductPricing,
   calculateDiscountBuckets,
+  evaluatePromotionRules,
   type CartItemPricingInput,
   type PromotionWithRules,
 } from './index'
@@ -714,3 +715,347 @@ describe('Effective Product Pricing & Storefront Offer Resolution', () => {
     expect(pricing.hasDiscount).toBe(true)
   })
 })
+
+describe('Boolean Rule Matcher (AND across types, OR within type, exclude overrides)', () => {
+  const baseTarget = {
+    productId: 'p-hoodie-1',
+    variantId: 'v-h1-black-m',
+    categoryId: 'cat-hoodies',
+    category: 'Hoodies',
+    subcategoryId: 'sub-heavyweight',
+    collectionIds: ['col-winter-26'],
+    isTryOnEligible: true,
+    sku: 'SKU-HOOD-BLK-M',
+  }
+
+  it('evaluates AND across different rule types and OR within the same rule type', () => {
+    // Rules: (Category = 'Hoodies' OR Category = 'Sweatshirts') AND (try_on_eligible = true)
+    const rules = [
+      { id: 'r1', target_type: 'category', target_id: 'cat-hoodies', match_operator: 'include' },
+      { id: 'r2', target_type: 'category', target_id: 'cat-sweatshirts', match_operator: 'include' },
+      { id: 'r3', target_type: 'try_on_eligible', target_id: 'true', match_operator: 'include' },
+    ]
+
+    // Matches: category is Hoodies AND try_on_eligible is true
+    expect(evaluatePromotionRules(rules, baseTarget)).toBe(true)
+
+    // Fails: try_on_eligible is false
+    expect(evaluatePromotionRules(rules, { ...baseTarget, isTryOnEligible: false })).toBe(false)
+
+    // Fails: category is Jackets (neither Hoodies nor Sweatshirts)
+    expect(evaluatePromotionRules(rules, { ...baseTarget, categoryId: 'cat-jackets', category: 'Jackets' })).toBe(false)
+  })
+
+  it('enforces exclude rules as absolute override over include rules', () => {
+    const rules = [
+      { id: 'r1', target_type: 'category', target_id: 'cat-hoodies', match_operator: 'include' },
+      { id: 'r2', target_type: 'specific_sku', target_id: 'SKU-HOOD-BLK-M', match_operator: 'exclude' },
+    ]
+
+    // Base target matches category, but its SKU is explicitly excluded!
+    expect(evaluatePromotionRules(rules, baseTarget)).toBe(false)
+
+    // A different SKU in the same category passes!
+    expect(evaluatePromotionRules(rules, { ...baseTarget, sku: 'SKU-HOOD-GRY-L' })).toBe(true)
+  })
+
+  it('supports target_values array matching for bulk category and subcategory targeting', () => {
+    const rules = [
+      {
+        id: 'r1',
+        target_type: 'subcategory',
+        target_values: ['sub-heavyweight', 'sub-oversized'],
+        match_operator: 'include',
+      },
+    ]
+
+    expect(evaluatePromotionRules(rules, baseTarget)).toBe(true)
+    expect(evaluatePromotionRules(rules, { ...baseTarget, subcategoryId: 'sub-fleece' })).toBe(false)
+  })
+})
+
+describe('3-Tier Discount Waterfall (Tier 1 Markdown -> Tier 2 Coupon -> Tier 3 Threshold)', () => {
+  const garment: CartItemPricingInput = {
+    productId: 'p-cashmere-crew',
+    variantId: 'v-crew-navy-l',
+    title: 'Cashmere Knit Crewneck',
+    categoryId: 'cat-knits',
+    quantity: 1,
+    unitPrice: 20000, // MRP: 20,000
+    costPrice: 10000,
+  }
+
+  const tier1Promo: PromotionWithRules = {
+    id: 'promo-tier1',
+    tier: 1,
+    name: 'Season Catalog Markdown 10%',
+    slug: 'season-10',
+    promotion_type: 'sale',
+    discount_type: 'percentage',
+    discount_value: 10, // 10% of 20,000 = 2,000 => Selling Price = 18,000
+    is_active: true,
+    rules: [{ id: 'r1', target_type: 'entire_order', match_operator: 'include' }],
+    starts_at: '2026-01-01T00:00:00Z',
+  } as any
+
+  const tier2Promo: PromotionWithRules = {
+    id: 'promo-tier2',
+    tier: 2,
+    name: 'Private Voucher ₹1,000 Off',
+    slug: 'voucher-1k',
+    promotion_type: 'coupon',
+    discount_type: 'fixed_amount',
+    discount_value: 1000, // Evaluated on Selling Price (18,000) -> 1,000 off => 17,000
+    is_active: true,
+    rules: [{ id: 'r2', target_type: 'entire_order', match_operator: 'include' }],
+    starts_at: '2026-01-01T00:00:00Z',
+  } as any
+
+  const tier3Promo: PromotionWithRules = {
+    id: 'promo-tier3',
+    tier: 3,
+    name: 'Cart Threshold ₹2,000 on ₹15k+',
+    slug: 'spend-15k',
+    promotion_type: 'tiered_threshold',
+    discount_type: 'fixed_amount',
+    discount_value: 2000, // Evaluated on post-Tier 2 subtotal (17,000 >= 15,000) -> 2,000 off => 15,000
+    min_order_subtotal: 15000,
+    is_active: true,
+    rules: [{ id: 'r3', target_type: 'entire_order', match_operator: 'include' }],
+    starts_at: '2026-01-01T00:00:00Z',
+  } as any
+
+  it('executes sequential 3-tier waterfall without skipping or misapplying base prices', () => {
+    const result = evaluateCartPromotions({
+      items: [garment],
+      deliveryMode: 'direct',
+      shippingFee: 0,
+      couponCode: 'VOUCHER1K',
+      activePromotions: [tier1Promo, tier2Promo, tier3Promo],
+      activeCoupon: {
+        id: 'c-v1k',
+        promotion_id: tier2Promo.id,
+        code: 'VOUCHER1K',
+        is_public: true,
+        is_active: true,
+        times_used: 0,
+        max_uses: null,
+        is_single_use: false,
+      } as any,
+    })
+
+    // Original Subtotal: 20,000
+    // Tier 1 discount: 2,000 (Selling: 18,000)
+    // Tier 2 discount: 1,000 (Post-Tier 2: 17,000)
+    // Tier 3 discount: 2,000 (Final: 15,000)
+    // Total discount: 5,000
+    expect(result.subtotal).toBe(20000)
+    expect(result.totalDiscount).toBe(5000)
+    expect(result.discountedSubtotal).toBe(15000)
+    expect(result.lineItems[0].originalUnitPrice).toBe(20000)
+    expect(result.lineItems[0].unitDiscountAmount).toBe(5000)
+    expect(result.lineItems[0].finalUnitPrice).toBe(15000)
+    expect(result.appliedPromotions.map((p) => p.name)).toEqual([
+      'Season Catalog Markdown 10%',
+      'Private Voucher ₹1,000 Off',
+      'Cart Threshold ₹2,000 on ₹15k+',
+    ])
+  })
+})
+
+describe('Guardrail 1: Server-Side Margin Floor Clamping & Safe Null Cost Handling', () => {
+  it('clamps discount when costPrice is set and protects margin floor', () => {
+    const lowMarginGarment: CartItemPricingInput = {
+      productId: 'p-silk',
+      variantId: 'v-silk-1',
+      quantity: 1,
+      unitPrice: 10000,
+      costPrice: 8500, // Headroom = 1,500
+    }
+
+    const heavyDiscountPromo: PromotionWithRules = {
+      id: 'promo-heavy-40',
+      tier: 1,
+      name: 'Flash 40%',
+      slug: 'flash-40',
+      promotion_type: 'sale',
+      discount_type: 'percentage',
+      discount_value: 40, // 40% of 10,000 = 4,000, exceeding 1,500 headroom!
+      enforce_margin_floor: true,
+      is_active: true,
+      rules: [],
+      starts_at: '2026-01-01T00:00:00Z',
+    } as any
+
+    const result = evaluateCartPromotions({
+      items: [lowMarginGarment],
+      deliveryMode: 'direct',
+      shippingFee: 0,
+      activePromotions: [heavyDiscountPromo],
+    })
+
+    expect(result.totalDiscount).toBe(1500) // Clamped to headroom
+    expect(result.lineItems[0].finalUnitPrice).toBe(8500)
+    expect(result.lineItems[0].marginFloorHit).toBe(true)
+    expect(result.marginProtected).toBe(true)
+    // Verify costPrice is NEVER leaked to lineItems (Guardrail 1)
+    expect((result.lineItems[0] as any).costPrice).toBeUndefined()
+  })
+
+  it('safely skips margin floor clamping when costPrice is null or unset', () => {
+    const uncostedGarment: CartItemPricingInput = {
+      productId: 'p-vintage',
+      variantId: 'v-vin-1',
+      quantity: 1,
+      unitPrice: 10000,
+      costPrice: null, // Null cost price!
+    }
+
+    const promo: PromotionWithRules = {
+      id: 'promo-half',
+      tier: 1,
+      name: 'Half Off',
+      slug: 'half-off',
+      promotion_type: 'sale',
+      discount_type: 'percentage',
+      discount_value: 50,
+      enforce_margin_floor: true,
+      is_active: true,
+      rules: [],
+      starts_at: '2026-01-01T00:00:00Z',
+    } as any
+
+    const result = evaluateCartPromotions({
+      items: [uncostedGarment],
+      deliveryMode: 'direct',
+      shippingFee: 0,
+      activePromotions: [promo],
+    })
+
+    expect(result.totalDiscount).toBe(5000) // Full 50% applied without error
+    expect(result.lineItems[0].finalUnitPrice).toBe(5000)
+    expect(result.lineItems[0].marginFloorHit).toBe(false)
+  })
+})
+
+describe('Guardrail 2: Public-Only Coupon Auto-Discovery', () => {
+  const product: any = {
+    id: 'prod-suit-1',
+    title: 'Tailored Wool Suit',
+    price: 30000,
+  }
+
+  it('auto-discovers is_public: true coupons on product cards and PDPs', () => {
+    const publicPromo: PromotionWithRules = {
+      id: 'promo-pub',
+      name: 'Public Promo 10%',
+      slug: 'pub-10',
+      promotion_type: 'coupon',
+      discount_type: 'percentage',
+      discount_value: 10,
+      is_active: true,
+      starts_at: '2026-01-01T00:00:00Z',
+      rules: [],
+      coupons: [
+        {
+          id: 'c-pub',
+          promotion_id: 'promo-pub',
+          code: 'PUBLIC10',
+          is_public: true,
+          is_active: true,
+          is_single_use: false,
+          max_uses: null,
+          times_used: 0,
+          assigned_customer_email: null,
+          created_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+    } as any
+
+    const pricing = getEffectiveProductPricing(product, [publicPromo])
+    expect(pricing.bestCoupon?.code).toBe('PUBLIC10')
+    expect(pricing.bestCouponPrice).toBe(27000)
+  })
+
+  it('strictly suppresses is_public: false private VIP coupons from auto-discovery', () => {
+    const privatePromo: PromotionWithRules = {
+      id: 'promo-priv',
+      name: 'Private VIP 25%',
+      slug: 'vip-25',
+      promotion_type: 'coupon',
+      discount_type: 'percentage',
+      discount_value: 25,
+      is_active: true,
+      starts_at: '2026-01-01T00:00:00Z',
+      rules: [],
+      coupons: [
+        {
+          id: 'c-priv',
+          promotion_id: 'promo-priv',
+          code: 'SECRET25',
+          is_public: false, // Explicitly private!
+          is_active: true,
+          is_single_use: false,
+          max_uses: null,
+          times_used: 0,
+          assigned_customer_email: null,
+          created_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+    } as any
+
+    const pricing = getEffectiveProductPricing(product, [privatePromo])
+    // Must NOT surface the private coupon in bestCoupon or bestCouponPrice
+    expect(pricing.bestCoupon).toBeNull()
+    expect(pricing.bestCouponPrice).toBe(30000)
+    expect(pricing.applicableOffers.some((o) => o.code === 'SECRET25')).toBe(false)
+  })
+})
+
+describe('Guardrail 3: Bolt Try-On Partial-Keep Settlement Re-Evaluation', () => {
+  it('voids Tier 3 threshold discount when kept garments do not meet order threshold', () => {
+    const keptGarment: CartItemPricingInput = {
+      productId: 'p-sweater',
+      variantId: 'v-sw-1',
+      quantity: 1,
+      unitPrice: 8000,
+    }
+    const returnedGarment: CartItemPricingInput = {
+      productId: 'p-coat',
+      variantId: 'v-coat-1',
+      quantity: 1,
+      unitPrice: 15000,
+    }
+
+    const tier3OrderPromo: PromotionWithRules = {
+      id: 'promo-threshold',
+      tier: 3,
+      name: 'Grand Order ₹3,000 Off on ₹20k+',
+      slug: 'order-20k',
+      promotion_type: 'tiered_threshold',
+      discount_type: 'fixed_amount',
+      discount_value: 3000,
+      min_order_subtotal: 20000, // Initial order 23,000 met this
+      is_active: true,
+      rules: [],
+      starts_at: '2026-01-01T00:00:00Z',
+    } as any
+
+    // Doorstep decision: patron returns 15,000 coat and keeps only 8,000 sweater.
+    // Retained subtotal = 8,000 < 20,000 minimum threshold.
+    const settlement = recalculateTryOnSettlement({
+      originalSubtotal: 23000,
+      originalAppliedPromotion: tier3OrderPromo,
+      keptItems: [keptGarment],
+      rejectedItems: [returnedGarment],
+      holdFeePaid: 99,
+    })
+
+    expect(settlement.thresholdMaintained).toBe(false)
+    expect(settlement.recalculatedDiscount).toBe(0) // Voided!
+    expect(settlement.keptSubtotal).toBe(8000)
+    expect(settlement.finalPayable).toBe(roundCurrency(8000 + 8000 * 0.12)) // Standard retail settled
+    expect(settlement.reconciliationNotes).toContain('fell below minimum privilege threshold')
+  })
+})
+

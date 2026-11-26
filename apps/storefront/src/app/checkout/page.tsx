@@ -1,11 +1,9 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { motion } from 'framer-motion'
 import {
-  ArrowLeft,
   ArrowRight,
   CheckCircle,
   Truck,
@@ -14,19 +12,35 @@ import {
   Zap,
   Lock,
   UserCheck,
-  FileText,
   Calendar,
   Clock,
   MapPin,
   AlertCircle,
-  Sparkles,
   Check,
+  CreditCard,
+  Smartphone,
+  Banknote,
 } from 'lucide-react'
 import { Button, Input } from '@repo/ui'
 import { createBrowserClient } from '@repo/supabase/browser'
 import type { BoltTimeslot } from '@repo/supabase/types'
 import { useHydratedCart } from '../../store/useCartStore'
 import { useHydratedBolt } from '../../store/useBoltStore'
+import {
+  BOLT_HOLD_FEE,
+  STANDARD_SHIPPING_FEE,
+  isFreeStandardShipping,
+  resolveShippingFee,
+} from '../../store/cartSubtotal'
+import { ProductImage } from '@/components/ui/ProductImage'
+import { PriceDetailsBox } from '@/components/cart/PriceDetailsBox'
+import {
+  getIstDateOptions,
+  getCustomerSlotAvailability,
+  resolveInitialBoltDateAndSlot,
+} from '@/utils/boltSlots'
+
+type PaymentMethod = 'online' | 'cod'
 
 export default function LuxuryCheckoutPage() {
   const {
@@ -36,18 +50,16 @@ export default function LuxuryCheckoutPage() {
     discount,
     discountedSubtotal,
     tax,
+    shippingFee,
+    estimatedTotal,
     itemCount,
     appliedCouponCode,
+    deliveryMode: cartDeliveryMode,
+    setDeliveryMode: setCartDeliveryMode,
+    setTryOnWindow,
+    recalculatePromotions,
     clearCart,
   } = useHydratedCart()
-
-  const catalogSavings = items.reduce((acc, item) => {
-    if (item.originalPrice && item.originalPrice > item.price) {
-      return acc + (item.originalPrice - item.price) * item.quantity
-    }
-    return acc
-  }, 0)
-  const totalCombinedSavings = discount + catalogSavings
 
   const {
     pincode,
@@ -58,8 +70,11 @@ export default function LuxuryCheckoutPage() {
     isHydrated: isBoltHydrated,
   } = useHydratedBolt()
 
-  // Checkout flow state
-  const [activeStep, setActiveStep] = useState<1 | 2>(1)
+  // 3-step stepper state
+  const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1)
+  const [showModeSwitcher, setShowModeSwitcher] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('online')
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [orderPlaced, setOrderPlaced] = useState(false)
@@ -69,13 +84,11 @@ export default function LuxuryCheckoutPage() {
   const [confirmedOrderType, setConfirmedOrderType] = useState<'standard' | 'bolt_try_on'>('standard')
   const [confirmedSlotLabel, setConfirmedSlotLabel] = useState<string>('')
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
-  const [userEmail, setUserEmail] = useState<string | null>(null)
   const [saveAddressToProfile, setSaveAddressToProfile] = useState(true)
 
-  // Delivery Mode: 'bolt' or 'standard'
-  const [deliveryMode, setDeliveryMode] = useState<'standard' | 'bolt'>('bolt')
-
-  // Available Time Slots for Bolt Try-On
+  // Bolt 3-day IST date + slot selection
+  const istDates = useMemo(() => getIstDateOptions(), [])
+  const [selectedDayOffset, setSelectedDayOffset] = useState<0 | 1 | 2>(0)
   const [timeslots, setTimeslots] = useState<BoltTimeslot[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
 
@@ -93,7 +106,15 @@ export default function LuxuryCheckoutPage() {
     notes: '',
   })
 
-  // Sync postal code & city from Bolt store into address form if available
+  // Ensure pricing evaluation matches server before payment step
+  useEffect(() => {
+    if (isCartHydrated && items.length > 0) {
+      recalculatePromotions()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCartHydrated])
+
+  // Sync postal code & city from Bolt store into address form
   useEffect(() => {
     if (pincode) {
       setFormData((prev) => ({
@@ -104,24 +125,12 @@ export default function LuxuryCheckoutPage() {
     }
   }, [pincode, boltCity])
 
-  // Automatically default to Bolt if serviceable, otherwise standard
-  useEffect(() => {
-    if (isBoltHydrated) {
-      if (isServiceable) {
-        setDeliveryMode('bolt')
-      } else {
-        setDeliveryMode('standard')
-      }
-    }
-  }, [isBoltHydrated, isServiceable])
-
   // Check auth session
   useEffect(() => {
     const supabase = createBrowserClient()
     supabase.auth.getSession().then(({ data: { session } }) => {
       setIsAuthenticated(Boolean(session))
       if (session?.user?.email) {
-        setUserEmail(session.user.email)
         setFormData((prev) => ({
           ...prev,
           email: session.user.email!,
@@ -131,57 +140,105 @@ export default function LuxuryCheckoutPage() {
     })
   }, [])
 
-  // Load available time slots for Bolt
+  const isBoltSelected = cartDeliveryMode === 'try_on' && isServiceable
+  const isOverBoltLimit = isBoltSelected && itemCount > 5
+
+  // Load available Bolt time slots and auto-advance Today -> Tomorrow if today's slots closed
   useEffect(() => {
-    if (deliveryMode === 'bolt') {
-      setLoadingSlots(true)
-      fetch('/api/bolt/timeslots')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && Array.isArray(data.timeslots)) {
-            setTimeslots(data.timeslots)
-            if (!selectedTimeslotId && data.timeslots.length > 0) {
-              setSelectedTimeslotId(data.timeslots[0].id)
+    if (!isBoltSelected) return
+    setLoadingSlots(true)
+    fetch('/api/bolt/timeslots')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.timeslots)) {
+          const loaded: BoltTimeslot[] = data.timeslots
+          setTimeslots(loaded)
+          const initial = resolveInitialBoltDateAndSlot(loaded)
+          setSelectedDayOffset(initial.dayOffset)
+          if (
+            !selectedTimeslotId ||
+            !loaded.some(
+              (s) =>
+                s.id === selectedTimeslotId &&
+                !getCustomerSlotAvailability(s, initial.dayOffset).disabled
+            )
+          ) {
+            if (initial.slotId) {
+              setSelectedTimeslotId(initial.slotId)
             }
           }
-        })
-        .catch((err) => console.warn('Could not load slots:', err))
-        .finally(() => setLoadingSlots(false))
+        }
+      })
+      .catch((err) => console.warn('Could not load slots:', err))
+      .finally(() => setLoadingSlots(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBoltSelected])
+
+  const handleSelectDateOffset = (dayOffset: 0 | 1 | 2) => {
+    setSelectedDayOffset(dayOffset)
+    const currentStillOpen = timeslots.some(
+      (s) =>
+        s.id === selectedTimeslotId &&
+        !getCustomerSlotAvailability(s, dayOffset).disabled
+    )
+    if (!currentStillOpen) {
+      const firstOpen = timeslots.find(
+        (s) => !getCustomerSlotAvailability(s, dayOffset).disabled
+      )
+      setSelectedTimeslotId(firstOpen?.id ?? null)
     }
-  }, [deliveryMode, selectedTimeslotId, setSelectedTimeslotId])
+  }
 
-  // Calculations
-  const isBoltSelected = deliveryMode === 'bolt' && isServiceable
-  const isOverBoltLimit = isBoltSelected && itemCount > 5
-  const boltConvenienceFee = 99.0
-  const standardShippingFee = 150.0
-
-  // Immediate due amount
+  // Exact totals aligned with POST /api/orders
+  const qualifiesFreeShipping = isFreeStandardShipping(subtotal)
+  const resolvedDirectShipping =
+    cartDeliveryMode === 'direct' ? shippingFee : resolveShippingFee(subtotal, 'direct')
+  const resolvedBoltShipping =
+    cartDeliveryMode === 'try_on' ? shippingFee : BOLT_HOLD_FEE
+  const activeShippingFee = isBoltSelected ? resolvedBoltShipping : resolvedDirectShipping
   const immediateTotal = isBoltSelected
-    ? boltConvenienceFee
-    : subtotal + standardShippingFee + tax
+    ? activeShippingFee
+    : estimatedTotal > 0
+      ? estimatedTotal
+      : Math.max(0, discountedSubtotal) + activeShippingFee + tax
 
-  const handleProceedToAddress = () => {
+  const selectedDateOption =
+    istDates.find((d) => d.dayOffset === selectedDayOffset) || istDates[0]!
+  const chosenSlot = timeslots.find((s) => s.id === selectedTimeslotId) || null
+  const formattedAppointmentWindow = chosenSlot
+    ? `${selectedDateOption.shortLabel} (${selectedDateOption.subLabel}) · ${chosenSlot.label}`
+    : `${selectedDateOption.shortLabel} (${selectedDateOption.subLabel})`
+
+  const handleContinueFromStep1 = () => {
     if (isOverBoltLimit) return
+    if (isBoltSelected && !selectedTimeslotId && timeslots.length > 0) {
+      setCheckoutError('Please select an available fitting window before continuing.')
+      return
+    }
+    setCheckoutError(null)
     setActiveStep(2)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Handle Order Placement
-  const handleSubmitOrder = async (e: React.FormEvent) => {
+  const handleContinueFromStep2 = (e: React.FormEvent) => {
     e.preventDefault()
+    setCheckoutError(null)
+    setActiveStep(3)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Submit Order on Step 3
+  const handleConfirmOrder = async () => {
     if (isOverBoltLimit) return
 
     setIsSubmitting(true)
+    setCheckoutError(null)
     const randomHex = Math.random().toString(36).substring(2, 7).toUpperCase()
     const generatedRef = `ATL-${randomHex}`
     const generatedInvoice = `INV-2026-${randomHex}`
     const generatedTracking = `ATL-TRK-${randomHex}`
 
     const fullAddress = `${formData.address}${formData.suite ? `, ${formData.suite}` : ''}, ${formData.city}, ${formData.state} ${formData.postalCode}, ${formData.country}`
-
-    const chosenSlot = timeslots.find((s) => s.id === selectedTimeslotId)
-    const slotLabel = chosenSlot ? chosenSlot.label : '10:00 AM - 12:00 PM IST'
 
     let activeRef = generatedRef
     let activeInvoice = generatedInvoice
@@ -195,7 +252,14 @@ export default function LuxuryCheckoutPage() {
 
       const currentUserId = session?.user?.id || 'a0000000-0000-0000-0000-000000000001'
 
-      // 1. Record patron address in dedicated public.addresses table
+      if (isBoltSelected) {
+        setTryOnWindow({
+          date: `${selectedDateOption.shortLabel}, ${selectedDateOption.subLabel}`,
+          timeSlot: chosenSlot?.label || 'Doorstep Fitting Slot',
+        })
+      }
+
+      // 1. Save address to addresses table
       try {
         await supabase.from('addresses').insert({
           user_id: currentUserId,
@@ -214,7 +278,7 @@ export default function LuxuryCheckoutPage() {
         console.warn('Addresses table insertion note:', addrErr)
       }
 
-      // 2. Also update user profile fast-lookup fields if authenticated
+      // 2. Sync to user profile if authenticated
       if (session?.user?.id && saveAddressToProfile) {
         try {
           await supabase
@@ -229,7 +293,14 @@ export default function LuxuryCheckoutPage() {
         } catch {}
       }
 
-      // 3. Construct Order Payload
+      const combinedNotes = [
+        formData.notes?.trim(),
+        isBoltSelected ? `Bolt Window: ${formattedAppointmentWindow}` : `Payment: ${paymentMethod.toUpperCase()}`,
+      ]
+        .filter(Boolean)
+        .join(' | ')
+
+      // 3. Authoritative Order Payload
       const orderPayload = {
         customer_email: formData.email,
         coupon_code: appliedCouponCode || undefined,
@@ -246,24 +317,23 @@ export default function LuxuryCheckoutPage() {
           delivery_mode: isBoltSelected ? 'try_on' : 'direct',
           try_on_status: isBoltSelected ? 'pending' : null,
           tax_amount: isBoltSelected ? 0.0 : tax,
-          shipping_fee: isBoltSelected ? boltConvenienceFee : standardShippingFee,
+          shipping_fee: activeShippingFee,
           original_total: subtotal,
           total: immediateTotal,
           status: 'pending',
           shipping_address: `${fullAddress} [Patron: ${formData.email} | Tel: ${formData.phone}]`,
-          delivery_notes: formData.notes,
+          delivery_notes: combinedNotes,
         },
         items: items.map((it) => ({
           productId: it.productId || it.id,
-          variantId: (it as any).variantId || undefined,
+          variantId: it.variantId || undefined,
           quantity: it.quantity,
           unitPrice: it.price,
           size: it.size,
-          color: (it as any).color || undefined,
+          color: it.color || undefined,
         })),
       }
 
-      // 4. Submit to local API route
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -272,7 +342,9 @@ export default function LuxuryCheckoutPage() {
       const data = await res.json()
 
       if (res.status === 409 || data?.code === 'INSUFFICIENT_STOCK') {
-        const oosMsg = data?.error || 'One or more items in your cart are currently out of stock. Please adjust quantities before proceeding.'
+        const oosMsg =
+          data?.error ||
+          'One or more items in your cart are currently out of stock. Please adjust quantities before proceeding.'
         setCheckoutError(oosMsg)
         window.scrollTo({ top: 0, behavior: 'smooth' })
         return
@@ -298,13 +370,14 @@ export default function LuxuryCheckoutPage() {
         setInvoiceNumber(activeInvoice)
         setTrackingBarcode(activeTracking)
         setConfirmedOrderType(isBoltSelected ? 'bolt_try_on' : 'standard')
-        setConfirmedSlotLabel(slotLabel)
+        setConfirmedSlotLabel(formattedAppointmentWindow)
         setOrderPlaced(true)
         clearCart()
         window.scrollTo({ top: 0, behavior: 'smooth' })
       } else {
-        const errorMsg = data?.error || 'Could not place order. Please verify your details and try again.'
-        setCheckoutError(errorMsg)
+        setCheckoutError(
+          data?.error || 'Could not place order. Please verify your details and try again.'
+        )
       }
     } catch (err: any) {
       console.warn('Checkout submission catch:', err)
@@ -314,85 +387,88 @@ export default function LuxuryCheckoutPage() {
     }
   }
 
-  // --- ORDER SUCCESS CONFIRMATION STATE ---
+  if (!isCartHydrated || !isBoltHydrated) {
+    return (
+      <div className="min-h-[70vh] bg-white text-[#14293a] flex flex-col items-center justify-center px-6 py-24 text-center font-sans">
+        <div className="w-8 h-8 border-2 border-[#d3d6db] border-t-[#b91c1c] rounded-full animate-spin mb-4" />
+        <span className="text-xs uppercase tracking-wider text-[#6c7079] font-medium">
+          Preparing Secure Checkout...
+        </span>
+      </div>
+    )
+  }
+
+  // --- ORDER SUCCESS CONFIRMATION ---
   if (orderPlaced) {
     const isConfirmedBolt = confirmedOrderType === 'bolt_try_on'
 
     return (
       <div className="min-h-screen bg-white text-[#14293a] font-sans">
-        <div className="max-w-2xl mx-auto px-4 sm:px-8 py-16 text-center space-y-6">
-          <div className="w-16 h-16 mx-auto bg-[#ecfdf5] border border-[#a7f3d0] rounded-full flex items-center justify-center text-[#065f46]">
-            <CheckCircle className="w-8 h-8 text-emerald-600" />
+        <div className="max-w-2xl mx-auto px-4 sm:px-8 py-14 text-center space-y-6">
+          <div className="w-16 h-16 mx-auto bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center">
+            <CheckCircle className="w-8 h-8 text-emerald-700" strokeWidth={1.75} />
           </div>
 
           <div className="space-y-2">
-            <span className="text-xs uppercase tracking-wider text-[#b91c1c] font-bold block flex items-center justify-center gap-1.5">
+            <span className="text-xs uppercase tracking-wider text-[#b91c1c] font-bold flex items-center justify-center gap-1.5">
               {isConfirmedBolt ? (
                 <>
-                  <Zap className="w-4 h-4 fill-[#b91c1c] text-[#b91c1c]" />
-                  BOLT DOORSTEP TRY-ON SCHEDULED
+                  <Zap className="w-4 h-4 fill-[#b91c1c] text-[#b91c1c]" strokeWidth={1.75} />
+                  <span>Bolt Doorstep Try-On Scheduled</span>
                 </>
               ) : (
-                'ORDER CONFIRMED • STANDARD DISPATCH'
+                <span>Order Confirmed · Standard Dispatch</span>
               )}
             </span>
-            <h1 className="text-2xl sm:text-4xl font-sans font-black text-[#14293a] tracking-tight">
-              THANK YOU FOR YOUR {isConfirmedBolt ? 'TRY-ON BOOKING' : 'ORDER'}
+            <h1 className="text-2xl sm:text-3xl font-sans font-bold text-[#14293a] tracking-tight">
+              Thank You for Your {isConfirmedBolt ? 'Try-On Booking' : 'Order'}
             </h1>
             <p className="text-xs sm:text-sm text-[#6c7079] leading-relaxed max-w-lg mx-auto">
               {isConfirmedBolt
-                ? 'Our white-glove courier will arrive at your doorstep with the requested garments. Try them on in the comfort of your home, keep what fits, and return the rest instantly.'
-                : 'Your garments have entered our dispatch queue. An official commercial receipt with tracking barcode has been generated for your record.'}
+                ? 'Our courier will arrive at your doorstep with your selected garments. Try them in home comfort, keep what fits, and return the rest on the spot.'
+                : 'Your pieces have entered our dispatch queue. A commercial invoice and tracking barcode have been generated for your order.'}
             </p>
           </div>
 
-          {/* Order Receipt Card */}
-          <div className="p-6 border border-[#d3d6db] bg-[#f8f8f8] text-left space-y-3.5 text-xs shadow-xs rounded-sm">
+          <div className="p-6 border border-[#d3d6db] bg-[#f8f8f8] text-left space-y-3.5 text-xs rounded-sm">
             <div className="flex justify-between items-center border-b border-[#e5e7eb] pb-2.5">
-              <span className="text-[#6c7079] uppercase tracking-wider font-medium text-[11px]">ORDER REFERENCE</span>
+              <span className="text-[#6c7079] uppercase tracking-wider font-medium text-[11px]">
+                Order Reference
+              </span>
               <span className="font-bold text-[#14293a] text-sm">{orderReference}</span>
             </div>
 
             <div className="flex justify-between items-center border-b border-[#e5e7eb] pb-2.5">
-              <span className="text-[#6c7079] uppercase tracking-wider font-medium text-[11px]">COMMERCIAL INVOICE</span>
+              <span className="text-[#6c7079] uppercase tracking-wider font-medium text-[11px]">
+                Commercial Invoice
+              </span>
               <span className="font-bold text-[#14293a] bg-white px-2 py-0.5 border border-[#d3d6db] rounded-sm">
                 {invoiceNumber || `INV-2026-${orderReference.replace('ATL-', '')}`}
               </span>
             </div>
 
             <div className="flex justify-between items-center border-b border-[#e5e7eb] pb-2.5">
-              <span className="text-[#6c7079] uppercase tracking-wider font-medium text-[11px]">SHIPMENT TRACKING</span>
+              <span className="text-[#6c7079] uppercase tracking-wider font-medium text-[11px]">
+                Shipment Tracking
+              </span>
               <span className="text-xs text-[#b91c1c] font-bold">
                 {trackingBarcode || `ATL-TRK-${orderReference.replace('ATL-', '')}`}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center border-b border-[#e5e7eb] pb-2.5">
-              <span className="text-[#6c7079] uppercase tracking-wider font-medium text-[11px]">DELIVERY EXPERIENCE</span>
-              <span className="font-bold text-[#14293a] uppercase flex items-center gap-1">
-                {isConfirmedBolt ? (
-                  <>
-                    <Zap className="w-3.5 h-3.5 fill-[#b91c1c] text-[#b91c1c]" /> Bolt Doorstep Try-On
-                  </>
-                ) : (
-                  'Standard Insured Delivery'
-                )}
               </span>
             </div>
 
             {isConfirmedBolt && confirmedSlotLabel && (
               <div className="flex justify-between items-center border-b border-[#e5e7eb] pb-2.5 bg-[#fef2f2] -mx-2 px-3 py-2 rounded-sm">
                 <span className="text-[#b91c1c] uppercase tracking-wider text-[11px] font-bold flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5" /> APPOINTMENT WINDOW
+                  <Clock className="w-3.5 h-3.5" strokeWidth={1.75} /> Appointment Window
                 </span>
-                <span className="font-bold text-[#14293a]">
-                  {confirmedSlotLabel}
-                </span>
+                <span className="font-bold text-[#14293a]">{confirmedSlotLabel}</span>
               </div>
             )}
 
             <div className="flex justify-between items-baseline border-b border-[#e5e7eb] pb-2.5">
-              <span className="text-[#6c7079] uppercase tracking-wider font-medium text-[11px]">DESTINATION</span>
+              <span className="text-[#6c7079] uppercase tracking-wider font-medium text-[11px]">
+                Destination
+              </span>
               <span className="text-[#14293a] text-right max-w-[65%] font-medium">
                 {formData.address}, {formData.city}, {formData.state} {formData.postalCode}
               </span>
@@ -400,33 +476,22 @@ export default function LuxuryCheckoutPage() {
 
             <div className="flex justify-between items-center pt-1 text-sm font-bold">
               <span className="text-[#6c7079] uppercase">
-                {isConfirmedBolt ? 'CONVENIENCE FEE PAID' : 'TOTAL PAID'}
+                {isConfirmedBolt ? 'Hold Authorized' : 'Total Payable'}
               </span>
               <span className="text-base font-bold tabular-nums text-[#14293a]">
                 ₹{Math.round(immediateTotal).toLocaleString('en-IN')}
               </span>
             </div>
-
-            {isConfirmedBolt && (
-              <div className="p-3 bg-white border border-[#d3d6db] rounded-sm text-xs text-[#6c7079] space-y-1">
-                <div className="flex justify-between font-bold text-[#14293a]">
-                  <span>Garment Value (Payable after Try-On):</span>
-                  <span>₹{subtotal.toLocaleString('en-IN')} INR</span>
-                </div>
-                <p className="text-[11px]">
-                  You will only be charged for the items you choose to keep after your 45-minute fitting salon.
-                </p>
-              </div>
-            )}
           </div>
 
           <div className="pt-2 flex flex-col sm:flex-row justify-center items-center gap-3">
-            <Link href="/orders" className="w-full sm:w-auto">
+            <Link href={`/orders/${encodeURIComponent(orderReference)}`} className="w-full sm:w-auto">
               <Button
                 size="lg"
-                className="w-full sm:w-auto px-6 py-2.5 bg-[#14293a] hover:bg-[#b91c1c] text-white text-xs font-bold uppercase tracking-wider rounded-sm transition-colors shadow-sm"
+                className="w-full sm:w-auto px-6 py-2.5 bg-[#14293a] hover:bg-[#b91c1c] text-white text-xs font-bold uppercase tracking-wider rounded-sm transition-colors"
               >
-                <span>Track Order Status →</span>
+                <span>Track Order Live</span>
+                <ArrowRight className="w-3.5 h-3.5 ml-1.5" strokeWidth={1.75} />
               </Button>
             </Link>
             <Link href="/shop" className="w-full sm:w-auto">
@@ -445,22 +510,23 @@ export default function LuxuryCheckoutPage() {
   }
 
   // --- EMPTY CART GUARD ---
-  if (isCartHydrated && items.length === 0) {
+  if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-white text-[#14293a] flex items-center justify-center px-4 font-sans">
+      <div className="min-h-[70vh] bg-white text-[#14293a] flex items-center justify-center px-4 font-sans">
         <div className="max-w-xl mx-auto py-24 text-center space-y-4">
-          <h1 className="font-sans text-2xl sm:text-3xl font-bold tracking-tight text-[#14293a]">
-            YOUR BAG IS EMPTY
+          <h1 className="font-sans text-2xl font-bold tracking-tight text-[#14293a]">
+            Your Bag is Empty
           </h1>
           <p className="text-xs sm:text-sm text-[#6c7079] leading-relaxed">
-            Please add garments to your bag before initiating checkout.
+            Add garments to your shopping bag before proceeding to checkout.
           </p>
           <Link href="/shop" className="inline-block pt-2">
             <Button
               size="lg"
-              className="px-6 py-2.5 bg-[#14293a] hover:bg-[#b91c1c] text-white text-xs font-bold uppercase tracking-wider rounded-sm shadow-sm transition-colors"
+              className="px-6 py-2.5 bg-[#14293a] hover:bg-[#b91c1c] text-white text-xs font-bold uppercase tracking-wider rounded-sm transition-colors"
             >
-              <span>Explore Collection →</span>
+              <span>Explore Collection</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-1.5" strokeWidth={1.75} />
             </Button>
           </Link>
         </div>
@@ -470,85 +536,71 @@ export default function LuxuryCheckoutPage() {
 
   return (
     <div className="min-h-screen bg-white text-[#14293a] font-sans pb-24">
-      <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12 space-y-6">
-        {/* Row 1: Breadcrumb */}
-        <nav className="text-xs text-[#6c7079] mb-2 font-sans" aria-label="Breadcrumb">
-          <Link href="/" className="hover:text-[#14293a] transition-colors">Home</Link>
-          <span> / </span>
-          <Link href="/cart" className="hover:text-[#14293a] transition-colors">Shopping Bag</Link>
-          <span> / </span>
-          <span className="text-[#14293a]">Checkout</span>
-        </nav>
-
-        {/* Row 2: Single Flex Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#e5e7eb] pb-4 mb-6">
+      <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12 space-y-6">
+        {/* Accurate 3-Step Checkout Stepper */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e5e7eb] pb-4">
           <div>
-            <h1 className="text-2xl font-bold text-[#14293a] tracking-tight flex items-baseline">
-              Checkout
-              <span className="text-sm font-normal text-[#6c7079] ml-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#14293a] tracking-tight">
+              Checkout{' '}
+              <span className="text-sm font-normal text-[#6c7079] ml-1">
                 ({itemCount} {itemCount === 1 ? 'item' : 'items'})
               </span>
             </h1>
-            <div className="text-xs text-[#6c7079] mt-1 flex items-center gap-2">
-              <span>Secure Checkout</span>
-              <span>·</span>
-              <span>{isBoltSelected ? 'Bolt 45-Min Doorstep Try-On' : 'Pan-India Delivery'}</span>
-            </div>
           </div>
 
-          {/* Step Indicator */}
-          <div className="flex items-center gap-3 text-xs font-medium">
-            <button
-              onClick={() => setActiveStep(1)}
-              className={`flex items-center gap-1.5 cursor-pointer transition-colors ${
-                activeStep === 1 ? 'text-[#14293a] font-bold' : 'text-[#8a909a] hover:text-[#14293a]'
-              }`}
-            >
-              <span
-                className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                  activeStep === 1 ? 'bg-[#14293a] text-white' : 'bg-[#e5e7eb] text-[#6c7079]'
-                }`}
-              >
-                1
-              </span>
-              <span>Delivery &amp; Slots</span>
-            </button>
-            <span className="text-[#d3d6db]">/</span>
-            <button
-              onClick={() => {
-                if (!isOverBoltLimit) setActiveStep(2)
-              }}
-              disabled={isOverBoltLimit}
-              className={`flex items-center gap-1.5 transition-colors ${
-                activeStep === 2
-                  ? 'text-[#14293a] font-bold'
-                  : isOverBoltLimit
-                  ? 'opacity-40 cursor-not-allowed'
-                  : 'text-[#8a909a] hover:text-[#14293a] cursor-pointer'
-              }`}
-            >
-              <span
-                className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                  activeStep === 2 ? 'bg-[#14293a] text-white' : 'bg-[#e5e7eb] text-[#6c7079]'
-                }`}
-              >
-                2
-              </span>
-              <span>Shipping Address</span>
-            </button>
-          </div>
+          <nav aria-label="Checkout steps" className="flex items-center flex-wrap gap-2 sm:gap-3 text-xs font-medium">
+            {[
+              { step: 1 as const, label: 'Delivery & Slots' },
+              { step: 2 as const, label: 'Shipping Address' },
+              { step: 3 as const, label: 'Payment' },
+            ].map((item, index) => {
+              const isCurrent = activeStep === item.step
+              const isCompleted = activeStep > item.step
+              const canJump = isCompleted || (item.step === 2 && !isOverBoltLimit && activeStep >= 2)
+
+              return (
+                <React.Fragment key={item.step}>
+                  {index > 0 && <span className="text-[#d3d6db]">/</span>}
+                  <button
+                    type="button"
+                    disabled={!canJump && !isCurrent}
+                    onClick={() => {
+                      if (canJump) setActiveStep(item.step)
+                    }}
+                    className={`flex items-center gap-1.5 transition-colors ${
+                      isCurrent
+                        ? 'text-[#14293a] font-bold'
+                        : isCompleted
+                          ? 'text-emerald-700 font-semibold hover:text-[#14293a] cursor-pointer'
+                          : 'text-[#8a909a] cursor-default'
+                    }`}
+                  >
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                        isCurrent
+                          ? 'bg-[#14293a] text-white'
+                          : isCompleted
+                            ? 'bg-emerald-700 text-white'
+                            : 'bg-[#e5e7eb] text-[#6c7079]'
+                      }`}
+                    >
+                      {isCompleted ? <Check className="w-3 h-3" strokeWidth={2.25} /> : item.step}
+                    </span>
+                    <span>{item.label}</span>
+                  </button>
+                </React.Fragment>
+              )
+            })}
+          </nav>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* ========================================================= */}
-          {/* LEFT COLUMN: INTERACTIVE CHECKOUT STEPS */}
-          {/* ========================================================= */}
+          {/* LEFT COLUMN: 3-STEP CHECKOUT FLOW */}
           <div className="lg:col-span-8 space-y-6">
-            {/* Guest Note */}
             {isAuthenticated === false && (
               <div className="p-3.5 bg-[#f8f8f8] border border-[#d3d6db] rounded-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs">
                 <div className="flex items-center gap-2">
-                  <UserCheck className="w-4 h-4 text-[#b91c1c] shrink-0" />
+                  <UserCheck className="w-4 h-4 text-[#b91c1c] shrink-0" strokeWidth={1.75} />
                   <span className="text-[#6c7079]">
                     Checking out as guest. Sign in to save addresses to your account.
                   </span>
@@ -562,186 +614,229 @@ export default function LuxuryCheckoutPage() {
               </div>
             )}
 
-            {/* ========================================================= */}
-            {/* STEP 1: EXPERIENCE SELECTION & TIME SLOTS */}
-            {/* ========================================================= */}
+            {checkoutError && (
+              <div className="p-3.5 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] text-xs flex items-center gap-2 rounded-sm">
+                <AlertCircle className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+                <span>{checkoutError}</span>
+              </div>
+            )}
+
+            {/* ===================================================== */}
+            {/* STEP 1: PRE-SELECTED DELIVERY SUMMARY & BOLT SLOTS    */}
+            {/* ===================================================== */}
             {activeStep === 1 && (
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
                 className="space-y-6"
               >
-                <div className="space-y-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#b91c1c] block">
-                    STEP 01
-                  </span>
-                  <h2 className="text-xl sm:text-2xl font-sans font-bold text-[#14293a]">
-                    SELECT DELIVERY METHOD
-                  </h2>
-                  <p className="text-xs text-[#6c7079]">
-                    Choose between our flagship white-glove doorstep fitting salon or standard direct delivery.
-                  </p>
-                </div>
-
-                {/* Delivery Option Tabs */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Option A: Bolt Try-On Tab */}
-                  <div
-                    onClick={() => {
-                      if (isServiceable) setDeliveryMode('bolt')
-                    }}
-                    className={`p-4 border rounded-sm transition-all space-y-2 relative ${
-                      isServiceable
-                        ? deliveryMode === 'bolt'
-                          ? 'border-[#b91c1c] bg-[#fef2f2] ring-1 ring-[#b91c1c] shadow-xs cursor-pointer'
-                          : 'border-[#d3d6db] bg-white hover:border-[#14293a] cursor-pointer'
-                        : 'border-dashed border-[#d3d6db] bg-[#f8f8f8] cursor-not-allowed opacity-50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#b91c1c] border border-[#fecaca]">
-                        <Zap className="w-4 h-4 fill-[#b91c1c]" />
+                {/* Pre-Selected Delivery Summary Card (carries useCartStore.deliveryMode directly) */}
+                <div className="border border-[#d3d6db] bg-white rounded-sm p-5 space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`w-9 h-9 rounded-sm border flex items-center justify-center shrink-0 ${
+                          isBoltSelected
+                            ? 'bg-[#fef2f2] border-[#fecaca] text-[#b91c1c]'
+                            : 'bg-[#f8f8f8] border-[#d3d6db] text-[#14293a]'
+                        }`}
+                      >
+                        {isBoltSelected ? (
+                          <Zap className="w-4 h-4 fill-[#b91c1c]" strokeWidth={1.75} />
+                        ) : (
+                          <Truck className="w-4 h-4" strokeWidth={1.75} />
+                        )}
                       </div>
-                      <div className="text-right">
-                        <span className="text-xs text-[#14293a] font-bold block">
-                          ₹99.00
-                        </span>
-                        <span className="text-[10px] text-[#6c7079]">
-                          Convenience Hold
-                        </span>
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
+                            {isBoltSelected ? 'Bolt 45-Min Doorstep Try-On' : 'Standard Express Delivery'}
+                          </span>
+                          <span className="text-[11px] font-semibold px-2 py-0.5 border border-[#e5e7eb] bg-[#f8f8f8] rounded-sm text-[#52565e]">
+                            {isBoltSelected
+                              ? `₹${BOLT_HOLD_FEE} Hold`
+                              : qualifiesFreeShipping
+                                ? 'FREE'
+                                : `₹${STANDARD_SHIPPING_FEE}`}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#6c7079] leading-relaxed">
+                          {isBoltSelected
+                            ? `Selected from your bag for ${boltCity || 'your area'} (${pincode}). Try at home before paying; the ₹${BOLT_HOLD_FEE} hold credits toward kept pieces.`
+                            : cartDeliveryMode === 'try_on' && !isServiceable
+                              ? 'Bolt Try-On is unavailable for your current PIN code. Switched to tracked Pan-India Standard Express Delivery.'
+                              : 'Tracked insured courier delivery across India in 2–4 business days.'}
+                        </p>
                       </div>
                     </div>
 
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
-                          Bolt Try-On Service
-                        </h3>
-                        <span className="bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca] text-[9px] font-bold px-1 py-0.2 rounded-sm uppercase">
-                          POPULAR
-                        </span>
-                      </div>
-                      <p className="text-xs text-[#6c7079] mt-1 leading-relaxed">
-                        White-glove 45-min doorstep fitting. Try before you pay. Keep what fits, reject the rest immediately.
-                      </p>
-                    </div>
-
-                    {isServiceable ? (
-                      <div className="pt-2 text-[11px] text-[#065f46] flex items-center gap-1 font-semibold">
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        <span>Available in {boltCity || 'your area'} (PIN: {pincode})</span>
-                      </div>
-                    ) : (
-                      <div className="pt-2 text-[11px] text-amber-600 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" />
-                        <span>Enter PIN in top banner to unlock Bolt</span>
-                      </div>
+                    {isServiceable && (
+                      <button
+                        type="button"
+                        onClick={() => setShowModeSwitcher((prev) => !prev)}
+                        className="text-xs font-semibold text-[#b91c1c] hover:underline shrink-0 cursor-pointer"
+                      >
+                        {showModeSwitcher ? 'Done' : 'Change'}
+                      </button>
                     )}
                   </div>
 
-                  {/* Option B: Standard Delivery Tab */}
-                  <div
-                    onClick={() => setDeliveryMode('standard')}
-                    className={`p-4 border rounded-sm cursor-pointer transition-all space-y-2 ${
-                      deliveryMode === 'standard'
-                        ? 'border-[#14293a] bg-[#f8f8f8] ring-1 ring-[#14293a] shadow-xs'
-                        : 'border-[#d3d6db] bg-white hover:border-[#14293a]'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#14293a] border border-[#d3d6db]">
-                        <Truck className="w-4 h-4 text-[#14293a]" />
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs text-[#14293a] font-bold block">
-                          ₹150.00
+                  {showModeSwitcher && isServiceable && (
+                    <div className="pt-3 border-t border-[#e5e7eb] grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCartDeliveryMode('try_on')
+                          setShowModeSwitcher(false)
+                        }}
+                        className={`p-3 border rounded-sm text-left text-xs transition-colors cursor-pointer ${
+                          cartDeliveryMode === 'try_on'
+                            ? 'border-[#b91c1c] bg-[#fef2f2] font-semibold'
+                            : 'border-[#d3d6db] bg-white hover:border-[#14293a]'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between">
+                          <span className="font-bold text-[#14293a]">Bolt 45-Min Try-On</span>
+                          <span className="text-[#b91c1c] font-bold">₹{BOLT_HOLD_FEE} Hold</span>
                         </span>
-                        <span className="text-[10px] text-[#6c7079]">
-                          Shipping Fee
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCartDeliveryMode('direct')
+                          setShowModeSwitcher(false)
+                        }}
+                        className={`p-3 border rounded-sm text-left text-xs transition-colors cursor-pointer ${
+                          cartDeliveryMode === 'direct'
+                            ? 'border-[#14293a] bg-[#f8f8f8] font-semibold'
+                            : 'border-[#d3d6db] bg-white hover:border-[#14293a]'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between">
+                          <span className="font-bold text-[#14293a]">Standard Delivery</span>
+                          <span className="font-bold">
+                            {qualifiesFreeShipping ? (
+                              <span className="text-emerald-700">FREE</span>
+                            ) : (
+                              `₹${STANDARD_SHIPPING_FEE}`
+                            )}
+                          </span>
                         </span>
-                      </div>
+                      </button>
                     </div>
-
-                    <div>
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
-                        Standard Delivery
-                      </h3>
-                      <p className="text-xs text-[#6c7079] mt-1 leading-relaxed">
-                        Fully insured dispatch to all PIN codes across India. Full cart value charged upfront.
-                      </p>
-                    </div>
-
-                    <div className="pt-2 text-[11px] text-[#6c7079] flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5" />
-                      <span>Nationwide dispatch in 2–4 business days</span>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Bolt Max 5 Items Warning */}
                 {isOverBoltLimit && (
                   <div className="p-4 bg-[#fef2f2] border border-[#fecaca] rounded-sm text-[#b91c1c] text-xs flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-[#b91c1c] shrink-0 mt-0.5" />
-                    <div className="space-y-0.5">
+                    <AlertCircle className="w-5 h-5 text-[#b91c1c] shrink-0 mt-0.5" strokeWidth={1.75} />
+                    <div className="space-y-1">
                       <strong className="block font-bold">
                         Bolt Try-On Limit Exceeded ({itemCount} / 5 pieces in bag)
                       </strong>
                       <p className="text-[11px] text-[#991b1b]">
-                        Doorstep Salon accommodates a maximum of 5 garments per appointment. Please adjust bag quantities or select Standard Delivery above.
+                        Doorstep Try-On accommodates up to 5 garments per session. Adjust quantities in your bag or switch to Standard Delivery.
                       </p>
-                      <Link href="/cart" className="inline-block pt-1 underline font-bold hover:text-[#14293a]">
+                      <Link href="/cart" className="inline-block underline font-bold hover:text-[#14293a]">
                         Adjust Bag Quantities →
                       </Link>
                     </div>
                   </div>
                 )}
 
-                {/* Time Slots Section (When Bolt is active) */}
+                {/* 3-Day IST Date Picker + Time Slots (When Bolt is active) */}
                 {isBoltSelected && (
-                  <div className="border border-[#d3d6db] bg-[#f8f8f8] rounded-sm p-4 sm:p-5 space-y-3 shadow-xs">
-                    <div className="flex items-center justify-between border-b border-[#d3d6db] pb-2.5">
+                  <div className="border border-[#d3d6db] bg-[#f8f8f8] rounded-sm p-4 sm:p-5 space-y-4">
+                    <div className="flex items-center justify-between border-b border-[#e5e7eb] pb-2.5">
                       <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-[#b91c1c]" />
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
-                          SELECT BOLT FITTING WINDOW
-                        </h4>
+                        <Calendar className="w-4 h-4 text-[#b91c1c]" strokeWidth={1.75} />
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
+                          Select Bolt Fitting Window
+                        </h2>
                       </div>
-                      <span className="text-[11px] text-[#6c7079]">
-                        IST (Indian Standard Time)
-                      </span>
+                      <span className="text-[11px] text-[#6c7079]">IST</span>
+                    </div>
+
+                    {/* 3-Day IST Date Picker */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {istDates.map((dateOpt) => {
+                        const isActiveDate = selectedDayOffset === dateOpt.dayOffset
+                        const allClosedForDay =
+                          timeslots.length > 0 &&
+                          timeslots.every(
+                            (s) => getCustomerSlotAvailability(s, dateOpt.dayOffset).disabled
+                          )
+                        return (
+                          <button
+                            key={dateOpt.isoDate}
+                            type="button"
+                            disabled={allClosedForDay}
+                            onClick={() => handleSelectDateOffset(dateOpt.dayOffset)}
+                            className={`p-2.5 border rounded-sm text-left transition-colors ${
+                              allClosedForDay
+                                ? 'bg-[#f5f5f4] border-[#e5e7eb] text-[#9ca3af] cursor-not-allowed opacity-60'
+                                : isActiveDate
+                                  ? 'bg-[#14293a] text-white border-[#14293a] cursor-pointer'
+                                  : 'bg-white text-[#14293a] border-[#d3d6db] hover:border-[#14293a] cursor-pointer'
+                            }`}
+                          >
+                            <span className="text-xs font-bold block">{dateOpt.shortLabel}</span>
+                            <span
+                              className={`text-[11px] block ${
+                                isActiveDate ? 'text-white/80' : 'text-[#6c7079]'
+                              }`}
+                            >
+                              {allClosedForDay ? 'Slots closed' : dateOpt.subLabel}
+                            </span>
+                          </button>
+                        )
+                      })}
                     </div>
 
                     {loadingSlots ? (
                       <div className="py-6 text-center text-xs text-[#6c7079]">
-                        Loading available fitting slots...
+                        Loading available fitting windows...
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         {timeslots.map((slot) => {
-                          const isSelected = selectedTimeslotId === slot.id
+                          const availability = getCustomerSlotAvailability(slot, selectedDayOffset)
+                          const isSelected = !availability.disabled && selectedTimeslotId === slot.id
+
                           return (
-                            <div
+                            <button
                               key={slot.id}
+                              type="button"
+                              disabled={availability.disabled}
                               onClick={() => setSelectedTimeslotId(slot.id)}
-                              className={`p-3 border rounded-sm text-left cursor-pointer transition-all ${
-                                isSelected
-                                  ? 'border-[#b91c1c] bg-white text-[#14293a] shadow-xs ring-1 ring-[#b91c1c]'
-                                  : 'border-[#d3d6db] bg-white hover:border-[#14293a] text-[#14293a]'
+                              className={`p-3 border rounded-sm text-left transition-colors ${
+                                availability.disabled
+                                  ? 'border-[#e5e7eb] bg-[#f5f5f4] text-[#9ca3af] cursor-not-allowed opacity-60'
+                                  : isSelected
+                                    ? 'border-[#b91c1c] bg-white text-[#14293a] ring-1 ring-[#b91c1c] cursor-pointer'
+                                    : 'border-[#d3d6db] bg-white hover:border-[#14293a] text-[#14293a] cursor-pointer'
                               }`}
                             >
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold">
-                                  {slot.label}
-                                </span>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-bold">{slot.label}</span>
                                 {isSelected && (
                                   <span className="w-2 h-2 rounded-full bg-[#b91c1c] shrink-0" />
                                 )}
                               </div>
-                              <span className="text-[10px] text-[#6c7079] block mt-0.5">
-                                Capacity: {slot.max_daily_capacity} Doorstep Salons Daily
+                              <span
+                                className={`text-[11px] font-medium block mt-1 ${
+                                  availability.tone === 'limited'
+                                    ? 'text-amber-700'
+                                    : availability.tone === 'full'
+                                      ? 'text-[#8a909a]'
+                                      : 'text-emerald-700'
+                                }`}
+                              >
+                                {availability.statusText}
                               </span>
-                            </div>
+                            </button>
                           )
                         })}
                       </div>
@@ -749,56 +844,49 @@ export default function LuxuryCheckoutPage() {
                   </div>
                 )}
 
-                {/* Continue to Address Button */}
-                <div className="pt-2">
+                <div className="pt-1">
                   <Button
-                    onClick={handleProceedToAddress}
+                    type="button"
+                    onClick={handleContinueFromStep1}
                     disabled={isOverBoltLimit}
                     size="xl"
-                    className="w-full h-12 bg-[#14293a] hover:bg-[#b91c1c] text-white font-sans font-bold text-xs uppercase tracking-wider rounded-sm shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition-colors"
+                    className="w-full h-12 bg-[#14293a] hover:bg-[#b91c1c] text-white font-sans font-bold text-xs uppercase tracking-wider rounded-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition-colors"
                   >
                     <span>Continue to Shipping Address</span>
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
                   </Button>
                 </div>
               </motion.div>
             )}
 
-            {/* ========================================================= */}
-            {/* STEP 2: SHIPPING ADDRESS FORM */}
-            {/* ========================================================= */}
+            {/* ===================================================== */}
+            {/* STEP 2: SHIPPING ADDRESS FORM                         */}
+            {/* ===================================================== */}
             {activeStep === 2 && (
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
                 className="space-y-6"
               >
                 <div className="flex justify-between items-baseline border-b border-[#d3d6db] pb-3">
-                  <div className="space-y-0.5">
+                  <div>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-[#b91c1c] block">
-                      STEP 02
+                      Step 02
                     </span>
-                    <h2 className="text-xl sm:text-2xl font-sans font-bold text-[#14293a]">
-                      SHIPPING ADDRESS &amp; DETAILS
+                    <h2 className="text-lg sm:text-xl font-sans font-bold text-[#14293a]">
+                      Shipping Address &amp; Contact
                     </h2>
                   </div>
                   <button
+                    type="button"
                     onClick={() => setActiveStep(1)}
                     className="text-xs font-semibold text-[#b91c1c] hover:underline cursor-pointer"
                   >
-                    Edit Delivery Method
+                    Back to Delivery
                   </button>
                 </div>
 
-                <form onSubmit={handleSubmitOrder} className="space-y-4">
-                  {checkoutError && (
-                    <div className="p-3 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] text-xs flex items-center gap-2 rounded-sm">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <span>{checkoutError}</span>
-                    </div>
-                  )}
-
+                <form onSubmit={handleContinueFromStep2} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input
                       label="Full Name"
@@ -856,150 +944,274 @@ export default function LuxuryCheckoutPage() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <Input
-                        label="City"
-                        autoComplete="address-level2"
-                        value={formData.city}
-                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        label="State"
-                        autoComplete="address-level1"
-                        value={formData.state}
-                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        label="PIN Code"
-                        autoComplete="postal-code"
-                        inputMode="numeric"
-                        value={formData.postalCode}
-                        onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                        required
-                      />
-                    </div>
+                    <Input
+                      label="City"
+                      autoComplete="address-level2"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      required
+                    />
+                    <Input
+                      label="State"
+                      autoComplete="address-level1"
+                      value={formData.state}
+                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      required
+                    />
+                    <Input
+                      label="PIN Code"
+                      autoComplete="postal-code"
+                      inputMode="numeric"
+                      value={formData.postalCode}
+                      onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                      required
+                    />
                   </div>
 
                   <Input
                     label="Delivery / Fitting Notes (Optional)"
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="e.g. Ring private door bell or call security gate on arrival."
+                    placeholder="e.g. Ring private doorbell or call security gate on arrival."
                   />
 
-                  {/* Save Address Checkbox */}
                   <div className="pt-1 flex items-center gap-2">
                     <input
                       type="checkbox"
                       id="saveAddress"
                       checked={saveAddressToProfile}
                       onChange={(e) => setSaveAddressToProfile(e.target.checked)}
-                      className="w-4 h-4 accent-[#b91c1c] rounded-sm cursor-pointer"
+                      className="w-4 h-4 accent-[#14293a] rounded-sm cursor-pointer"
                     />
                     <label htmlFor="saveAddress" className="text-xs text-[#6c7079] cursor-pointer">
-                      Save address to profile for one-click future checkouts
+                      Save address to profile for faster future checkouts
                     </label>
                   </div>
 
-                  {/* Submit Order Button */}
-                  <div className="pt-4 space-y-3">
-                    <div className="p-3 bg-[#f8f8f8] border border-[#d3d6db] rounded-sm text-xs text-[#6c7079] flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-[#b91c1c] shrink-0" />
-                      <span>
-                        {isBoltSelected
-                          ? 'Flat ₹99 convenience booking fee authorized today. Clothes charged only after your doorstep trial.'
-                          : 'Secure encrypted checkout. Direct insured courier dispatch upon confirmation.'}
-                      </span>
-                    </div>
-
+                  <div className="pt-2">
                     <Button
                       type="submit"
                       size="xl"
-                      className="w-full h-12 bg-[#14293a] hover:bg-[#b91c1c] text-white font-sans font-bold text-xs uppercase tracking-wider rounded-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                      isLoading={isSubmitting}
+                      className="w-full h-12 bg-[#14293a] hover:bg-[#b91c1c] text-white font-sans font-bold text-xs uppercase tracking-wider rounded-sm flex items-center justify-center gap-2 cursor-pointer transition-colors"
                     >
-                      <span>
-                        {isBoltSelected
-                          ? `Confirm Bolt Try-On Booking • ₹${Math.round(immediateTotal).toLocaleString('en-IN')}`
-                          : `Confirm Order • ₹${Math.round(immediateTotal).toLocaleString('en-IN')}`}
-                      </span>
-                      <ArrowRight className="w-4 h-4" />
+                      <span>Continue to Payment</span>
+                      <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
                     </Button>
                   </div>
                 </form>
               </motion.div>
             )}
-          </div>
 
-          {/* ========================================================= */}
-          {/* RIGHT COLUMN: ORDER SUMMARY SIDEBAR */}
-          {/* ========================================================= */}
-          <div className="lg:col-span-4 space-y-5">
-            {/* Prominent Savings Banner */}
-            {totalCombinedSavings > 0 && (
-              <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-sm text-xs text-emerald-950 flex items-center justify-between shadow-xs">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+            {/* ===================================================== */}
+            {/* STEP 3: PAYMENT & FINAL REVIEW                        */}
+            {/* ===================================================== */}
+            {activeStep === 3 && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-6"
+              >
+                <div className="flex justify-between items-baseline border-b border-[#d3d6db] pb-3">
                   <div>
-                    <span className="font-bold block">
-                      You are saving ₹{totalCombinedSavings.toLocaleString('en-IN')} on this order
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#b91c1c] block">
+                      Step 03
                     </span>
-                    <span className="text-[11px] text-emerald-800">
-                      {discount > 0 && catalogSavings > 0
-                        ? `Includes ₹${catalogSavings.toLocaleString('en-IN')} catalog markdown + ₹${discount.toLocaleString('en-IN')} code ${appliedCouponCode}`
-                        : discount > 0
-                        ? `Privilege code ${appliedCouponCode} active`
-                        : 'Seasonal markdown discount applied'}
-                    </span>
+                    <h2 className="text-lg sm:text-xl font-sans font-bold text-[#14293a]">
+                      Payment &amp; Order Review
+                    </h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveStep(2)}
+                    className="text-xs font-semibold text-[#b91c1c] hover:underline cursor-pointer"
+                  >
+                    Edit Address
+                  </button>
+                </div>
+
+                {/* Review Summary Strips */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="p-4 border border-[#e5e7eb] bg-[#f8f8f8] rounded-sm space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold uppercase tracking-wider text-[10px] text-[#6c7079]">
+                        Delivering To
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveStep(2)}
+                        className="text-[11px] font-semibold text-[#b91c1c] hover:underline cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    </div>
+                    <p className="font-bold text-[#14293a]">{formData.name}</p>
+                    <p className="text-[#52565e] leading-snug">
+                      {formData.address}
+                      {formData.suite ? `, ${formData.suite}` : ''}, {formData.city}, {formData.state} {formData.postalCode}
+                    </p>
+                    <p className="text-[#6c7079]">Tel: {formData.phone}</p>
+                  </div>
+
+                  <div className="p-4 border border-[#e5e7eb] bg-[#f8f8f8] rounded-sm space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold uppercase tracking-wider text-[10px] text-[#6c7079]">
+                        Delivery Schedule
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveStep(1)}
+                        className="text-[11px] font-semibold text-[#b91c1c] hover:underline cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    </div>
+                    <p className="font-bold text-[#14293a] flex items-center gap-1.5">
+                      {isBoltSelected ? (
+                        <>
+                          <Zap className="w-3.5 h-3.5 text-[#b91c1c] fill-[#b91c1c]" strokeWidth={1.75} />
+                          <span>Bolt 45-Min Try-On</span>
+                        </>
+                      ) : (
+                        <>
+                          <Truck className="w-3.5 h-3.5 text-[#14293a]" strokeWidth={1.75} />
+                          <span>Standard Express Delivery</span>
+                        </>
+                      )}
+                    </p>
+                    <p className="text-[#52565e]">
+                      {isBoltSelected ? formattedAppointmentWindow : 'Estimated 2–4 business days dispatch'}
+                    </p>
                   </div>
                 </div>
-                <span className="text-2xs font-mono font-bold uppercase tracking-wider bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded-full">
-                  SAVED
-                </span>
-              </div>
+
+                {/* Payment Method Cards */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#14293a]">
+                    Select Payment Method
+                  </h3>
+
+                  {isBoltSelected ? (
+                    <div className="p-4 border border-[#b91c1c] bg-[#fef2f2]/40 rounded-sm space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-[#14293a] flex items-center gap-2">
+                          <Smartphone className="w-4 h-4 text-[#b91c1c]" strokeWidth={1.75} />
+                          <span>UPI / Card Hold Authorization (₹{BOLT_HOLD_FEE})</span>
+                        </span>
+                        <span className="font-bold text-[#b91c1c] tabular-nums">
+                          ₹{Math.round(immediateTotal).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <p className="text-[#52565e] leading-relaxed">
+                        Only the ₹{BOLT_HOLD_FEE} doorstep convenience hold is due now and credited toward kept pieces. Pay for kept garments after your 45-minute home trial.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('online')}
+                        className={`w-full p-4 border rounded-sm text-left flex items-center justify-between gap-4 transition-colors cursor-pointer ${
+                          paymentMethod === 'online'
+                            ? 'border-[#14293a] bg-[#f8f8f8] ring-1 ring-[#14293a]'
+                            : 'border-[#d3d6db] bg-white hover:border-[#14293a]'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <CreditCard className="w-4 h-4 text-[#14293a] mt-0.5 shrink-0" strokeWidth={1.75} />
+                          <div className="space-y-0.5">
+                            <span className="text-xs font-bold text-[#14293a] block">
+                              UPI, Credit / Debit Card &amp; NetBanking
+                            </span>
+                            <span className="text-[11px] text-[#6c7079]">
+                              Instant confirmation with encrypted checkout
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-xs font-bold tabular-nums text-[#14293a]">
+                          ₹{Math.round(immediateTotal).toLocaleString('en-IN')}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('cod')}
+                        className={`w-full p-4 border rounded-sm text-left flex items-center justify-between gap-4 transition-colors cursor-pointer ${
+                          paymentMethod === 'cod'
+                            ? 'border-[#14293a] bg-[#f8f8f8] ring-1 ring-[#14293a]'
+                            : 'border-[#d3d6db] bg-white hover:border-[#14293a]'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <Banknote className="w-4 h-4 text-[#14293a] mt-0.5 shrink-0" strokeWidth={1.75} />
+                          <div className="space-y-0.5">
+                            <span className="text-xs font-bold text-[#14293a] block">
+                              Pay on Delivery (Cash / UPI at Doorstep)
+                            </span>
+                            <span className="text-[11px] text-[#6c7079]">
+                              Settle upon insured courier handover
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-xs font-bold tabular-nums text-[#14293a]">
+                          ₹{Math.round(immediateTotal).toLocaleString('en-IN')}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Final Confirm Button */}
+                <div className="pt-2 space-y-3">
+                  <div className="p-3 bg-[#f8f8f8] border border-[#e5e7eb] rounded-sm text-xs text-[#6c7079] flex items-center gap-2">
+                    <Lock className="w-3.5 h-3.5 text-[#14293a] shrink-0" strokeWidth={1.75} />
+                    <span>
+                      256-bit encrypted transaction. Totals are verified against catalog &amp; promotion rules at order creation.
+                    </span>
+                  </div>
+
+                  <Button
+                    type="button"
+                    onClick={handleConfirmOrder}
+                    size="xl"
+                    className="w-full h-12 bg-[#14293a] hover:bg-[#b91c1c] text-white font-sans font-bold text-xs uppercase tracking-wider rounded-sm flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                    isLoading={isSubmitting}
+                  >
+                    <span>
+                      {isBoltSelected
+                        ? `Confirm Bolt Try-On Booking · ₹${Math.round(immediateTotal).toLocaleString('en-IN')}`
+                        : `Confirm Order · ₹${Math.round(immediateTotal).toLocaleString('en-IN')}`}
+                    </span>
+                    <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
+                  </Button>
+                </div>
+              </motion.div>
             )}
+          </div>
 
-            <div className="p-6 border border-[#d3d6db] bg-[#f8f8f8] space-y-4 sticky top-28 shadow-sm rounded-sm">
-              <div className="flex justify-between items-center border-b border-[#d3d6db] pb-3">
-                <span className="text-xs uppercase tracking-wider font-bold text-[#14293a]">
-                  ORDER SUMMARY
+          {/* RIGHT COLUMN: ITEMIZED ORDER SUMMARY */}
+          <div className="lg:col-span-4 space-y-4 lg:sticky lg:top-24">
+            {/* Compact Bag Items Preview */}
+            <div className="p-4 border border-[#d3d6db] bg-white rounded-sm space-y-3">
+              <div className="flex items-center justify-between border-b border-[#e5e7eb] pb-2">
+                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#14293a]">
+                  In Your Bag ({itemCount})
                 </span>
-                <span className="text-xs text-[#6c7079]">
-                  {items.length} {items.length === 1 ? 'item' : 'items'}
-                  {isBoltSelected && ' (max 5)'}
-                </span>
+                <Link href="/cart" className="text-[11px] font-semibold text-[#b91c1c] hover:underline">
+                  Edit Bag
+                </Link>
               </div>
-
-              {/* Items list */}
-              <div className="space-y-3 divide-y divide-[#e5e7eb] max-h-64 overflow-y-auto pr-1 filter-card-scroll">
+              <div className="space-y-3 divide-y divide-[#e5e7eb] max-h-60 overflow-y-auto pr-1">
                 {items.map((item) => (
                   <div key={item.id} className="pt-2.5 first:pt-0 flex gap-3 items-center">
-                    <div className="relative h-14 w-12 overflow-hidden bg-white shrink-0 border border-[#d3d6db] rounded-sm">
-                      <Image
-                        src={item.image}
-                        alt={item.title}
-                        fill
-                        className="object-cover object-center"
-                      />
+                    <div className="relative h-14 w-11 overflow-hidden bg-[#f5f5f4] shrink-0 border border-[#e5e7eb] rounded-sm">
+                      <ProductImage src={item.image} alt={item.title} fill sizes="44px" />
                     </div>
                     <div className="flex-1 min-w-0 space-y-0.5">
-                      <p className="text-xs font-bold text-[#14293a] truncate">
-                        {item.title}
+                      <p className="text-xs font-bold text-[#14293a] truncate">{item.title}</p>
+                      <p className="text-[11px] text-[#6c7079]">
+                        Qty: {item.quantity}
+                        {item.size ? ` · Size ${item.size}` : ''}
                       </p>
-                      <div className="flex items-center gap-2 text-[10px] text-[#6c7079]">
-                        <span>Qty: {item.quantity}</span>
-                        {item.size && (
-                          <span>
-                            • Size: <strong className="text-[#14293a]">{item.size}</strong>
-                          </span>
-                        )}
-                      </div>
                     </div>
                     <div className="text-right shrink-0">
                       <span className="text-xs font-bold text-[#14293a] block tabular-nums">
@@ -1014,80 +1226,26 @@ export default function LuxuryCheckoutPage() {
                   </div>
                 ))}
               </div>
+            </div>
 
-              {/* Selected Delivery Badge */}
-              <div className="p-3 bg-white border border-[#d3d6db] rounded-sm flex justify-between items-center text-xs">
-                <span className="font-bold text-[#14293a] flex items-center gap-1.5">
-                  {isBoltSelected ? (
-                    <>
-                      <Zap className="w-3.5 h-3.5 fill-[#b91c1c] text-[#b91c1c]" /> Bolt Try-On Service
-                    </>
-                  ) : (
-                    <>
-                      <Truck className="w-3.5 h-3.5 text-[#14293a]" /> Standard Delivery
-                    </>
-                  )}
-                </span>
-                <span className="font-bold text-[#14293a]">
-                  {isBoltSelected ? '₹99.00' : '₹150.00'}
-                </span>
-              </div>
+            <PriceDetailsBox
+              items={items}
+              subtotal={subtotal}
+              discount={discount}
+              discountedSubtotal={discountedSubtotal}
+              tax={tax}
+              shippingFee={activeShippingFee}
+              estimatedTotal={immediateTotal}
+              isBoltSelected={isBoltSelected}
+              appliedCouponCode={appliedCouponCode}
+              qualifiesForFreeShipping={qualifiesFreeShipping}
+              standardShippingFee={STANDARD_SHIPPING_FEE}
+              boltHoldFee={BOLT_HOLD_FEE}
+            />
 
-              {/* Price Calculations Breakdown */}
-              <div className="border-t border-[#d3d6db] pt-3 space-y-2 text-xs">
-                {catalogSavings > 0 && (
-                  <div className="flex justify-between text-[#8a909a] text-xs">
-                    <span>Total MRP</span>
-                    <span className="line-through tabular-nums">
-                      ₹{(subtotal + catalogSavings).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between text-[#6c7079]">
-                  <span>Garments Subtotal</span>
-                  <span className="font-bold text-[#14293a]">₹{subtotal.toLocaleString('en-IN')}</span>
-                </div>
-
-                {isBoltSelected ? (
-                  <>
-                    <div className="flex justify-between text-[#b91c1c] bg-[#fef2f2] p-2 border border-[#fecaca] rounded-sm">
-                      <span className="flex items-center gap-1">
-                        <Sparkles className="w-3 h-3 text-[#b91c1c]" />
-                        Payable after Try-On:
-                      </span>
-                      <span className="font-bold">₹{subtotal.toLocaleString('en-IN')}</span>
-                    </div>
-                    <div className="flex justify-between text-[#6c7079]">
-                      <span>Bolt Convenience Hold</span>
-                      <span className="font-bold text-[#14293a]">₹99.00</span>
-                    </div>
-                    <div className="border-t border-[#d3d6db] pt-3 flex justify-between text-base font-bold text-[#14293a]">
-                      <span>Immediate Checkout Due</span>
-                      <span className="text-lg text-[#b91c1c]">₹99.00</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex justify-between text-[#6c7079]">
-                      <span>Shipping Dispatch</span>
-                      <span className="font-bold tabular-nums text-[#14293a]">₹150</span>
-                    </div>
-                    <div className="flex justify-between text-[#6c7079]">
-                      <span>Estimated Tax (8%)</span>
-                      <span className="font-bold tabular-nums text-[#14293a]">₹{Math.round(tax).toLocaleString('en-IN')}</span>
-                    </div>
-                    <div className="border-t border-[#d3d6db] pt-3 flex justify-between text-base font-bold text-[#14293a]">
-                      <span>Total Due Now</span>
-                      <span className="text-lg tabular-nums">₹{Math.round(immediateTotal).toLocaleString('en-IN')}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="pt-2 flex items-center gap-1.5 text-[11px] text-[#6c7079] justify-center">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#b91c1c]" />
-                <span>Complimentary Returns &amp; Doorstep Swaps</span>
-              </div>
+            <div className="pt-1 flex items-center gap-1.5 text-[11px] text-[#6c7079] justify-center">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#14293a]" strokeWidth={1.75} />
+              <span>Complimentary Returns &amp; Doorstep Swaps</span>
             </div>
           </div>
         </div>
